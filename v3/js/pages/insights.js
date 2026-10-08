@@ -238,7 +238,7 @@
       <div class="dt-wrap"><table class="dt">
         <thead><tr><th scope="col">Indicateur</th><th scope="col">${L.cur}</th><th scope="col">${L.prev}</th><th scope="col">Écart</th></tr></thead>
         <tbody>${rows.map((r) => h`<tr>
-          <th scope="row"><div class="dt-main"><span class="dt-ic" data-tone="${r.tone}">${r.raw || icon(r.ic)}</span><strong>${r.name}</strong></div></th>
+          <td><div class="dt-main"><span class="dt-ic" data-tone="${r.tone}">${r.raw || icon(r.ic)}</span><strong>${r.name}</strong></div></td>
           <td class="dt-v">${r.cur}</td><td class="bi-prev">${r.prev}</td><td>${r.d || h`<span class="delta">—</span>`}</td></tr>`)}</tbody></table></div>` });
   }
 
@@ -292,7 +292,7 @@
 
   BZ.pages.insights = () => {
     REG.clear();
-    const P = BZ.period(BZ.ui.period), T = P.total, Q = P.prevTotal, L = LBL[P.kind]();
+    const P = BZ.period(LBL[BZ.ui.period] ? BZ.ui.period : "semaine"), T = P.total, Q = P.prevTotal, L = LBL[P.kind]();
     return h`${header(P)}${kpis(P, T, Q, L)}
       <div class="layout bi-grid">
         <div class="col bi-l">${chartCard(P, T)}<div class="bi-pair">${compareCard(T, Q, L)}${bestCard(P, L)}</div></div>
