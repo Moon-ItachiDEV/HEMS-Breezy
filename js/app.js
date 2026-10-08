@@ -581,11 +581,14 @@ ${V.entretien}
         <div class="hk-tile ${locked ? "on" : ""} wide" style="--c:#1f9d55"><button class="hk-ic" data-act="car-lock">${ICONS[locked ? "lock" : "unlock"]}</button>
         <button class="hk-tx" data-act="car-lock"><b>Kia e-Niro</b><span>${armed.unlock ? "Appuie encore pour ouvrir" : locked ? "Verrouillée" : "Déverrouillée"}</span></button></div></div></div>`;
     } else {
-      body = (!hkFilter || hkFilter === "appareils" ? nowPlaying() : "") + CATS.filter((c) => !hkFilter || c.k === hkFilter).map(section).join("");
+      body = CATS.filter((c) => !hkFilter || c.k === hkFilter).map(section).join("");
     }
     return `<div class="hk-wall" aria-hidden="true"></div>
       <header class="hk-head"><div><div class="eyebrow">${METEO_TXT[st(C.meteo)] || "Dehors"} · ${fr(at(C.meteo, "temperature"))}° dehors</div><h1>Ma maison</h1></div></header>
-      <div class="hk-chips">${chips.map(([k, ic, c, l, v]) => `<button class="hk-chip ${hkFilter === k ? "on" : ""}" data-hk="${k}" style="--c:${c}">${chip(ic, c, "sm")}<span><b>${l}</b><em>${v}</em></span></button>`).join("")}</div>
+      <div class="hk-bar">
+  <div class="hk-chips">${chips.map(([k, ic, c, l, v]) => `<button class="hk-chip ${hkFilter === k ? "on" : ""}" data-hk="${k}" style="--c:${c}">${chip(ic, c, "sm")}<span><b>${l}</b><em>${v}</em></span></button>`).join("")}</div>
+        ${nowPlaying()}
+      </div>
       ${hkFilter ? `<button class="hk-back" data-hk="">${ICONS.up} Toutes les pièces</button>` : ""}
       <div class="wrap hk">${body}</div>`;
   }
