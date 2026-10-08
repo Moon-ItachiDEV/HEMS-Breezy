@@ -68,11 +68,11 @@
   s("input_number.eniro_dernier_entretien_km", 45000);
 
   // Tarifs
-  s("sensor.hv_prix_kwh", 0.2516, { unit_of_measurement: "€/kWh" });
+  s("sensor.hv_prix_kwh", 0.2302, { unit_of_measurement: "€/kWh" });
   s("sensor.hv_eco_reel_jour", 2.84, { unit_of_measurement: "€" });
-  s("input_number.tarif_hp", 0.2516);
-  s("input_number.tarif_hc", 0.1828);
-  s("input_number.tarif_hsc", 0.1296);
+  s("input_number.tarif_hp", 0.2302);
+  s("input_number.tarif_hc", 0.1576);
+  s("input_number.tarif_hsc", 0.1335);
   s("input_datetime.hsc_debut", "02:00:00");
 
   // Domotique
