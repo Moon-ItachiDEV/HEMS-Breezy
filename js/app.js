@@ -530,9 +530,9 @@ ${V.entretien}
     const [r, ix] = key.split(":"), i = ix == null ? null : +ix;
     if (r === "lumieres") { const id = C.lumieres[i]; return { key, cat: "lumieres", ic: "bulb", c: "#f5b400", nom: C.lumieres_noms[i], on: on(id), etat: on(id) ? "Allumée" : "Éteinte", act: "light", i }; }
     if (r === "volets") { const id = C.volets[i], p = at(id, "current_position"); return { key, cat: "volets", ic: "blinds", c: "#3a7bec", nom: C.volets_noms[i], on: p > 0, etat: p === 0 ? "Fermé" : p === 100 ? "Ouvert" : `${p} % ouvert`, sheet: "volet", i }; }
-    if (r === "radiateurs") { const id = C.radiateurs[i], rOn = st(id) !== "off", t = C.radiateurs_temp[i]; return { key, cat: "climat", ic: "therm", c: "#e8711a", nom: C.radiateurs_noms[i], on: rOn, etat: `Radiateur · ${t ? fr(n(t), 1) : fr(at(id, "current_temperature"), 1)}°${rOn ? ` → ${fr(at(id, "temperature"), 1)}°` : " · éteint"}`, sheet: "radiateur", i }; }
-    if (r === "poele") { const pOn = st(C.poele) !== "off"; return { key, cat: "climat", ic: "flame", c: "#e5484d", nom: "Poêle à granulés", on: pOn, etat: pOn ? `${st(C.poele_statut)} · P${st(C.poele_puissance)} · ${fr(n(C.tremie_kg))} kg` : "Éteint", big: `${fr(at(C.poele, "current_temperature"), 1)}°`, sheet: "poele", wide: true }; }
-    if (r === "ballon") { const ch = on(C.ballon_chauffe); return { key, cat: "climat", ic: "drop", c: "#3a7bec", nom: "Ballon d'eau chaude", on: ch || n(C.ballon_boost) === 1, etat: ch ? "Chauffe" : `${fr(n(C.ballon_temp))}° · consigne ${fr(at(C.ballon, "temperature"))}°`, sheet: "ballon" }; }
+    if (r === "radiateurs") { const id = C.radiateurs[i], rOn = st(id) !== "off", t = C.radiateurs_temp[i]; return { key, cat: "climat", ic: "therm", c: "#e8711a", nom: C.radiateurs_noms[i], on: rOn, etat: `${t ? fr(n(t), 1) : fr(at(id, "current_temperature"), 1)}°${rOn ? ` → ${fr(at(id, "temperature"), 1)}°` : " · éteint"}`, sheet: "radiateur", i }; }
+    if (r === "poele") { const pOn = st(C.poele) !== "off"; return { key, cat: "climat", ic: "flame", c: "#e5484d", nom: "Poêle", on: pOn, etat: pOn ? `${fr(at(C.poele, "current_temperature"), 1)}° · P${st(C.poele_puissance)} · ${fr(n(C.tremie_kg))} kg` : "Éteint", sheet: "poele" }; }
+    if (r === "ballon") { const ch = on(C.ballon_chauffe); return { key, cat: "climat", ic: "drop", c: "#3a7bec", nom: "Ballon d'eau chaude", on: ch || n(C.ballon_boost) === 1, etat: `${fr(n(C.ballon_temp))}° → ${fr(at(C.ballon, "temperature"))}°${ch ? " · chauffe" : ""}`, sheet: "ballon" }; }
     if (r === "prise_chambre") return { key, cat: "appareils", ic: "plug", c: "#1f9d55", nom: "Prise chambre", on: on(C.prise_chambre), etat: on(C.prise_chambre) ? `${fr(n(C.prise_chambre_w))} W` : "Éteinte", act: "plug" };
     if (r === "multiprise") { const k = C.multiprise.filter(on).length; return { key, cat: "appareils", ic: "plug", c: "#1f9d55", nom: "Multiprise", on: k > 0, etat: `${k} sur ${C.multiprise.length} allumées`, sheet: "multiprise" }; }
     if (r === "robot") return { key, cat: "appareils", ic: "robot", c: "#3a7bec", nom: "Aspirateur", on: st(C.robot) === "cleaning", etat: `${robotTxt()} · ${fr(n(C.robot_batterie))} %`, sheet: "robot" };
@@ -568,11 +568,11 @@ ${V.entretien}
         extra: `<button class="hk-link" data-act="lights-off">Tout éteindre</button>` },
       { k: "volets", titre: "Volets", meta: `${nbOpen} sur ${C.volets.length} ouverts`, keys: C.volets.map((_, i) => `volets:${i}`),
         extra: `<span class="hk-links"><button class="hk-link" data-act="covers" data-i="100">Tout ouvrir</button><button class="hk-link" data-act="covers" data-i="0">Tout fermer</button></span>` },
-      { k: "climat", titre: "Chauffage", meta: `${nbRad} en marche · ${fr(Math.min(...temps), 0)}–${fr(Math.max(...temps), 0)}°`, keys: ["poele", ...C.radiateurs.map((_, i) => `radiateurs:${i}`), "ballon"] },
+      { k: "climat", titre: "Chauffage", meta: `${nbRad} en marche · ${fr(Math.min(...temps), 0)}–${fr(Math.max(...temps), 0)}°`, keys: ["poele", "ballon", ...C.radiateurs.map((_, i) => `radiateurs:${i}`)] },
       { k: "appareils", titre: "Appareils", meta: "", keys: ["prise_chambre", "multiprise", "robot", "homepod"] },
     ];
     const section = (c) => `<div class="hk-room"><div class="hk-rh"><h2>${c.titre}</h2>${c.meta ? `<span>${c.meta}</span>` : ""}${c.extra || ""}</div>
-      <div class="hk-grid">${c.keys.map((k) => tile(acc(k))).join("")}</div></div>`;
+      <div class="hk-grid">${c.keys.map((k) => tile(acc(k))).join("")}${c.keys.length % 2 ? `<div class="hk-tile ghost" aria-hidden="true"></div>` : ""}</div></div>`;
     let body;
     if (hkFilter === "securite") {
       body = `<div class="hk-room"><div class="hk-rh"><h2>Sécurité</h2></div><div class="hk-grid">
