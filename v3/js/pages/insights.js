@@ -28,6 +28,7 @@
   // Haut d'échelle « rond » mais serré (évite 1 000 pour un maximum de 760)
   const niceTop = (v) => { if (v <= 0) return 1; const p = 10 ** Math.floor(Math.log10(v)), n = v / p; return ([1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((s) => n <= s) || 10) * p; };
   const UP = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>';
+  const CMP = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h15M15 4l4 4-4 4M20 16H5M9 12l-4 4 4 4"/></svg>';
   const DL = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11.5M7 10.5l5 5 5-5M4.5 20h15"/></svg>';
 
   // Courbe monotone : passe par chaque mesure sans « boucler » au-dessus ou en dessous (Fritsch–Carlson)
@@ -185,6 +186,11 @@
     return `data:text/csv;charset=utf-8,${encodeURIComponent("﻿" + rows.map((r) => r.join(";")).join("\r\n"))}`;
   }
 
+  // Même gabarit que BZ.card, pour une icône qui n'est pas dans le jeu commun
+  const cardSvg = ({ cls, title, svg, tone = "accent", aside, body }) => h`<section class="card ${cls}">
+      <header class="card-h"><span class="card-i" data-tone="${tone}">${svg}</span><div class="card-t"><h3>${title}</h3></div>${aside ? h`<div class="card-a">${aside}</div>` : ""}</header>
+      ${body}</section>`;
+
   /* ─── Blocs de la page ────────────────────────────────────────────── */
   function header(P) {
     const stamp = new Date().toISOString().slice(0, 10);
@@ -248,7 +254,7 @@
       { ic: "battery", tone: "battery", name: "Batterie restituée", cur: fmt.kwhText(T.dch), prev: fmt.kwhText(Q.dch), d: delta(T.dch, Q.dch) },
       { ic: "sun", tone: "solar", name: "Autoconsommation", cur: fmt.pct(selfUse(T)), prev: fmt.pct(selfUse(Q)), d: delta(selfUse(T), selfUse(Q), { unit: "pts" }) },
     ];
-    return card({ cls: "bi-cmp", title: "Comparaison", ic: "refresh", tone: "accent", aside: h`<span class="bi-note">${L.vs}</span>`, body: h`
+    return cardSvg({ cls: "bi-cmp", title: "Comparaison", svg: CMP, aside: h`<span class="bi-note">${L.vs}</span>`, body: h`
       <div class="dt-wrap"><table class="dt">
         <thead><tr><th scope="col">Indicateur</th><th scope="col">${L.cur}</th><th scope="col">${L.prev}</th><th scope="col">Écart</th></tr></thead>
         <tbody>${rows.map((r) => h`<tr>
@@ -263,7 +269,7 @@
     const best = [...real].sort((a, z) => z.b.prod - a.b.prod).slice(0, 5);
     const body = best.length ? h`<ol class="plist bi-best">${best.map(({ b, i }, r) => {
       const vs = (b.prod / avg - 1) * 100;
-      const sub = isDay ? h`${BZ.TARIFS[b.tariff].label}${b.cons != null ? h`<span class="bi-sx"> · ${fmt.kwhText(b.cons)} conso.</span>` : ""}`
+      const sub = isDay ? h`<span class="bi-ln">${BZ.TARIFS[b.tariff].label}</span><span class="bi-sn">${BZ.TARIFS[b.tariff].short}</span>${b.cons != null ? h`<span class="bi-sx"> · ${fmt.kwhText(b.cons)} conso.</span>` : ""}`
         : h`${fmt.n(aut(b) * 100)} % autonome<span class="bi-sx"> · ${fmt.kwhText(b.exp)} revendus</span>`;
       return h`<li><div class="plist-r">
         <span class="bi-rk ${r === 0 ? "is-1" : ""}"><span class="sr">Rang </span>${r + 1}</span>
