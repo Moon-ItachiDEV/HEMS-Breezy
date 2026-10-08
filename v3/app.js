@@ -59,6 +59,8 @@
       return { titre: "kWh cette année", total: d.slice(0, new Date().getMonth() + 1).reduce((a, b) => a + b, 0), evol: 9, labels: MOIS.map((m) => m[0]), data: d, hi: new Date().getMonth() }; },
   };
   const ANNEE = PERIODES.annee().data;
+  const MOIS_LONG = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  const CONSO_ANNEE = [610, 540, 500, 420, 380, 350, 360, 370, 400, 470, 560, 640]; // conso réelle maison + voiture (démo)
 
   // ─── Commandes simulées
   const toastEl = document.getElementById("toast");
@@ -107,38 +109,50 @@
 
   // ─── Graphique courbe avec survol
   const CHARTS = {};
-  function curve(id, { labels, data, unit, color = "var(--orange)", hi = -1 }) {
-    const W = 320, Hh = 110, PT = 16, PB = 18;
-    const max = Math.max(...data) * 1.15;
-    const xs = (i) => 8 + (i * (W - 16)) / (data.length - 1);
+  function curve(id, { labels, series, unit, hi = -1 }) {
+    const W = 320, Hh = 120, PT = 14, PB = 18;
+    const max = Math.max(...series.flatMap((se) => se.data)) * 1.12;
+    const len = labels.length;
+    const xs = (i) => 8 + (i * (W - 16)) / (len - 1);
     const ys = (v) => PT + (1 - v / max) * (Hh - PT - PB);
-    const pts = data.map((v, i) => [xs(i), ys(v)]);
-    CHARTS[id] = { labels, data, unit, xs, ys, W };
-    return `<div class="chart" data-chart="${id}"><svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Courbe ${unit}">
-      <defs><linearGradient id="g-${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".18"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
-      <path d="${smooth(pts)} L${xs(data.length - 1)} ${Hh - PB} L${xs(0)} ${Hh - PB} Z" fill="url(#g-${id})"/>
-      <path d="${smooth(pts)}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
-      ${hi >= 0 ? `<circle cx="${xs(hi)}" cy="${ys(data[hi])}" r="9" fill="${color}" opacity=".15"/><circle cx="${xs(hi)}" cy="${ys(data[hi])}" r="4.5" fill="#fff" stroke="${color}" stroke-width="2"/>` : ""}
+    CHARTS[id] = { labels, series, unit, xs, ys, W, H: Hh, len };
+    const body = series.map((se, k) => {
+      const d = smooth(se.data.map((v, i) => [xs(i), ys(v)]));
+      return `<defs><linearGradient id="g-${id}-${k}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${se.color}" stop-opacity="${se.fill ?? 0.16}"/><stop offset="1" stop-color="${se.color}" stop-opacity="0"/></linearGradient></defs>
+        <path d="${d} L${xs(len - 1)} ${Hh - PB} L${xs(0)} ${Hh - PB} Z" fill="url(#g-${id}-${k})"/>
+        <path d="${d}" fill="none" stroke="${se.color}" stroke-width="2" stroke-linecap="round" ${se.dash ? `stroke-dasharray="${se.dash}"` : ""}/>
+        ${hi >= 0 ? `<circle cx="${xs(hi)}" cy="${ys(se.data[hi])}" r="4.5" fill="#fff" stroke="${se.color}" stroke-width="2"/>` : ""}`;
+    }).join("");
+    return `<div class="chart" data-chart="${id}"><svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${series.map((se) => se.name).join(" et ")} en ${unit}">
+      ${body}
       ${labels.map((l, i) => `<text class="ax" x="${xs(i)}" y="${Hh - 3}" text-anchor="middle">${l}</text>`).join("")}
       <line class="cross" y1="${PT}" y2="${Hh - PB}" stroke="var(--faint)" stroke-dasharray="2 3" style="display:none"/>
-      <circle class="dotc" r="4.5" fill="${color}" stroke="#fff" stroke-width="2" style="display:none"/>
+      ${series.map((se) => `<circle class="dotc" r="4.5" fill="${se.color}" stroke="#fff" stroke-width="2" style="display:none"/>`).join("")}
       </svg><div class="tip"></div></div>`;
   }
   document.addEventListener("pointermove", (ev) => {
     const box = ev.target.closest && ev.target.closest(".chart");
-    document.querySelectorAll(".chart .tip.on").forEach((t) => { if (!box || !box.contains(t)) { t.classList.remove("on"); t.parentNode.querySelector(".cross").style.display = "none"; t.parentNode.querySelector(".dotc").style.display = "none"; } });
+    document.querySelectorAll(".chart .tip.on").forEach((t) => {
+      if (box && box.contains(t)) return;
+      t.classList.remove("on");
+      t.parentNode.querySelector(".cross").style.display = "none";
+      t.parentNode.querySelectorAll(".dotc").forEach((d) => (d.style.display = "none"));
+    });
     if (!box) return;
     const c = CHARTS[box.dataset.chart], svg = box.querySelector("svg"), r = svg.getBoundingClientRect();
     const x = ((ev.clientX - r.left) / r.width) * c.W;
     let i = 0, best = Infinity;
-    c.data.forEach((_, k) => { const d = Math.abs(c.xs(k) - x); if (d < best) { best = d; i = k; } });
-    const cross = svg.querySelector(".cross"), dot = svg.querySelector(".dotc");
+    for (let k = 0; k < c.len; k++) { const d = Math.abs(c.xs(k) - x); if (d < best) { best = d; i = k; } }
+    const cross = svg.querySelector(".cross");
     cross.setAttribute("x1", c.xs(i)); cross.setAttribute("x2", c.xs(i)); cross.style.display = "";
-    dot.setAttribute("cx", c.xs(i)); dot.setAttribute("cy", c.ys(c.data[i])); dot.style.display = "";
+    svg.querySelectorAll(".dotc").forEach((d, k) => { d.setAttribute("cx", c.xs(i)); d.setAttribute("cy", c.ys(c.series[k].data[i])); d.style.display = ""; });
     const tip = box.querySelector(".tip");
-    tip.textContent = `${c.labels[i]} · ${fr(c.data[i], 1)} ${c.unit}`;
+    const top = Math.min(...c.series.map((se) => c.ys(se.data[i])));
+    tip.innerHTML = `<b>${c.labels[i]}</b><br>${c.series.map((se) => `<span class="tdot" style="--c:${se.color}"></span>${se.name} ${fr(se.data[i])} ${c.unit}`).join("<br>")}`;
+    const left = i < c.len / 2;
     tip.style.left = `${(c.xs(i) / c.W) * 100}%`;
-    tip.style.top = `${(c.ys(c.data[i]) / 110) * 100}%`;
+    tip.style.transform = `translate(${left ? "10px" : "calc(-100% - 10px)"}, -50%)`;
+    tip.style.top = `${(top / c.H) * 100}%`;
     tip.classList.add("on");
   });
 
@@ -498,10 +512,26 @@ ${chargeStats()}
             <svg class="donut" viewBox="0 0 150 150" role="img" aria-label="Origine de l'énergie consommée">${arcs}</svg>
           </div>
         </div>
-        <div class="card">
-          <h3>Production sur 12 mois <span class="end">${new Date().getFullYear()}</span></h3>
-          ${curve("annee", { labels: MOIS, data: ANNEE, unit: "kWh", hi: new Date().getMonth() })}
-        </div>
+        ${(() => {
+          const m = new Date().getMonth();
+          const sp = ANNEE.reduce((a, b) => a + b, 0), sc = CONSO_ANNEE.reduce((a, b) => a + b, 0);
+          const couv = (ANNEE.reduce((a, v, i) => a + Math.min(v, CONSO_ANNEE[i]), 0) / sc) * 100;
+          return `<div class="card">
+          <h3>Production et consommation <span class="end">${new Date().getFullYear()}</span></h3>
+          <div class="ylegend">
+            <div style="--c:var(--orange)"><span>Production</span><b>${fr(sp)} <small>kWh</small></b></div>
+            <div style="--c:var(--blue)"><span>Consommation</span><b>${fr(sc)} <small>kWh</small></b></div>
+            <div><span>Couverture</span><b>${fr(couv)} <small>%</small></b></div>
+          </div>
+          ${curve("annee", { labels: MOIS, series: [
+            { name: "Production", data: ANNEE, color: "#e8711a", fill: 0.2 },
+            { name: "Consommation", data: CONSO_ANNEE, color: "#3a7bec", fill: 0.06 },
+          ], unit: "kWh", hi: m })}
+          <div class="muted small" style="margin-top:8px">${ANNEE[m] >= CONSO_ANNEE[m]
+            ? `En ${MOIS_LONG[m]}, tu produis <b style="color:var(--txt)">${fr(ANNEE[m] - CONSO_ANNEE[m])} kWh de plus</b> que tu ne consommes.`
+            : `En ${MOIS_LONG[m]}, il manque <b style="color:var(--txt)">${fr(CONSO_ANNEE[m] - ANNEE[m])} kWh</b> de soleil pour couvrir ta consommation.`}</div>
+        </div>`;
+        })()}
         <p class="demo-note">Les historiques de cette page sont des exemples en attendant Home Assistant.</p>
       </div>`;
   }

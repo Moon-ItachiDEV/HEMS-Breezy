@@ -474,3 +474,12 @@ body {
 .sfoot > div { background: var(--soft); border-radius: 16px; padding: 12px 14px; }
 .sfoot span { display: block; font-size: .64rem; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
 .sfoot b { font-family: var(--display); font-size: 1.25rem; font-weight: 650; letter-spacing: -.035em; }
+
+/* Graphique production / consommation */
+.ylegend { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: -4px 0 10px; }
+.ylegend span { display: flex; align-items: center; gap: 6px; font-size: .62rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ylegend > div[style] span::before { content: ""; width: 10px; height: 3px; border-radius: 3px; background: var(--c); }
+.ylegend b { font-family: var(--display); font-size: 1.05rem; font-weight: 650; letter-spacing: -.03em; }
+.ylegend b small { font-family: "Inter", sans-serif; font-size: .68rem; color: var(--muted); font-weight: 500; letter-spacing: 0; }
+.chart .tip { line-height: 1.5; }
+.tdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--c); margin-right: 5px; }
