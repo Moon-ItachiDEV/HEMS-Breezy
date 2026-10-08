@@ -512,9 +512,38 @@
     current = name;
     try { localStorage.setItem("voltia-v3-page", name); } catch (e) {}
     document.querySelectorAll(".tabbar [data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === name));
+    followIndicator();
     render();
     window.scrollTo({ top: 0 });
   }
+  // L'indicateur orange suit l'onglet actif pendant que la barre se réorganise
+  const tabbar = document.querySelector(".tabbar"), ind = tabbar.querySelector(".ind");
+  let followUntil = 0, firstPlace = true;
+  function placeIndicator() {
+    const b = tabbar.querySelector("button.on");
+    if (!b) return;
+    ind.style.width = `${b.offsetWidth}px`;
+    ind.style.transform = `translateX(${b.offsetLeft}px)`;
+  }
+  function followIndicator() {
+    if (firstPlace) { firstPlace = false; ind.style.transition = "none"; placeIndicator(); return; }
+    ind.style.transition = "";
+    followUntil = performance.now() + 600;
+    const loop = (t) => { placeIndicator(); if (t < followUntil) requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  }
+  window.addEventListener("resize", placeIndicator);
+  if (document.fonts) document.fonts.ready.then(placeIndicator);
+  tabbar.addEventListener("click", (ev) => { if (ev.target.closest("button") && navigator.vibrate) navigator.vibrate(8); });
+  // La barre se cache quand on descend dans la page et revient dès qu'on remonte
+  let lastY = window.scrollY;
+  window.addEventListener("scroll", () => {
+    const y = window.scrollY, bottom = y + innerHeight >= document.documentElement.scrollHeight - 40;
+    if (y > lastY + 6 && y > 80 && !bottom) tabbar.classList.add("hide");
+    else if (y < lastY - 6 || y < 80 || bottom) tabbar.classList.remove("hide");
+    lastY = y;
+  }, { passive: true });
+
   function render() {
     const el = document.getElementById("page");
     el.innerHTML = PAGES[current]();
