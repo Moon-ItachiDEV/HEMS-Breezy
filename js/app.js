@@ -449,7 +449,6 @@ ${chargeStats()}
   let hkFilter = null;      // null = par pièce, sinon une catégorie
   let sheet = null;         // { kind, i } du panneau ouvert
   const METEO_TXT = { sunny: "Ensoleillé", "clear-night": "Nuit claire", partlycloudy: "Éclaircies", cloudy: "Nuageux", rainy: "Pluie", pouring: "Averses", snowy: "Neige", fog: "Brouillard", windy: "Venteux", lightning: "Orage" };
-  const ref = (key) => { const [r, i] = key.split(":"); return i == null ? C[r] : C[r][+i]; };
   const robotTxt = () => ({ docked: "Sur sa base", cleaning: "Nettoie", returning: "Retour à la base", idle: "En pause" }[st(C.robot)] || st(C.robot));
 
   // Décrit chaque accessoire : catégorie, icône, couleur quand il est actif, état lisible, action au toucher
@@ -457,7 +456,7 @@ ${chargeStats()}
     const [r, ix] = key.split(":"), i = ix == null ? null : +ix;
     if (r === "lumieres") { const id = C.lumieres[i]; return { key, cat: "lumieres", ic: "bulb", c: "#f5b400", nom: C.lumieres_noms[i], on: on(id), etat: on(id) ? "Allumée" : "Éteinte", act: "light", i }; }
     if (r === "volets") { const id = C.volets[i], p = at(id, "current_position"); return { key, cat: "volets", ic: "blinds", c: "#3a7bec", nom: C.volets_noms[i], on: p > 0, etat: p === 0 ? "Fermé" : p === 100 ? "Ouvert" : `${p} % ouvert`, sheet: "volet", i }; }
-    if (r === "radiateurs") { const id = C.radiateurs[i], rOn = st(id) !== "off", t = C.radiateurs_temp[i]; return { key, cat: "climat", ic: "therm", c: "#e8711a", nom: "Radiateur", on: rOn, etat: `${t ? fr(n(t), 1) : fr(at(id, "current_temperature"), 1)}° · ${rOn ? `vise ${fr(at(id, "temperature"), 1)}°` : "éteint"}`, sheet: "radiateur", i }; }
+    if (r === "radiateurs") { const id = C.radiateurs[i], rOn = st(id) !== "off", t = C.radiateurs_temp[i]; return { key, cat: "climat", ic: "therm", c: "#e8711a", nom: C.radiateurs_noms[i], on: rOn, etat: `Radiateur · ${t ? fr(n(t), 1) : fr(at(id, "current_temperature"), 1)}°${rOn ? ` → ${fr(at(id, "temperature"), 1)}°` : " · éteint"}`, sheet: "radiateur", i }; }
     if (r === "poele") { const pOn = st(C.poele) !== "off"; return { key, cat: "climat", ic: "flame", c: "#e5484d", nom: "Poêle à granulés", on: pOn, etat: pOn ? `${st(C.poele_statut)} · P${st(C.poele_puissance)} · ${fr(n(C.tremie_kg))} kg` : "Éteint", big: `${fr(at(C.poele, "current_temperature"), 1)}°`, sheet: "poele", wide: true }; }
     if (r === "ballon") { const ch = on(C.ballon_chauffe); return { key, cat: "climat", ic: "drop", c: "#3a7bec", nom: "Ballon d'eau chaude", on: ch || n(C.ballon_boost) === 1, etat: ch ? "Chauffe" : `${fr(n(C.ballon_temp))}° · consigne ${fr(at(C.ballon, "temperature"))}°`, sheet: "ballon" }; }
     if (r === "prise_chambre") return { key, cat: "appareils", ic: "plug", c: "#1f9d55", nom: "Prise chambre", on: on(C.prise_chambre), etat: on(C.prise_chambre) ? `${fr(n(C.prise_chambre_w))} W` : "Éteinte", act: "plug" };
@@ -481,30 +480,32 @@ ${chargeStats()}
     const nbL = C.lumieres.filter(on).length, nbV = C.volets.filter((id) => at(id, "current_position") > 0).length;
     const locked = st(C.voiture_verrou) === "locked";
     const chips = [
-      ["climat", "therm", "#e8711a", "Climat", `${fr(Math.min(...temps), 0)}–${fr(Math.max(...temps), 0)}°`],
+      ["climat", "therm", "#e8711a", "Chauffage", `${fr(Math.min(...temps), 0)}–${fr(Math.max(...temps), 0)}°`],
       ["lumieres", "bulb", "#f5b400", "Lumières", nbL ? `${nbL} allumée${nbL > 1 ? "s" : ""}` : "Éteintes"],
       ["volets", "blinds", "#3a7bec", "Volets", `${nbV} ouvert${nbV > 1 ? "s" : ""}`],
       ["appareils", "plug", "#1f9d55", "Appareils", `${C.multiprise.filter(on).length + (on(C.prise_chambre) ? 1 : 0)} actifs`],
       ["securite", locked ? "lock" : "unlock", locked ? "#1f9d55" : "#e5484d", "Sécurité", locked ? "e-Niro fermée" : "e-Niro ouverte"],
     ];
-    const allKeys = C.pieces.flatMap((p) => p.items);
+    // Rangement par type d'équipement (et plus par pièce) : chaque tuile porte le nom de sa pièce
+    const nbOnL = C.lumieres.filter(on).length, nbOpen = C.volets.filter((id) => at(id, "current_position") > 0).length;
+    const nbRad = C.radiateurs.filter((id) => st(id) !== "off").length + (st(C.poele) !== "off" ? 1 : 0);
+    const CATS = [
+      { k: "lumieres", titre: "Lumières", meta: `${nbOnL} sur ${C.lumieres.length} allumées`, keys: C.lumieres.map((_, i) => `lumieres:${i}`),
+        extra: `<button class="hk-link" data-act="lights-off">Tout éteindre</button>` },
+      { k: "volets", titre: "Volets", meta: `${nbOpen} sur ${C.volets.length} ouverts`, keys: C.volets.map((_, i) => `volets:${i}`),
+        extra: `<span class="hk-links"><button class="hk-link" data-act="covers" data-i="100">Tout ouvrir</button><button class="hk-link" data-act="covers" data-i="0">Tout fermer</button></span>` },
+      { k: "climat", titre: "Chauffage", meta: `${nbRad} en marche · ${fr(Math.min(...temps), 0)}–${fr(Math.max(...temps), 0)}°`, keys: ["poele", ...C.radiateurs.map((_, i) => `radiateurs:${i}`), "ballon"] },
+      { k: "appareils", titre: "Appareils", meta: "", keys: ["prise_chambre", "multiprise", "robot", "homepod"] },
+    ];
+    const section = (c) => `<div class="hk-room"><div class="hk-rh"><h2>${c.titre}</h2>${c.meta ? `<span>${c.meta}</span>` : ""}${c.extra || ""}</div>
+      <div class="hk-grid">${c.keys.map((k) => tile(acc(k))).join("")}</div></div>`;
     let body;
     if (hkFilter === "securite") {
       body = `<div class="hk-room"><div class="hk-rh"><h2>Sécurité</h2></div><div class="hk-grid">
         <div class="hk-tile ${locked ? "on" : ""} wide" style="--c:#1f9d55"><button class="hk-ic" data-act="car-lock">${ICONS[locked ? "lock" : "unlock"]}</button>
         <button class="hk-tx" data-act="car-lock"><b>Kia e-Niro</b><span>${armed.unlock ? "Appuie encore pour ouvrir" : locked ? "Verrouillée" : "Déverrouillée"}</span></button></div></div></div>`;
-    } else if (hkFilter) {
-      const list = allKeys.map(acc).filter((a) => a && a.cat === hkFilter);
-      const titre = { climat: "Climat", lumieres: "Lumières", volets: "Volets", appareils: "Appareils" }[hkFilter];
-      const extra = hkFilter === "lumieres" ? `<button class="hk-link" data-act="lights-off">Tout éteindre</button>`
-        : hkFilter === "volets" ? `<span class="hk-links"><button class="hk-link" data-act="covers" data-i="100">Tout ouvrir</button><button class="hk-link" data-act="covers" data-i="0">Tout fermer</button></span>` : "";
-      body = `<div class="hk-room"><div class="hk-rh"><h2>${titre}</h2>${extra}</div><div class="hk-grid">${list.map(tile).join("")}</div></div>`;
     } else {
-      body = C.pieces.map((p) => {
-        const t = p.temp ? n(ref(p.temp)) : NaN, h = p.hum ? n(ref(p.hum)) : NaN;
-        return `<div class="hk-room"><div class="hk-rh"><h2>${p.nom}</h2>${Number.isFinite(t) ? `<span>${fr(t, 1)}°${Number.isFinite(h) ? ` · ${fr(h)} % HR` : ""}</span>` : ""}</div>
-          <div class="hk-grid">${p.items.map((k) => tile(acc(k))).join("")}</div></div>`;
-      }).join("");
+      body = CATS.filter((c) => !hkFilter || c.k === hkFilter).map(section).join("");
     }
     return `<div class="hk-wall" aria-hidden="true"></div>
       <header class="hk-head"><div><div class="eyebrow">${METEO_TXT[st(C.meteo)] || "Dehors"} · ${fr(at(C.meteo, "temperature"))}° dehors</div><h1>Ma maison</h1></div></header>

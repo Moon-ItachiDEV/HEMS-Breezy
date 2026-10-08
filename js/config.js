@@ -124,18 +124,6 @@ window.VOLTIA_CONFIG = {
   ballon_boost: "number.ballon_eau_chaude_boost_mode_duration",
   ballon_entretien: "input_datetime.entretien_ballon",
 
-  // ─── Pièces (page Maison) : rôle ou « rôle:index » dans les listes ci-dessus. À ajuster librement.
-  pieces: [
-    { nom: "Salon", temp: "", items: ["poele", "homepod", "robot", "volets:0", "volets:1"] },
-    { nom: "Cuisine", temp: "", items: ["lumieres:0", "lumieres:1", "volets:2"] },
-    { nom: "Bureau", temp: "radiateurs_temp:0", hum: "radiateurs_hum:0", items: ["lumieres:4", "radiateurs:0", "volets:3", "multiprise"] },
-    { nom: "Chambre", temp: "radiateurs_temp:2", hum: "radiateurs_hum:2", items: ["lumieres:5", "radiateurs:2", "volets:4", "prise_chambre"] },
-    { nom: "Salle de sport", temp: "radiateurs_temp:1", hum: "radiateurs_hum:1", items: ["lumieres:6", "radiateurs:1"] },
-    { nom: "Salle de bain", temp: "", items: ["radiateurs:3", "volets:5", "ballon"] },
-    { nom: "Entrée et couloir", temp: "", items: ["lumieres:2", "lumieres:3"] },
-    { nom: "Autres volets", temp: "", items: ["volets:6", "volets:7", "volets:8"] },
-  ],
-
   // ─── Météo
   meteo: "weather.homelyvibes_sa",
 };
