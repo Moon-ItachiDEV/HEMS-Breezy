@@ -161,7 +161,9 @@
   // ─── Graphique courbe avec survol
   const CHARTS = {};
   function curve(id, { labels, series, unit, hi = -1, dec = 0, tipLabels }) {
-    const W = 320, Hh = 120, PT = 14, PB = 18;
+    // Sur le tableau de bord bureau, le graphique est plus large et plus haut (texte à la bonne taille)
+    const big = window.matchMedia("(min-width: 1100px)").matches;
+    const W = big ? 720 : 320, Hh = big ? 230 : 120, PT = 14, PB = big ? 22 : 18;
     const max = Math.max(...series.flatMap((se) => se.data)) * 1.12;
     const len = labels.length;
     const xs = (i) => 8 + (i * (W - 16)) / (len - 1);
@@ -207,15 +209,8 @@
     tip.classList.add("on");
   });
 
-  // ─── Accueil
-  function pageAccueil() {
-    const e = energy(), j = bilanJour();
-    const now = new Date();
-    const hi = clamp(now.getHours() - 6, 0, HOURS.length - 1);
-    const peakI = PROD_H.indexOf(Math.max(...PROD_H));
-    const W = 360, Hs = 86;
-    const pts = PROD_H.map((v, i) => [(i * W) / (PROD_H.length - 1), 8 + (1 - v / 5.6) * (Hs - 16)]);
-    const date = now.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+  // ─── Appareils actifs (accueil mobile et tableau de bord)
+  function activeDevices(e) {
     const flux = Math.max(1, e.solar + Math.max(0, e.grid) + Math.max(0, -e.bat));
     const share = (w) => (w / flux) * 100;
     const carOn = on(C.voiture_en_charge);
@@ -235,6 +230,30 @@
       st(C.homepod) === "playing" && { ic: "speaker", c: "#8a5cf6", t: "HomePod salon", go: "maison", sub: "appareils", tag: "Lecture", live: true,
         s: `${at(C.homepod, "media_title") || ""} · ${at(C.homepod, "media_artist") || ""}`, val: `${Math.round((at(C.homepod, "volume_level") || 0) * 100)}`, unit: "%", bar: (at(C.homepod, "volume_level") || 0) * 100, foot: "volume" },
     ].filter(Boolean);
+    return devices;
+  }
+  const devsList = (devices) => `<div class="devs">${devices.map((d) => { const vu = d.val != null ? [d.val, d.unit] : splitW(d.w); return `
+          <button class="devx" data-go="${d.go}" ${d.sub ? `data-gosub="${d.sub}"` : ""} style="--c:${d.c}">
+            <span class="dico">${ICONS[d.ic]}</span>
+            <span class="dmain">
+              <span class="dtop"><b>${d.t}</b><span class="dval">${vu[0]}<small>${vu[1]}</small></span></span>
+              <span class="dsub"><span class="dtag ${d.live ? "live" : ""}">${d.tag}</span><span>${d.s}</span></span>
+              <span class="dbar"><i style="width:${pct(d.bar)}"></i>${d.mk != null ? `<em style="left:${pct(d.mk)}"></em>` : ""}</span>
+              <span class="dfoot">${d.foot}</span>
+            </span>
+            <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>`; }).join("")}</div>`;
+
+  // ─── Accueil
+  function pageAccueil() {
+    const e = energy(), j = bilanJour();
+    const now = new Date();
+    const hi = clamp(now.getHours() - 6, 0, HOURS.length - 1);
+    const peakI = PROD_H.indexOf(Math.max(...PROD_H));
+    const W = 360, Hs = 86;
+    const pts = PROD_H.map((v, i) => [(i * W) / (PROD_H.length - 1), 8 + (1 - v / 5.6) * (Hs - 16)]);
+    const date = now.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+    const devices = activeDevices(e);
     return `
       <div class="hero">
         <div class="row1"><div><div class="date">${date[0].toUpperCase() + date.slice(1)}</div><div class="hello">Bonjour 👋</div></div>
@@ -273,17 +292,7 @@
           </div>
         </div></section>
         <section class="blk">${sec("Appareils actifs", `${devices.length} en marche`)}
-        <div class="devs">${devices.map((d) => { const vu = d.val != null ? [d.val, d.unit] : splitW(d.w); return `
-          <button class="devx" data-go="${d.go}" ${d.sub ? `data-gosub="${d.sub}"` : ""} style="--c:${d.c}">
-            <span class="dico">${ICONS[d.ic]}</span>
-            <span class="dmain">
-              <span class="dtop"><b>${d.t}</b><span class="dval">${vu[0]}<small>${vu[1]}</small></span></span>
-              <span class="dsub"><span class="dtag ${d.live ? "live" : ""}">${d.tag}</span><span>${d.s}</span></span>
-              <span class="dbar"><i style="width:${pct(d.bar)}"></i>${d.mk != null ? `<em style="left:${pct(d.mk)}"></em>` : ""}</span>
-              <span class="dfoot">${d.foot}</span>
-            </span>
-            <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-          </button>`; }).join("")}</div></section>
+        ${devsList(devices)}</section>
       </div>`;
   }
 
@@ -744,7 +753,7 @@ ${chargeStats()}
   const evolTag = (v, D) => `<span class="tag">${v >= 0 ? "+" : ""}${fr(v)} % ${D.cmp}</span>`;
 
   let periode = "semaine";
-  function pageAnalyse() {
+  function analyseParts() {
     const D = periodData(periode);
     const prodP = sum(D.past(D.prod)), prodAll = sum(D.prod);
     const ecoP = sum(D.past(D.eco)), ecoAll = sum(D.eco);
@@ -774,11 +783,10 @@ ${chargeStats()}
     const cP = D.past(D.prod), cC = D.past(D.conso), cI = D.past(D.col("inj"));
     const sc = sum(cC), couv = sc > 0 ? ((sc - D.sumPast("grid")) / sc) * 100 : 0;
     const dec = periode === "annee" ? 0 : 1;
-    return `
-      ${head("Production · économies · origine", "Analyse")}
-      <div class="per-bar"><div class="seg">${[["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["annee", "Année"]].map(([k, l]) => `<button class="${periode === k ? "on" : ""}" data-per="${k}">${l}</button>`).join("")}</div></div>
-      <div class="wrap">
-        <div class="card">
+    return {
+      D, prodP, ecoP, tot, sc, couv, inj: sum(cI), parts,
+      seg: `<div class="seg">${[["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["annee", "Année"]].map(([k, l]) => `<button class="${periode === k ? "on" : ""}" data-per="${k}">${l}</button>`).join("")}</div>`,
+      prod: `        <div class="card">
           ${ch("sun", "#e8711a", "Production", D.nom)}
           <div class="kpi"><b>${fr(prodP, prodP < 100 ? 1 : 0)}</b><span class="u">kWh</span>${evolTag(D.evP, D)}</div>
           ${barsBlock(D.prod, D, { unit: "kWh" })}
@@ -787,9 +795,8 @@ ${chargeStats()}
             <div><span>Moyenne</span><b>${fr(prodP / D.avgDiv, 1)}</b><small class="muted"> ${D.avgU}</small></div>
             ${D.done < D.prod.length ? `<div><span>${D.fin}</span><b>~${fr(prodAll, prodAll < 100 ? 1 : 0)}</b><small class="muted"> kWh</small></div>` : `<div><span>Jours &gt; moy.</span><b>${D.past(D.prod).filter((v) => v > prodP / D.past(D.prod).length).length}</b><small class="muted"> / ${D.done}</small></div>`}
           </div>
-        </div>
-
-        <div class="card">
+        </div>`,
+      eco: `        <div class="card">
           ${ch("euro", "#1f9d55", "Économies", D.nom)}
           <div class="kpi"><b style="color:var(--green)">${fr(ecoP, ecoP < 100 ? 2 : 0)} €</b>${evolTag(D.evE, D)}</div>
           ${barsBlock(D.eco, D, { unit: "€", dec: 2, color: "green" })}
@@ -797,9 +804,8 @@ ${chargeStats()}
             <div><span>Moyenne</span><b>${fr(ecoP / D.avgDiv, 2)} €</b><small class="muted"> ${D.avgU}</small></div>
             ${D.done < D.eco.length ? `<div><span>${D.fin}</span><b>~${fr(ecoAll, ecoAll < 100 ? 2 : 0)} €</b></div>` : `<div><span>Par kWh produit</span><b>${fr((ecoP / Math.max(1, prodP)) * 100, 1)}</b><small class="muted"> c€</small></div>`}
           </div>
-        </div>
-
-        <div class="card" style="overflow:hidden">
+        </div>`,
+      orig: `        <div class="card" style="overflow:hidden">
           ${ch("leaf", "#1f9d55", "D'où vient ton énergie", D.nom)}
           <div class="kpi" style="margin-bottom:10px"><b style="color:var(--txt);font-size:1.9rem">${fr(tot, tot < 100 ? 1 : 0)}</b><span class="u">kWh consommés</span></div>
           <div class="donut-wrap">
@@ -815,9 +821,8 @@ ${chargeStats()}
               <span style="--c:#1f9d55">Super creuses <b>${fr(gHSC, gHSC < 100 ? 1 : 0)} kWh</b> <em>${plagesTxt("hsc")}</em></span>
             </div>
           </div>
-        </div>
-
-        <div class="card">
+        </div>`,
+      curve: `        <div class="card">
           ${ch("chart", "#e8711a", "Production et consommation", `${D.nom} · kWh`)}
           <div class="ylegend">
             <div style="--c:var(--blue)"><span>Consommation</span><b>${fr(sc, dec)} <small>kWh</small></b></div>
@@ -834,8 +839,19 @@ ${chargeStats()}
             ] },
             { name: "Injection", data: cI, color: "#1f9d55", fill: 0, dash: "4 4" },
           ], unit: "kWh", dec, hi: lab.length - 1, tipLabels: lab.map((l) => (periode === "mois" ? `${l} ${MOIS_LONG[new Date().getMonth()]}` : l)) })}
-        </div>
-
+        </div>`,
+    };
+  }
+  function pageAnalyse() {
+    const A = analyseParts();
+    return `
+      ${head("Production · économies · origine", "Analyse")}
+      <div class="per-bar">${A.seg}</div>
+      <div class="wrap">
+${A.prod}
+${A.eco}
+${A.orig}
+${A.curve}
 ${roiCard()}
       </div>`;
   }
@@ -901,6 +917,208 @@ ${roiCard()}
     if (el.dataset.act === "media-vol") call("media_player.volume_set", C.homepod, () => set(C.homepod, st(C.homepod), { volume_level: el.value / 100 }), ` ${el.value} %`);
   });
 
+  // ═══ Tableau de bord bureau (1100 px et plus) ═══════════════════════
+  const isDesk = () => window.matchMedia("(min-width: 1100px)").matches;
+  const TITRES = { accueil: "Vue d'ensemble", flux: "Flux d'énergie", voiture: "Kia e-Niro", maison: "Maison", analyse: "Analyse" };
+  const GROUPE = { accueil: "Tableau de bord", flux: "Tableau de bord", analyse: "Tableau de bord", voiture: "Équipements", maison: "Équipements" };
+
+  function spark(data, color, w = 120, h = 38) {
+    const max = Math.max(...data) || 1;
+    const pts = data.map((v, i) => [(i * w) / (data.length - 1), h - 3 - (v / max) * (h - 8)]);
+    const d = smooth(pts);
+    return `<svg class="spk" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+      <path d="${d} L${w} ${h} L0 ${h} Z" fill="${color}" opacity=".12"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+  }
+  const kpi = ({ ic, c, label, val, unit = "", sub = "", tag = "", spk = "", prog = null }) => `
+    <div class="dk-kpi" style="--c:${c}">
+      <div class="dk-kpi-h">${chip(ic, c, "sm")}<span>${label}</span>${tag}</div>
+      <div class="dk-kpi-v"><b>${val}</b><small>${unit}</small></div>
+      ${prog != null ? `<div class="prog" style="--c:${c}"><i style="width:${pct(prog)}"></i></div>` : ""}
+      <div class="dk-kpi-s">${sub}</div>${spk}
+    </div>`;
+
+  function topbar(extra = "") {
+    const t = st(C.meteo), now = new Date();
+    const prix = n(C.prix_kwh), nomT = [["HSC", n(C.tarif_hsc)], ["HC", n(C.tarif_hc)], ["HP", n(C.tarif_hp)]].find(([, v]) => Math.abs(v - prix) < 1e-4);
+    return `<header class="dk-top">
+      <div><div class="dk-crumb">${GROUPE[current]} <span>/</span> ${TITRES[current]}</div><h1>${TITRES[current]}</h1></div>
+      <div class="dk-top-r">${extra}
+        <span class="dk-chip">${now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</span>
+        <span class="dk-chip">${METEO_TXT[t] || ""} · ${fr(at(C.meteo, "temperature"))}°</span>
+        <span class="dk-chip strong">${nomT ? nomT[0] : ""} · ${fr(prix, 4)} €/kWh</span>
+        <span class="live">En direct</span>
+      </div>
+    </header>`;
+  }
+
+  function renderSide() {
+    const el = document.getElementById("side");
+    if (!el) return;
+    const e = energy();
+    const nb = C.lumieres.filter(on).length;
+    const item = (k, ic, label, badge = "") => `<button class="sd-it ${current === k ? "on" : ""}" data-go="${k}">${ICONS[ic]}<span>${label}</span>${badge}</button>`;
+    const charging = on(C.voiture_branchee) && on(C.voiture_en_charge);
+    el.innerHTML = `
+      <div class="sd-brand"><span class="sd-logo">${ICONS.bolt}</span><div><b>Voltia</b><span>Énergie &amp; maison</span></div></div>
+      <div class="sd-live">
+        <div class="sd-live-h"><span class="dot"></span>Production en direct</div>
+        <div class="sd-live-v"><b>${kw(e.solar)}</b><small>kW</small></div>
+        ${spark(PROD_H, "#f39a52", 200, 40)}
+        <div class="sd-live-r"><span>Maison <b>${Wt(e.house)}</b></span><span>${e.grid < 0 ? "Revente" : "Achat"} <b>${Wt(Math.abs(e.grid))}</b></span></div>
+      </div>
+      <div class="sd-grp">Tableau de bord</div>
+      ${item("accueil", "home", "Vue d'ensemble")}
+      ${item("flux", "bolt", "Flux d'énergie", `<em class="sd-dot"></em>`)}
+      ${item("analyse", "chart", "Analyse")}
+      <div class="sd-grp">Équipements</div>
+      ${item("voiture", "car", "Voiture", `<em class="sd-b ${charging ? "live" : ""}">${fr(n(C.voiture_soc))} %</em>`)}
+      ${item("maison", "bulb", "Maison", nb ? `<em class="sd-b">${nb}</em>` : "")}
+      <div class="sd-foot">
+        <div class="sd-tarif">
+          <div class="eyebrow">Plages tarifaires</div>
+          ${tarifLine(true)}
+        </div>
+        <div class="sd-note">Démo · valeurs d'exemple</div>
+      </div>`;
+  }
+
+  // Frise des 24 h colorée par tarif, avec le repère « maintenant »
+  function tarifLine(compact = false) {
+    const P = C.plages_tarifaires || {}, hour = (t) => parseInt(t, 10);
+    const kind = (h) => (P.hsc || []).some((r) => { const [a, b] = r.split("-").map(hour); return a <= b ? h >= a && h < b : h >= a || h < b; }) ? "hsc"
+      : (P.hc || []).some((r) => { const [a, b] = r.split("-").map(hour); return a <= b ? h >= a && h < b : h >= a || h < b; }) ? "hc" : "hp";
+    const COL = { hp: "#b8336a", hc: "#3a7bec", hsc: "#1f9d55" };
+    const now = new Date(), pos = ((now.getHours() + now.getMinutes() / 60) / 24) * 100;
+    const segs = Array.from({ length: 24 }, (_, h) => `<i style="background:${COL[kind(h)]}" title="${h}h : ${kind(h).toUpperCase()}"></i>`).join("");
+    const k = kind(now.getHours());
+    const prix = { hp: n(C.tarif_hp), hc: n(C.tarif_hc), hsc: n(C.tarif_hsc) };
+    return `<div class="tl24 ${compact ? "compact" : ""}"><div class="tl24-bar">${segs}<em style="left:${pos}%"></em></div>
+      <div class="tl24-ax"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>24h</span></div></div>
+      <div class="tl24-leg">${["hp", "hc", "hsc"].map((x) => `<span class="${x === k ? "now" : ""}" style="--c:${COL[x]}">${{ hp: "Pleines", hc: "Creuses", hsc: "Super creuses" }[x]} <b>${fr(prix[x], 4)} €</b></span>`).join("")}</div>`;
+  }
+
+  // Grand schéma des flux : soleil → maison → batterie / réseau / voiture
+  function flowDiagram() {
+    const e = energy();
+    const N = {
+      sun: { x: 12, y: 50, ic: "sun", c: "#e8711a", l: "Soleil", v: e.solar, s: `${fr(n(C.production_jour_kwh), 1)} kWh aujourd'hui` },
+      home: { x: 46, y: 50, ic: "home", c: "#1b1712", l: "Maison", v: e.house, s: "hors voiture" },
+      bat: { x: 86, y: 16, ic: "bat", c: "#3a7bec", l: "Batterie", v: Math.abs(e.bat), s: `${fr(n(C.batterie_soc))} % · ${e.bat >= 0 ? "charge" : "décharge"}` },
+      grid: { x: 86, y: 50, ic: "grid", c: "#1f9d55", l: "Réseau", v: Math.abs(e.grid), s: e.grid < 0 ? "revente" : "achat" },
+      car: { x: 86, y: 84, ic: "car", c: "#8a5cf6", l: "e-Niro", v: e.car, s: `${fr(n(C.voiture_soc))} % · ${on(C.voiture_en_charge) ? "en charge" : "branchée"}` },
+    };
+    const W = 1000, H = 360, X = (p) => (p / 100) * W, Y = (p) => (p / 100) * H;
+    const link = (a, b, c, w, rev) => {
+      const A = N[a], B = N[b], x1 = X(A.x) + 70, y1 = Y(A.y), x2 = X(B.x) - 70, y2 = Y(B.y), mx = (x1 + x2) / 2;
+      const d = `M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`;
+      return `<path class="fl-bg" d="${d}"/><path class="fl-go ${rev ? "rev" : ""}" d="${d}" stroke="${c}" style="${w < 15 ? "display:none" : `animation-duration:${clamp(2.4 - w / 1400, 0.5, 2.4)}s;stroke-width:${clamp(2 + w / 900, 2, 6)}px`}"/>
+        ${w >= 15 ? `<text class="fl-lbl" x="${mx}" y="${(y1 + y2) / 2 - 8}">${Wt(w)}</text>` : ""}`;
+    };
+    return `<div class="flow-d">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+        ${link("sun", "home", "#e8711a", e.solar)}
+        ${link("home", "bat", "#3a7bec", Math.abs(e.bat), e.bat < 0)}
+        ${link("home", "grid", "#1f9d55", Math.abs(e.grid), e.grid > 0)}
+        ${link("home", "car", "#8a5cf6", e.car)}
+      </svg>
+      ${Object.entries(N).map(([k, d]) => `<div class="fn ${k}" style="left:${d.x}%;top:${d.y}%;--c:${d.c}">
+        ${chip(d.ic, d.c)}<div><span>${d.l}</span><b>${Wt(d.v)}</b><em>${d.s}</em></div></div>`).join("")}
+    </div>`;
+  }
+
+  function batteryPanel() {
+    const e = energy(), soc = n(C.batterie_soc);
+    return `<div class="card dk-card">
+      ${ch("bat", "#3a7bec", "Batterie SolarFlow", `${fr(n(C.batterie_dispo_kwh), 1)} kWh disponibles`, `<span class="tag-g" style="background:#e7effd;color:#3a7bec">${e.bat >= 0 ? "Charge" : "Décharge"} ${Wt(Math.abs(e.bat))}</span>`)}
+      <div class="flexrow">${ring(soc, `<span>${fr(soc)}<small style="font-size:.7rem;font-weight:500"> %</small></span>`, "", "", n(C.batterie_max_pct), ["#8fb8ff", "#3a7bec"])}
+        <div style="flex:1">${C.packs_soc.map((id, i) => `<div class="pk"><span>Pack ${i + 1}</span><div class="prog" style="--c:#3a7bec"><i style="width:${pct(n(id))}"></i></div><b>${fr(n(id))} %</b></div>`).join("")}</div></div>
+      <div class="foot-row"><span>Min ${fr(n(C.batterie_min_pct))} % · max ${fr(n(C.batterie_max_pct))} %</span><span>${fr(n(C.batterie_temp))} °C</span></div>
+    </div>`;
+  }
+
+  function dayCurve() {
+    const D = periodData("jour"), lab = D.past(D.labels);
+    if (lab.length < 2) return `<p class="muted small">Pas encore assez de données aujourd'hui.</p>`;
+    return curve("dk-jour", { labels: lab, series: [
+      { name: "Production", data: D.past(D.prod), color: "#e8711a", fill: 0.2 },
+      { name: "Consommation", data: D.past(D.conso), color: "#3a7bec", fill: 0.06, detail: (k) => [
+        ["Soleil + batterie", D.B[k].direct + D.B[k].bat], [`Réseau HP <i>${plagesTxt("hp")}</i>`, D.B[k].hp],
+        [`Réseau HC <i>${plagesTxt("hc")}</i>`, D.B[k].hc], [`Réseau super creuses <i>${plagesTxt("hsc")}</i>`, D.B[k].hsc]] },
+      { name: "Injection", data: D.past(D.col("inj")), color: "#1f9d55", fill: 0, dash: "4 4" },
+    ], unit: "kWh", dec: 1, hi: lab.length - 1 });
+  }
+
+  function deskAccueil() {
+    const e = energy(), j = bilanJour();
+    const autosuff = clamp((1 - j.imp / j.conso) * 100, 0, 100);
+    const prev = n(C.prevision_jour_kwh);
+    const devices = activeDevices(e);
+    const soc = n(C.voiture_soc), charging = on(C.voiture_branchee) && on(C.voiture_en_charge);
+    const inv = C.solaire_investissement_eur, tot = n(C.economies_total_eur), pr = clamp((tot / inv) * 100, 0, 100);
+    return `${topbar()}
+      <div class="dk-kpis">
+        ${kpi({ ic: "sun", c: "#e8711a", label: "Production", val: kw(e.solar), unit: "kW", sub: `pic ${fr(Math.max(...PROD_H), 2)} kW vers 13h`, spk: spark(PROD_H, "#e8711a") })}
+        ${kpi({ ic: "chart", c: "#e8711a", label: "Produit aujourd'hui", val: fr(j.prod, 1), unit: "kWh", sub: `${fr((j.prod / prev) * 100)} % de la prévision (${fr(prev, 1)} kWh)`, prog: (j.prod / prev) * 100 })}
+        ${kpi({ ic: "home", c: "#3a7bec", label: "Consommé aujourd'hui", val: fr(j.conso, 1), unit: "kWh", sub: `dont ${fr(j.imp, 1)} kWh achetés au réseau` })}
+        ${kpi({ ic: "leaf", c: "#1f9d55", label: "Autosuffisance", val: fr(autosuff), unit: "%", sub: `${fr(j.exp, 1)} kWh revendus`, prog: autosuff })}
+        ${kpi({ ic: "euro", c: "#1f9d55", label: "Économies du jour", val: fr(n(C.economies_jour_eur), 2), unit: "€", sub: `${fr(tot)} € depuis la mise en service`, tag: `<em class="dk-delta">+5 %</em>` })}
+      </div>
+      <div class="dk-grid">
+        <div class="card dk-card s8">${ch("bolt", "#e8711a", "Flux d'énergie", "en temps réel", `<span class="live">En direct</span>`)}${flowDiagram()}</div>
+        <div class="s4 dk-stack">
+          ${batteryPanel()}
+          <div class="card dk-card dk-car" data-go="voiture" role="link">
+            ${ch("car", "#8a5cf6", "Kia e-Niro", charging ? `en charge · fin vers ${hhmm(new Date(Date.now() + n(C.voiture_minutes_restantes) * 60e3))}` : on(C.voiture_branchee) ? "branchée" : "débranchée", `<b class="num">${fr(soc)} %</b>`)}
+            <div class="prog" style="--c:linear-gradient(90deg,#b9a2ff,#7c4dff)"><i style="width:${soc}%"></i><span class="mk" style="left:${n(C.voiture_limite_pct)}%"></span></div>
+            <div class="foot-row"><span>${fr(n(C.voiture_autonomie_km))} km d'autonomie</span><span>${charging ? Wt(n(C.voiture_charge_w)) : "—"}</span></div>
+          </div>
+        </div>
+        <div class="card dk-card s8">${ch("chart", "#e8711a", "Production et consommation", "aujourd'hui · kWh par tranche de 2 h")}
+          <div class="dk-legend"><span style="--c:#e8711a">Production</span><span style="--c:#3a7bec">Consommation</span><span class="dash" style="--c:#1f9d55">Injection</span></div>
+          ${dayCurve()}</div>
+        <div class="card dk-card s4">${ch("plug", "#1f9d55", "Appareils actifs", `${devices.length} en marche`)}${devsList(devices).replace('class="devs"', 'class="devs flat"')}</div>
+        <div class="card dk-card s4">${ch("leaf", "#1f9d55", "Répartition de la production", "aujourd'hui")}
+          ${splitbar([{ v: j.autoUse, c: "var(--orange)" }, { v: j.chg, c: "var(--blue)" }, { v: j.exp, c: "var(--green)" }])}
+          <div class="legend3">
+            <div><span style="--c:var(--orange)">Autoconso</span><b>${fr(j.autoUse, 1)} kWh</b><em>${fr((j.autoUse / j.prod) * 100)} %</em></div>
+            <div><span style="--c:var(--blue)">Batterie</span><b>${fr(j.chg, 1)} kWh</b><em>${fr((j.chg / j.prod) * 100)} %</em></div>
+            <div><span style="--c:var(--green)">Revendu</span><b>${fr(j.exp, 1)} kWh</b><em>${fr((j.exp / j.prod) * 100)} %</em></div>
+          </div></div>
+        <div class="card dk-card s4">${ch("clock", "#b8336a", "Tarif en cours", `super creuses ${plagesTxt("hsc")}`)}${tarifLine()}</div>
+        <div class="card dk-card s4 dk-roi" data-go="analyse" role="link">${ch("sun", "#1f9d55", "Retour sur investissement", "installation solaire")}
+          <div class="roi-amt"><b>${fr(tot)} €</b><span>sur ${fr(inv)} € · ${fr(pr)} %</span></div>
+          <div class="roi-track" style="margin:14px 0 6px"><i style="width:${pr}%"></i><em style="left:${pr}%"></em></div>
+          <div class="muted small">Il reste ${fr(inv - tot)} € à amortir</div></div>
+      </div>`;
+  }
+
+  function deskAnalyse() {
+    const A = analyseParts(), D = A.D;
+    return `${topbar(A.seg)}
+      <div class="dk-kpis">
+        ${kpi({ ic: "sun", c: "#e8711a", label: "Production", val: fr(A.prodP, A.prodP < 100 ? 1 : 0), unit: "kWh", sub: D.nom, tag: `<em class="dk-delta">+${D.evP} %</em>`, spk: spark(D.past(D.prod), "#e8711a") })}
+        ${kpi({ ic: "home", c: "#3a7bec", label: "Consommation", val: fr(A.sc, A.sc < 100 ? 1 : 0), unit: "kWh", sub: D.nom, spk: spark(D.past(D.conso), "#3a7bec") })}
+        ${kpi({ ic: "grid", c: "#1f9d55", label: "Injection", val: fr(A.inj, A.inj < 100 ? 1 : 0), unit: "kWh", sub: "revendue au réseau", spk: spark(D.past(D.col("inj")), "#1f9d55") })}
+        ${kpi({ ic: "leaf", c: "#1f9d55", label: "Autosuffisance", val: fr(A.couv), unit: "%", sub: "part sans achat au réseau", prog: A.couv })}
+        ${kpi({ ic: "euro", c: "#1f9d55", label: "Économies", val: fr(A.ecoP, A.ecoP < 100 ? 2 : 0), unit: "€", sub: D.nom, tag: `<em class="dk-delta">+${D.evE} %</em>`, spk: spark(D.past(D.eco), "#1f9d55") })}
+      </div>
+      <div class="dk-grid">
+        <div class="s8 dk-wrap">${A.curve}</div>
+        <div class="s4 dk-wrap">${A.orig}</div>
+        <div class="s6 dk-wrap">${A.prod}</div>
+        <div class="s6 dk-wrap">${A.eco}</div>
+        <div class="s12 dk-wrap">${roiCard()}</div>
+      </div>`;
+  }
+
+  // Les autres pages gardent leur contenu, avec la barre du haut du tableau de bord
+  function deskWrap(name) {
+    if (name === "flux") return `${topbar()}<div class="dk-grid"><div class="card dk-card s8">${ch("bolt", "#e8711a", "Flux d'énergie", "en temps réel")}${flowDiagram()}</div><div class="s4 dk-stack">${batteryPanel()}</div></div>
+      <div class="dk-legacy no-flow">${PAGES.flux()}</div>`;
+    return `${topbar()}<div class="dk-legacy">${PAGES[name]()}</div>`;
+  }
+  const DESK = { accueil: deskAccueil, analyse: deskAnalyse };
+
   // ─── Navigation et rendu
   const PAGES = { accueil: pageAccueil, flux: pageFlux, voiture: pageVoiture, maison: pageMaison, analyse: pageAnalyse };
   let current = "accueil";
@@ -919,12 +1137,17 @@ ${roiCard()}
   let entering = false;
   function render() {
     const el = document.getElementById("page");
-    el.innerHTML = PAGES[current]();
+    const desk = isDesk();
+    el.innerHTML = desk ? (DESK[current] ? DESK[current]() : deskWrap(current)) : PAGES[current]();
+    document.body.classList.toggle("desk", desk);
+    renderSide();
     el.className = `page on${entering ? " enter" : ""}`;
     if (sheet) renderSheet();
     if (entering) countUp(el);
     entering = false;
   }
+  let lastDesk = isDesk();
+  window.addEventListener("resize", () => { if (isDesk() !== lastDesk) { lastDesk = isDesk(); render(); } });
   // Les chiffres clés montent de 0 à leur valeur à l'ouverture d'une page
   function countUp(root) {
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
