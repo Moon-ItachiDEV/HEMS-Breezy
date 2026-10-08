@@ -54,7 +54,22 @@
       data: HOURS.filter((h) => h % 2 === 0).map((h) => +(PROD_H[h - 6] + PROD_H[h - 5]).toFixed(1)), hi: -1 }),
     semaine: () => { const d = [24.8, 30.2, 26.4, 34.8, 18.6, 31.0, n(C.production_jour_kwh)];
       return { titre: "kWh cette semaine", total: d.reduce((a, b) => a + b, 0), evol: 14, labels: d.map((_, i) => (i === 6 ? "Auj." : dayName(6 - i))), data: d, hi: 6 }; },
-    mois: () => { const d = [168.2, 182.5, 175.9, 179.3]; return { titre: "kWh ce mois-ci", total: d.reduce((a, b) => a + b, 0), evol: 6, labels: ["S1", "S2", "S3", "S4"], data: d, hi: 3 }; },
+    mois: () => {
+      // Une barre par jour du mois : les jours passés (démo), puis la prévision jusqu'à la fin du mois
+      const now = new Date(), y = now.getFullYear(), m = now.getMonth(), today = now.getDate();
+      const nb = new Date(y, m + 1, 0).getDate();
+      const base = [210, 290, 480, 620, 760, 820, 850, 780, 590, 420, 250, 190][m] / nb;
+      const data = Array.from({ length: nb }, (_, k) => {
+        if (k + 1 === today) return n(C.production_jour_kwh);
+        const meteo = 0.55 + 0.45 * Math.abs(Math.sin((k + 1) * 1.7 + m)) + (k % 7 === 3 ? -0.35 : 0);
+        return +(base * clamp(meteo, 0.25, 1.25) * (k + 1 > today ? 0.92 : 1)).toFixed(1);
+      });
+      const past = data.slice(0, today);
+      const total = past.reduce((a, b) => a + b, 0);
+      const best = past.indexOf(Math.max(...past));
+      return { titre: `kWh en ${MOIS_LONG[m]}`, total, evol: 6, evolTxt: "vs mois dernier à date", labels: data.map((_, k) => `${k + 1}`), data, hi: today - 1, fut: today,
+        avg: total / today, best, proj: total + data.slice(today).reduce((a, b) => a + b, 0), nb, mName: MOIS_LONG[m] };
+    },
     annee: () => { const d = [210, 290, 480, 620, 760, 820, 850, 780, 590, 420, 250, 190];
       return { titre: "kWh cette année", total: d.slice(0, new Date().getMonth() + 1).reduce((a, b) => a + b, 0), evol: 9, labels: MOIS.map((m) => m[0]), data: d, hi: new Date().getMonth() }; },
   };
@@ -84,9 +99,10 @@
   const sw = (isOn, act, i = "") => `<button class="sw ${isOn ? "on" : ""}" data-act="${act}" data-i="${i}" aria-pressed="${isOn}"></button>`;
   const stepper = (val, act, i = "") => `<div class="step"><button data-act="${act}" data-i="${i}" data-d="-1">−</button><b>${val}</b><button data-act="${act}" data-i="${i}" data-d="1">+</button></div>`;
   const prog = (v, c = "var(--orange)", mk) => `<div class="prog" style="--c:${c}"><i style="width:${pct(v)}"></i>${mk != null ? `<span class="mk" style="left:${pct(mk)}"></span>` : ""}</div>`;
-  const ring = (v, label, c = "var(--green)", cls = "", lim) => {
-    const R = 42, P = 2 * Math.PI * R;
-    return `<div class="ring ${cls}" style="--c:${c}"><svg viewBox="0 0 100 100"><circle class="b" cx="50" cy="50" r="${R}"/>
+  let ringId = 0;
+  const ring = (v, label, c = "var(--green)", cls = "", lim, grad) => {
+    const R = 42, P = 2 * Math.PI * R, gid = `rg${++ringId}`;
+    return `<div class="ring ${cls}" style="--c:${grad ? `url(#${gid})` : c}"><svg viewBox="0 0 100 100">${grad ? `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${grad[0]}"/><stop offset="1" stop-color="${grad[1]}"/></linearGradient></defs>` : ""}<circle class="b" cx="50" cy="50" r="${R}"/>
       ${lim != null ? `<circle cx="50" cy="50" r="${R}" fill="none" stroke="var(--txt)" stroke-opacity=".35" stroke-width="${cls ? 12 : 8}" stroke-dasharray="1.5 ${P}" stroke-dashoffset="${-P * lim / 100}"/>` : ""}
       <circle class="f" cx="50" cy="50" r="${R}" stroke-dasharray="${P}" stroke-dashoffset="${P * (1 - clamp(v, 0, 100) / 100)}"/></svg><div class="c">${label}</div></div>`;
   };
@@ -98,7 +114,38 @@
     home: SV('<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'),
     plug: SV('<path d="M9 2v5M15 2v5M6 7h12v4a6 6 0 0 1-12 0zM12 17v5"/>'),
     flame: SV('<path d="M12 22c4 0 7-3 7-7 0-5-5-7-5-12-3 2-4 5-4 7-1-1-2-2-2-4-2 2-3 5-3 9 0 4 3 7 7 7z"/>'),
+    sun: SV('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+    grid: SV('<path d="M8 22 12 2l4 20M6.5 9h11M5 15h14M9.5 15 12 9l2.5 6"/>'),
+    bolt: SV('<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'),
+    bulb: SV('<path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/><path d="M9 18h6M10 21h4"/>'),
+    blinds: SV('<path d="M4 3h16M5 3v18M19 3v18M5 7h14M5 11h14M5 15h14"/><circle cx="12" cy="19" r="1"/>'),
+    robot: SV('<rect x="4" y="8" width="16" height="12" rx="4"/><path d="M12 4v4M9 13h.01M15 13h.01M9.5 16.5h5"/>'),
+    speaker: SV('<rect x="5" y="2" width="14" height="20" rx="3"/><circle cx="12" cy="14" r="4"/><path d="M12 6h.01"/>'),
+    therm: SV('<path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/><path d="M12 11v6"/>'),
+    drop: SV('<path d="M12 3s6 6.4 6 11a6 6 0 0 1-12 0c0-4.6 6-11 6-11z"/>'),
+    lock: SV('<rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'),
+    unlock: SV('<rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 7.6-1.8"/>'),
+    snow: SV('<path d="M12 2v20M4.9 7l14.2 10M4.9 17 19.1 7M9 4l3 2 3-2M9 20l3-2 3 2"/>'),
+    refresh: SV('<path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/>'),
+    wrench: SV('<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>'),
+    clock: SV('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+    leaf: SV('<path d="M5 21c0-9 5-15 15-16-1 10-7 15-15 16z"/><path d="M5 21 13 13"/>'),
+    sack: SV('<path d="M8 4h8l-2 4c3 2 5 5 5 9a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4c0-4 2-7 5-9z"/>'),
+    up: SV('<path d="m6 15 6-6 6 6"/>'),
+    down: SV('<path d="m6 9 6 6 6-6"/>'),
+    check: SV('<path d="m5 12 5 5 9-10"/>'),
+    play: SV('<path d="M7 4.5v15l12-7.5z" fill="currentColor"/>'),
+    pause: SV('<rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/>'),
+    dock: SV('<path d="M3 20h18M7 20v-4a5 5 0 0 1 10 0v4"/>'),
+    gauge: SV('<path d="M12 14l4-4"/><path d="M3.3 17a9 9 0 1 1 17.4 0"/>'),
+    euro: SV('<path d="M17 6a7 7 0 1 0 0 12M4 10h9M4 14h9"/>'),
+    chart: SV('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
   };
+  // Pastille d'icône teintée, en-tête de page, en-tête de carte, titre de section
+  const chip = (icon, c, cls = "") => `<span class="chip-ic ${cls}" style="--c:${c}">${ICONS[icon]}</span>`;
+  const head = (eyebrow, title, right = "") => `<header class="ph"><div><div class="eyebrow">${eyebrow}</div><h1>${title}</h1></div>${right ? `<div class="ph-r">${right}</div>` : ""}</header>`;
+  const ch = (icon, c, title, sub = "", meta = "") => `<div class="ch">${chip(icon, c)}<div class="ch-t"><b>${title}</b>${sub ? `<span>${sub}</span>` : ""}</div>${meta ? `<div class="ch-m">${meta}</div>` : ""}</div>`;
+  const sec = (title, meta = "") => `<div class="sec-h"><h2>${title}</h2>${meta ? `<span>${meta}</span>` : ""}</div>`;
   const splitbar = (parts) => { const t = parts.reduce((a, p) => a + p.v, 0) || 1; return `<div class="splitbar">${parts.map((p) => `<i style="flex:${p.v / t};background:${p.c}"></i>`).join("")}</div>`; };
 
   // Courbe lisse (Catmull-Rom → Bézier)
@@ -188,7 +235,7 @@
     return `
       <div class="hero">
         <div class="row1"><div><div class="date">${date[0].toUpperCase() + date.slice(1)}</div><div class="hello">Bonjour 👋</div></div>
-          <div class="btns"><button class="round" data-go="analyse" aria-label="Analyse">${SV('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>')}</button><button class="round" data-go="maison" aria-label="Maison">${SV('<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>')}</button></div></div>
+</div>
         <div class="status"><i></i><span>Système en ligne · ${e.solar > 3000 ? "Forte production" : e.solar > 200 ? "Production" : "Nuit"}</span><span>MAJ ${hhmm(now)}</span></div>
         <div class="big"><b><span data-count="${e.solar / 1000}" data-dec="2">${kw(e.solar)}</span><small>kW</small></b>
           <div class="side">Production en cours<br>Pic ${fr(PROD_H[peakI], 2)} kW à ${HOURS[peakI]}h</div></div>
@@ -243,45 +290,46 @@
     const autosuff = clamp((1 - j.imp / j.conso) * 100, 0, 100);
     const share = (w) => e.solar > 0 ? fr((Math.abs(w) / e.solar) * 100) : "0";
     const N = [
-      { k: "Maison", e: "🏠", c: "var(--orange)", w: e.house, p: `${share(e.house)} %` },
-      { k: "Batterie", e: "🔋", c: "var(--blue)", w: Math.abs(e.bat), p: e.bat >= 0 ? `${share(e.bat)} %` : "décharge", rev: e.bat < 0 },
-      { k: "Réseau", e: "⚡", c: "var(--green)", w: Math.abs(e.grid), p: e.grid < 0 ? `${share(e.grid)} %` : "achat", rev: e.grid > 0 },
-      { k: "e-Niro", e: "🚗", c: "#8a5cf6", w: e.car, p: `${share(e.car)} %` },
+      { k: "Maison", ic: "home", c: "#e8711a", w: e.house, p: `${share(e.house)} %` },
+      { k: "Batterie", ic: "bat", c: "#3a7bec", w: Math.abs(e.bat), p: e.bat >= 0 ? `${share(e.bat)} %` : "décharge", rev: e.bat < 0 },
+      { k: "Réseau", ic: "grid", c: "#1f9d55", w: Math.abs(e.grid), p: e.grid < 0 ? `${share(e.grid)} %` : "achat", rev: e.grid > 0 },
+      { k: "e-Niro", ic: "car", c: "#8a5cf6", w: e.car, p: `${share(e.car)} %` },
     ];
     const xs = [45, 135, 225, 315];
     const sess = new Date(st(C.session_debut));
     const events = [
-      { h: "06:12", c: "var(--orange)", t: "Début de la production", s: "Premiers rayons · 0,12 kW" },
-      { h: "08:45", c: "var(--blue)", t: "La batterie commence à charger", s: "Surplus solaire · batterie à 42 %" },
+      { h: "06:12", c: "#e8711a", t: "Début de la production", s: "Premiers rayons · 0,12 kW" },
+      { h: "08:45", c: "#3a7bec", t: "La batterie commence à charger", s: "Surplus solaire · batterie à 42 %" },
       on(C.voiture_branchee) && { h: hhmm(sess), c: "#8a5cf6", t: "e-Niro branchée", s: `Batterie à ${fr(n(C.voiture_soc) - n(C.session_soc))} %` },
-      { h: "10:20", c: "var(--green)", t: "Début de la revente", s: "Maison et batterie servies · surplus revendu" },
-      { h: "12:48", c: "var(--orange)", t: "Pic de production", s: "5,20 kW · meilleure heure 12h – 13h" },
-      { h: hhmm(new Date()), c: "var(--txt)", t: "Maintenant", s: `${Wt(e.solar)} produits · batterie ${fr(n(C.batterie_soc))} % · ${e.grid < 0 ? `revente ${Wt(-e.grid)}` : `achat ${Wt(e.grid)}`}` },
+      { h: "10:20", c: "#1f9d55", t: "Début de la revente", s: "Maison et batterie servies · surplus revendu" },
+      { h: "12:48", c: "#e8711a", t: "Pic de production", s: "5,20 kW · meilleure heure 12h – 13h" },
+      { h: hhmm(new Date()), c: "var(--txt)", now: true, t: "Maintenant", s: `${Wt(e.solar)} produits · batterie ${fr(n(C.batterie_soc))} % · ${e.grid < 0 ? `revente ${Wt(-e.grid)}` : `achat ${Wt(e.grid)}`}` },
     ].filter(Boolean);
     return `
-      <div class="bar-top"><h1>Flux d'énergie</h1><span class="end live">En direct</span></div>
+      ${head("Temps réel", "Flux d'énergie", `<span class="live">En direct</span>`)}
       <div class="wrap">
-        <div class="sun">☀️ <b>${kw(e.solar)}<small>kW</small></b><div class="muted small">Production solaire · 3 onduleurs</div></div>
+        <div class="sun"><div class="orb">${ICONS.sun}</div>
+          <b><span data-count="${e.solar / 1000}" data-dec="2">${kw(e.solar)}</span><small>kW</small></b><div class="eyebrow" style="margin-top:2px">Production · 3 onduleurs</div></div>
         <svg class="tree" viewBox="0 0 360 70" preserveAspectRatio="none" aria-hidden="true">
           ${N.map((d, i) => `<path class="bg" d="M180 0 C180 40 ${xs[i]} 30 ${xs[i]} 70"/>
             <path class="go ${d.rev ? "rev" : ""}" stroke="${d.c}" d="M180 0 C180 40 ${xs[i]} 30 ${xs[i]} 70" style="${d.w < 15 ? "display:none" : `animation-duration:${clamp(2.2 - d.w / 1500, 0.5, 2.2)}s`}"/>`).join("")}
         </svg>
-        <div class="nodes">${N.map((d) => `<div class="node" style="--c:${d.c}"><div class="e">${d.e}</div><div class="n">${d.k}</div><b>${kw(d.w)}<small>kW</small></b><div class="p">${d.p}</div></div>`).join("")}</div>
+        <div class="nodes">${N.map((d) => `<div class="node" style="--c:${d.c}">${chip(d.ic, d.c, "sm")}<div class="n">${d.k}</div><b>${kw(d.w)}<small>kW</small></b><div class="p">${d.p}</div></div>`).join("")}</div>
 
         <div class="card" style="margin-top:14px">
-          <div class="flexrow">${ring(autosuff, `${fr(autosuff)} %`)}
-            <div><b>Autosuffisance</b><div class="muted small">${fr(autosuff)} % de ta consommation du jour vient du soleil ou de la batterie. Seulement ${fr(j.imp, 1)} kWh achetés.</div></div></div>
+          <div class="flexrow">${ring(autosuff, `<span>${fr(autosuff)}<small style="font-size:.7rem;font-weight:500"> %</small></span>`, "", "", null, ["#7fd3a4", "#1f9d55"])}
+            <div><div class="eyebrow">Aujourd'hui</div><b style="font-size:1.05rem;letter-spacing:-.02em">Autosuffisance</b><div class="muted small" style="margin-top:2px">Seulement <b style="color:var(--txt)">${fr(j.imp, 1)} kWh</b> achetés au réseau, le reste vient du soleil et de la batterie.</div></div></div>
         </div>
 
         <div class="card">
-          <h3>Ce qui s'est passé aujourd'hui</h3>
-          <div class="timeline">${events.map((ev) => `<div class="tl" style="--c:${ev.c}"><div class="h">${ev.h}</div><i></i><div><b>${ev.t}</b><span>${ev.s}</span></div></div>`).join("")}</div>
+          ${ch("clock", "#e8711a", "Journée", "Ce qui s'est passé aujourd'hui")}
+          <div class="timeline">${events.map((ev) => `<div class="tl ${ev.now ? "now" : ""}" style="--c:${ev.c}"><div class="h">${ev.h}</div><i></i><div><b>${ev.t}</b><span>${ev.s}</span></div></div>`).join("")}</div>
         </div>
 
         <div class="card">
-          <h3>Onduleurs</h3>
-          ${C.onduleurs_w.map((id, i) => { const max = [2000, 2000, 1000][i]; return `<div class="row"><div class="grow"><b>${C.onduleurs_noms[i]}</b><span>${fr((n(id) / max) * 100)} % de sa capacité</span></div><b>${Wt(n(id))}</b></div>
-            <div style="margin:-2px 0 8px">${prog((n(id) / max) * 100)}</div>`; }).join("")}
+          ${ch("sun", "#e8711a", "Onduleurs", "Production par appareil", `${Wt(e.solar)}`)}
+          ${C.onduleurs_w.map((id, i) => { const max = [2000, 2000, 1000][i]; return `<div class="inv"><div class="inv-t"><b>${C.onduleurs_noms[i]}</b><span>${fr((n(id) / max) * 100)} % de sa capacité</span></div><b class="num">${Wt(n(id))}</b></div>
+            ${prog((n(id) / max) * 100)}`; }).join("")}
         </div>
       </div>`;
   }
@@ -316,7 +364,7 @@
     const max = Math.max(...colTot) || 1;
     const many = D.labels.length > 8;
     return `
-        <div class="sec-h"><h2>Recharges</h2><span>par source d'énergie</span></div>
+        ${sec("Recharges", "par source d'énergie")}
         <div class="seg" style="margin-bottom:12px">${[["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["annee", "Année"]].map(([k, l]) => `<button class="${chargePer === k ? "on" : ""}" data-cper="${k}">${l}</button>`).join("")}</div>
         <div class="card">
           <div class="kpi"><b style="color:var(--txt)">${fr(total, total >= 100 ? 0 : 1)}</b><span class="u">kWh ${D.titre}</span><span class="tag">${fr((tot[0].kwh / total) * 100)} % soleil</span></div>
@@ -345,127 +393,228 @@
     const sol = n(C.session_sol_kwh), res = n(C.session_res_kwh);
     const odo = n(C.voiture_odometre), last = n(C.entretien_dernier_km), next = last + C.entretien_intervalle_km;
     const fin = new Date(Date.now() + n(C.voiture_minutes_restantes) * 60e3);
+    const act = (icon, label, a, cls = "", dis = false) => `<div class="act"><button class="${cls}" data-act="${a}" ${dis ? "disabled" : ""} aria-label="${label}">${ICONS[icon]}</button><span>${label}</span></div>`;
     return `
-      <div class="bar-top"><div><h1>Kia e-Niro</h1><div class="sub">MAJ ${ago(st(C.voiture_maj))}</div></div>
-        ${charging ? `<span class="end live" style="background:#efe9fe;color:#8a5cf6">En charge · ${Wt(n(C.voiture_charge_w))}</span>` : `<span class="end muted small">${plugged ? "Branchée" : "Débranchée"}</span>`}</div>
+      ${head(`Mis à jour ${ago(st(C.voiture_maj))}`, "Kia e-Niro", charging ? `<span class="live" style="--lc:#8a5cf6">En charge</span>` : `<span class="pill-n">${plugged ? "Branchée" : "Débranchée"}</span>`)}
       <div class="wrap">
-        <div class="card" style="text-align:center">
-          <div style="display:flex;justify-content:center">${ring(soc, `<div>${fr(soc)}<span style="font-size:1rem;font-weight:500"> %</span></div><small>${fr(n(C.voiture_autonomie_km))} km</small>`, "#8a5cf6", "lg", lim)}</div>
-          <div class="muted small" style="margin:10px 0 18px">${charging ? `Fin vers <b style="color:var(--txt)">${hhmm(fin)}</b> · limite ${fr(lim)} %` : `Limite de charge ${fr(lim)} %`}</div>
-          <div class="actions4">
-            <div><button class="${charging ? "on" : ""}" data-act="car-charge" ${plugged ? "" : "disabled style='opacity:.4'"}>⚡</button>${charging ? "Arrêter" : "Charger"}</div>
-            <div><button class="${armed.unlock ? "danger" : locked ? "" : "on"}" data-act="car-lock">${locked ? "🔒" : "🔓"}</button>${armed.unlock ? "Confirmer" : locked ? "Verrouillée" : "Ouverte"}</div>
-            <div><button class="${on(C.voiture_clim) ? "on" : ""}" data-act="car-clim">❄️</button>Clim</div>
-            <div><button data-act="car-refresh">⟳</button>Actualiser</div>
+        <div class="card car-hero">
+          <div class="car-ring">${ring(soc, `<div><span data-count="${soc}">${fr(soc)}</span><span style="font-size:1rem;font-weight:500"> %</span></div><small>${fr(n(C.voiture_autonomie_km))} km</small>`, "", "lg", lim, ["#b9a2ff", "#7c4dff"])}</div>
+          <div class="car-meta">
+            <div><span class="eyebrow">${charging ? "Fin estimée" : "Limite"}</span><b>${charging ? hhmm(fin) : `${fr(lim)} %`}</b></div>
+            <div><span class="eyebrow">Puissance</span><b>${charging ? Wt(n(C.voiture_charge_w)) : "—"}</b></div>
+            <div><span class="eyebrow">Batterie 12 V</span><b>${fr(n(C.voiture_12v_pct))} %</b></div>
+          </div>
+          <div class="acts">
+            ${act("bolt", charging ? "Arrêter" : "Charger", "car-charge", charging ? "on" : "", !plugged)}
+            ${act(locked ? "lock" : "unlock", armed.unlock ? "Confirmer" : locked ? "Verrouillée" : "Ouverte", "car-lock", armed.unlock ? "danger" : locked ? "" : "on")}
+            ${act("snow", "Clim", "car-clim", on(C.voiture_clim) ? "on" : "")}
+            ${act("refresh", "Actualiser", "car-refresh")}
           </div>
         </div>
 
         <div class="card">
-          <h3>Cette charge <span class="end">depuis ${hhmm(new Date(st(C.session_debut)))}</span></h3>
-          <div class="kpi" style="margin-bottom:12px"><b style="color:#8a5cf6">+${fr(n(C.session_soc))} %</b><span class="u">${fr(sol + res, 1)} kWh</span><span class="tag">${fr((sol / (sol + res)) * 100)} % solaire</span></div>
+          ${ch("bolt", "#8a5cf6", "Cette charge", `depuis ${hhmm(new Date(st(C.session_debut)))}`, `<span class="tag-g">${fr((sol / (sol + res)) * 100)} % soleil</span>`)}
+          <div class="kpi" style="margin:4px 0 14px"><b style="color:#7c4dff">+${fr(n(C.session_soc))} %</b><span class="u">${fr(sol + res, 1)} kWh ajoutés</span></div>
           ${splitbar([{ v: sol, c: "var(--orange)" }, { v: res, c: "var(--green)" }])}
           <div class="legend3" style="grid-template-columns:1fr 1fr">
-            <div><span style="--c:var(--orange)">Solaire · ${Wt(n(C.ve_solaire_w))}</span><b>${fr(sol, 1)} kWh</b></div>
+            <div><span style="--c:var(--orange)">Soleil · ${Wt(n(C.ve_solaire_w))}</span><b>${fr(sol, 1)} kWh</b></div>
             <div style="text-align:right"><span style="--c:var(--green)">Réseau · ${Wt(n(C.ve_reseau_w))}</span><b>${fr(res, 1)} kWh</b></div>
           </div>
         </div>
 
 ${chargeStats()}
 
-        <div class="card">
-          <div class="row"><div class="grow"><b>Limite à la maison</b><span>recharge AC</span></div>${stepper(`${fr(lim)} %`, "car-lim")}</div>
-          <div class="row"><div class="grow"><b>Limite recharge rapide</b><span>recharge DC</span></div>${stepper(`${fr(n(C.voiture_limite_dc_pct))} %`, "car-limdc")}</div>
-          <div class="row"><div class="grow"><b>Heures creuses seulement</b><span>ne charge qu'en HC</span></div>${sw(on(C.voiture_heures_creuses), "car-hc")}</div>
-          <div class="row"><div class="grow"><b>Charge programmée</b><span>selon l'horaire de la voiture</span></div>${sw(on(C.voiture_programmee), "car-prog")}</div>
+        ${sec("Réglages", "recharge")}
+        <div class="card list">
+          <div class="li">${chip("home", "#e8711a")}<div class="li-t"><b>Limite à la maison</b><span>recharge AC</span></div>${stepper(`${fr(lim)} %`, "car-lim")}</div>
+          <div class="li">${chip("bolt", "#8a5cf6")}<div class="li-t"><b>Recharge rapide</b><span>limite DC</span></div>${stepper(`${fr(n(C.voiture_limite_dc_pct))} %`, "car-limdc")}</div>
+          <div class="li">${chip("clock", "#3a7bec")}<div class="li-t"><b>Heures creuses seulement</b><span>ne charge qu'en HC</span></div>${sw(on(C.voiture_heures_creuses), "car-hc")}</div>
+          <div class="li">${chip("gauge", "#1f9d55")}<div class="li-t"><b>Charge programmée</b><span>horaire de la voiture</span></div>${sw(on(C.voiture_programmee), "car-prog")}</div>
         </div>
 
         <div class="card">
-          <h3>Entretien <span class="end">${fr(odo)} km</span></h3>
-          <div class="kpi"><b style="font-size:1.6rem;color:var(--txt)">${fr(Math.abs(next - odo))} km</b><span class="u">${next - odo >= 0 ? "avant le prochain" : "de retard"}</span></div>
-          <div style="margin:10px 0 14px">${prog(((odo - last) / C.entretien_intervalle_km) * 100, "#8a5cf6")}</div>
-          <div class="grid2"><button class="btn" data-act="car-service">✓ Entretien fait</button><button class="btn" data-act="car-service-km">Autre km…</button></div>
-          <div class="row" style="margin-top:8px"><div class="grow"><b>Batterie 12 V</b></div><b>${fr(n(C.voiture_12v_pct))} %</b></div>
-          <div class="row"><div class="grow"><b>Dernier trajet</b><span>${fr(soc - n(C.voiture_soc_reference))} % depuis</span></div><b>${ago(st(C.voiture_dernier_trajet))}</b></div>
+          ${ch("wrench", "#8a5cf6", "Entretien", `tous les ${fr(C.entretien_intervalle_km)} km`, `${fr(odo)} km`)}
+          <div class="kpi" style="margin:4px 0 12px"><b style="color:var(--txt)">${fr(Math.abs(next - odo))}</b><span class="u">km ${next - odo >= 0 ? "avant le prochain" : "de retard"}</span></div>
+          ${prog(((odo - last) / C.entretien_intervalle_km) * 100, "linear-gradient(90deg,#b9a2ff,#7c4dff)")}
+          <div class="grid2" style="margin-top:16px"><button class="btn" data-act="car-service">${ICONS.check} Entretien fait</button><button class="btn ghost" data-act="car-service-km">Autre km…</button></div>
+          <div class="foot-row"><span>Dernier trajet ${ago(st(C.voiture_dernier_trajet))}</span><span>${fr(soc - n(C.voiture_soc_reference))} % depuis</span></div>
         </div>
       </div>`;
   }
 
-  // ─── Maison (sous-onglets)
-  let sousMaison = "lumieres";
+  // ─── Maison, façon Apple Maison : pièces, tuiles, panneau du bas avec curseur vertical
+  let hkFilter = null;      // null = par pièce, sinon une catégorie
+  let sheet = null;         // { kind, i } du panneau ouvert
+  const METEO_TXT = { sunny: "Ensoleillé", "clear-night": "Nuit claire", partlycloudy: "Éclaircies", cloudy: "Nuageux", rainy: "Pluie", pouring: "Averses", snowy: "Neige", fog: "Brouillard", windy: "Venteux", lightning: "Orage" };
+  const ref = (key) => { const [r, i] = key.split(":"); return i == null ? C[r] : C[r][+i]; };
+  const robotTxt = () => ({ docked: "Sur sa base", cleaning: "Nettoie", returning: "Retour à la base", idle: "En pause" }[st(C.robot)] || st(C.robot));
+
+  // Décrit chaque accessoire : catégorie, icône, couleur quand il est actif, état lisible, action au toucher
+  function acc(key) {
+    const [r, ix] = key.split(":"), i = ix == null ? null : +ix;
+    if (r === "lumieres") { const id = C.lumieres[i]; return { key, cat: "lumieres", ic: "bulb", c: "#f5b400", nom: C.lumieres_noms[i], on: on(id), etat: on(id) ? "Allumée" : "Éteinte", act: "light", i }; }
+    if (r === "volets") { const id = C.volets[i], p = at(id, "current_position"); return { key, cat: "volets", ic: "blinds", c: "#3a7bec", nom: C.volets_noms[i], on: p > 0, etat: p === 0 ? "Fermé" : p === 100 ? "Ouvert" : `${p} % ouvert`, sheet: "volet", i }; }
+    if (r === "radiateurs") { const id = C.radiateurs[i], rOn = st(id) !== "off", t = C.radiateurs_temp[i]; return { key, cat: "climat", ic: "therm", c: "#e8711a", nom: "Radiateur", on: rOn, etat: `${t ? fr(n(t), 1) : fr(at(id, "current_temperature"), 1)}° · ${rOn ? `vise ${fr(at(id, "temperature"), 1)}°` : "éteint"}`, sheet: "radiateur", i }; }
+    if (r === "poele") { const pOn = st(C.poele) !== "off"; return { key, cat: "climat", ic: "flame", c: "#e5484d", nom: "Poêle à granulés", on: pOn, etat: pOn ? `${st(C.poele_statut)} · P${st(C.poele_puissance)} · ${fr(n(C.tremie_kg))} kg` : "Éteint", big: `${fr(at(C.poele, "current_temperature"), 1)}°`, sheet: "poele", wide: true }; }
+    if (r === "ballon") { const ch = on(C.ballon_chauffe); return { key, cat: "climat", ic: "drop", c: "#3a7bec", nom: "Ballon d'eau chaude", on: ch || n(C.ballon_boost) === 1, etat: ch ? "Chauffe" : `${fr(n(C.ballon_temp))}° · consigne ${fr(at(C.ballon, "temperature"))}°`, sheet: "ballon" }; }
+    if (r === "prise_chambre") return { key, cat: "appareils", ic: "plug", c: "#1f9d55", nom: "Prise chambre", on: on(C.prise_chambre), etat: on(C.prise_chambre) ? `${fr(n(C.prise_chambre_w))} W` : "Éteinte", act: "plug" };
+    if (r === "multiprise") { const k = C.multiprise.filter(on).length; return { key, cat: "appareils", ic: "plug", c: "#1f9d55", nom: "Multiprise", on: k > 0, etat: `${k} sur ${C.multiprise.length} allumées`, sheet: "multiprise" }; }
+    if (r === "robot") return { key, cat: "appareils", ic: "robot", c: "#3a7bec", nom: "Aspirateur", on: st(C.robot) === "cleaning", etat: `${robotTxt()} · ${fr(n(C.robot_batterie))} %`, sheet: "robot" };
+    if (r === "homepod") { const pl = st(C.homepod) === "playing"; return { key, cat: "appareils", ic: "speaker", c: "#8a5cf6", nom: "HomePod", on: pl, etat: pl ? (at(C.homepod, "media_title") || "Lecture") : "En pause", sheet: "homepod" }; }
+    return null;
+  }
+  function tile(a) {
+    if (!a) return "";
+    const iconBtn = a.act ? `data-act="${a.act}" ${a.i != null ? `data-i="${a.i}"` : ""}` : a.sheet === "volet" ? `data-act="cover-toggle" data-i="${a.i}"` : `data-sheet="${a.sheet}:${a.i ?? ""}"`;
+    const body = a.sheet ? `data-sheet="${a.sheet}:${a.i ?? ""}"` : iconBtn;
+    return `<div class="hk-tile ${a.on ? "on" : ""} ${a.wide ? "wide" : ""}" style="--c:${a.c}">
+      <button class="hk-ic" ${iconBtn} aria-label="${a.nom}">${ICONS[a.ic]}</button>
+      <button class="hk-tx" ${body}><b>${a.nom}</b><span>${a.etat}</span></button>
+      ${a.big ? `<span class="hk-big">${a.big}</span>` : ""}
+    </div>`;
+  }
   function pageMaison() {
-    const tabs = [["lumieres", "Lumières"], ["volets", "Volets"], ["chauffage", "Chauffage"], ["appareils", "Appareils"]];
-    const body = { lumieres: maisonLumieres, volets: maisonVolets, chauffage: maisonChauffage, appareils: maisonAppareils }[sousMaison]();
-    return `
-      <div class="bar-top"><h1>Ma maison</h1><span class="end muted small">${METEO[st(C.meteo)] || ""} ${fr(at(C.meteo, "temperature"))} °C dehors</span></div>
-      <div class="pills">${tabs.map(([k, l]) => `<button class="${sousMaison === k ? "on" : ""}" data-sub="${k}">${l}</button>`).join("")}</div>
-      <div class="wrap">${body}</div>`;
+    const temps = C.radiateurs_temp.filter(Boolean).map((id) => n(id)).concat([at(C.poele, "current_temperature")]);
+    const nbL = C.lumieres.filter(on).length, nbV = C.volets.filter((id) => at(id, "current_position") > 0).length;
+    const locked = st(C.voiture_verrou) === "locked";
+    const chips = [
+      ["climat", "therm", "#e8711a", "Climat", `${fr(Math.min(...temps), 0)}–${fr(Math.max(...temps), 0)}°`],
+      ["lumieres", "bulb", "#f5b400", "Lumières", nbL ? `${nbL} allumée${nbL > 1 ? "s" : ""}` : "Éteintes"],
+      ["volets", "blinds", "#3a7bec", "Volets", `${nbV} ouvert${nbV > 1 ? "s" : ""}`],
+      ["appareils", "plug", "#1f9d55", "Appareils", `${C.multiprise.filter(on).length + (on(C.prise_chambre) ? 1 : 0)} actifs`],
+      ["securite", locked ? "lock" : "unlock", locked ? "#1f9d55" : "#e5484d", "Sécurité", locked ? "e-Niro fermée" : "e-Niro ouverte"],
+    ];
+    const allKeys = C.pieces.flatMap((p) => p.items);
+    let body;
+    if (hkFilter === "securite") {
+      body = `<div class="hk-room"><div class="hk-rh"><h2>Sécurité</h2></div><div class="hk-grid">
+        <div class="hk-tile ${locked ? "on" : ""} wide" style="--c:#1f9d55"><button class="hk-ic" data-act="car-lock">${ICONS[locked ? "lock" : "unlock"]}</button>
+        <button class="hk-tx" data-act="car-lock"><b>Kia e-Niro</b><span>${armed.unlock ? "Appuie encore pour ouvrir" : locked ? "Verrouillée" : "Déverrouillée"}</span></button></div></div></div>`;
+    } else if (hkFilter) {
+      const list = allKeys.map(acc).filter((a) => a && a.cat === hkFilter);
+      const titre = { climat: "Climat", lumieres: "Lumières", volets: "Volets", appareils: "Appareils" }[hkFilter];
+      const extra = hkFilter === "lumieres" ? `<button class="hk-link" data-act="lights-off">Tout éteindre</button>`
+        : hkFilter === "volets" ? `<span class="hk-links"><button class="hk-link" data-act="covers" data-i="100">Tout ouvrir</button><button class="hk-link" data-act="covers" data-i="0">Tout fermer</button></span>` : "";
+      body = `<div class="hk-room"><div class="hk-rh"><h2>${titre}</h2>${extra}</div><div class="hk-grid">${list.map(tile).join("")}</div></div>`;
+    } else {
+      body = C.pieces.map((p) => {
+        const t = p.temp ? n(ref(p.temp)) : NaN, h = p.hum ? n(ref(p.hum)) : NaN;
+        return `<div class="hk-room"><div class="hk-rh"><h2>${p.nom}</h2>${Number.isFinite(t) ? `<span>${fr(t, 1)}°${Number.isFinite(h) ? ` · ${fr(h)} % HR` : ""}</span>` : ""}</div>
+          <div class="hk-grid">${p.items.map((k) => tile(acc(k))).join("")}</div></div>`;
+      }).join("");
+    }
+    return `<div class="hk-wall" aria-hidden="true"></div>
+      <header class="hk-head"><div><div class="eyebrow">${METEO_TXT[st(C.meteo)] || "Dehors"} · ${fr(at(C.meteo, "temperature"))}° dehors</div><h1>Ma maison</h1></div></header>
+      <div class="hk-chips">${chips.map(([k, ic, c, l, v]) => `<button class="hk-chip ${hkFilter === k ? "on" : ""}" data-hk="${k}" style="--c:${c}">${chip(ic, c, "sm")}<span><b>${l}</b><em>${v}</em></span></button>`).join("")}</div>
+      ${hkFilter ? `<button class="hk-back" data-hk="">${ICONS.up} Toutes les pièces</button>` : ""}
+      <div class="wrap hk">${body}</div>`;
   }
-  const METEO = { sunny: "☀️", "clear-night": "🌙", partlycloudy: "⛅", cloudy: "☁️", rainy: "🌧️", pouring: "🌧️", snowy: "❄️", fog: "🌫️", windy: "💨", lightning: "⛈️" };
-  function maisonLumieres() {
-    const nb = C.lumieres.filter(on).length;
-    return `<div class="dev" style="margin-bottom:14px"><span class="ic" style="background:var(--orange-soft)">💡</span><div class="t"><b>${nb} allumée${nb > 1 ? "s" : ""}</b><span>sur ${C.lumieres.length} lumières</span></div><button class="btn k" data-act="lights-off" style="padding:10px 14px">Tout éteindre</button></div>
-      <div class="grid2">${C.lumieres.map((id, i) => `<button class="tile ${on(id) ? "on" : ""}" data-act="light" data-i="${i}"><span class="ti">💡</span><div><b>${C.lumieres_noms[i]}</b><br><span>${on(id) ? "Allumée" : "Éteinte"}</span></div></button>`).join("")}</div>`;
+
+  // Panneau du bas (comme la vue détaillée d'un accessoire Apple Maison)
+  function vslider(kind, i, val, min, max, step, label, color, fmt) {
+    const p = ((val - min) / (max - min)) * 100;
+    return `<div class="vs" data-vs="${kind}" data-i="${i}" data-min="${min}" data-max="${max}" data-step="${step}" data-val="${val}" style="--c:${color}" role="slider" aria-label="${label}" aria-valuemin="${min}" aria-valuemax="${max}" aria-valuenow="${val}" tabindex="0">
+      <i style="height:${p}%"></i><b>${fmt(val)}</b></div>`;
   }
-  function maisonVolets() {
-    return `<div class="grid2" style="margin-bottom:14px"><button class="btn o" data-act="covers" data-i="100">▲ Tout ouvrir</button><button class="btn k" data-act="covers" data-i="0">▼ Tout fermer</button></div>
-      ${C.volets.map((id, i) => { const p = at(id, "current_position"); return `<div class="dev"><span class="shut"><i style="height:${100 - p}%"></i></span><div class="t"><b>${C.volets_noms[i]}</b><span>${p === 0 ? "Fermé" : p === 100 ? "Ouvert" : `Ouvert à ${p} %`}</span></div>
-        <div class="step"><button data-act="cover" data-i="${i}" data-d="100" aria-label="Ouvrir">▲</button><button data-act="cover" data-i="${i}" data-d="0" aria-label="Fermer">▼</button></div></div>`; }).join("")}`;
+  function sheetBody() {
+    if (!sheet) return "";
+    const { kind } = sheet, i = sheet.i === "" ? null : +sheet.i;
+    const top = (ic, c, title, sub) => `<div class="sh-top">${chip(ic, c)}<div><b>${title}</b><span>${sub}</span></div><button class="sh-x" data-close aria-label="Fermer">✕</button></div>`;
+    if (kind === "volet") {
+      const id = C.volets[i], p = at(id, "current_position");
+      return top("blinds", "#3a7bec", C.volets_noms[i], p === 0 ? "Fermé" : p === 100 ? "Ouvert" : `Ouvert à ${p} %`)
+        + `<div class="sh-mid">${vslider("volet", i, p, 0, 100, 5, "Position", "#3a7bec", (v) => `${v} %`)}</div>
+        <div class="grid2"><button class="btn" data-act="cover" data-i="${i}" data-d="0">${ICONS.down} Fermer</button><button class="btn o" data-act="cover" data-i="${i}" data-d="100">${ICONS.up} Ouvrir</button></div>`;
+    }
+    if (kind === "radiateur") {
+      const id = C.radiateurs[i], rOn = st(id) !== "off", t = C.radiateurs_temp[i], h = C.radiateurs_hum[i];
+      return top("therm", "#e8711a", `Radiateur ${C.radiateurs_noms[i].toLowerCase()}`, `${t ? fr(n(t), 1) : fr(at(id, "current_temperature"), 1)}° dans la pièce${h ? ` · ${fr(n(h))} % HR` : ""}`)
+        + `<div class="sh-mid">${rOn ? vslider("radiateur", i, at(id, "temperature"), 5, 28, 0.5, "Consigne", "#e8711a", (v) => `${fr(v, 1)}°`) : `<div class="vs off"><b>Éteint</b></div>`}</div>
+        <div class="sh-row"><span>Chauffage</span>${sw(rOn, "rad", i)}</div>`;
+    }
+    if (kind === "poele") {
+      const pOn = st(C.poele) !== "off", tremie = n(C.tremie_kg), stock = n(C.stock_kg), conso = n(C.conso_jour_kg), tMax = at(C.tremie_kg, "max") || 15;
+      const dj = Math.round((addMonths(new Date(st(C.poele_entretien)), C.poele_entretien_mois) - Date.now()) / 864e5);
+      return top("flame", "#e5484d", "Poêle à granulés", `${st(C.poele_statut)} · ${fr(at(C.poele, "current_temperature"), 1)}° · fumées ${fr(n(C.poele_fumees))}°`)
+        + `<div class="sh-mid">${pOn ? vslider("poele", 0, at(C.poele, "temperature"), 15, 25, 0.5, "Consigne", "#e5484d", (v) => `${fr(v, 1)}°`) : `<div class="vs off"><b>Éteint</b></div>`}</div>
+        <div class="eyebrow" style="margin:0 0 8px">Puissance</div>
+        <div class="seg">${[1, 2, 3, 4, 5].map((v) => `<button class="${n(C.poele_puissance) === v ? "on" : ""}" data-act="stove-pow" data-i="${v}">P${v}</button>`).join("")}</div>
+        <div class="sh-row"><span>Allumé</span>${sw(pOn, "stove")}</div>
+        <div class="sh-row"><span>Trémie <em>${fr(tremie, 1)} / ${fr(tMax)} kg</em></span><div style="width:45%">${prog((tremie / tMax) * 100, tremie < 4 ? "var(--red)" : "linear-gradient(90deg,#f4c27a,#b7791f)")}</div></div>
+        <div class="sh-row"><span>Stock <em>${fr(stock)} kg · ~${fr((tremie + stock) / conso)} jours</em></span><span class="muted small">entretien ${dj >= 0 ? `dans ${dj} j` : `en retard`}</span></div>
+        <div class="grid2" style="margin-top:12px"><button class="btn ${armed.fill ? "danger" : ""}" data-act="pellet-fill">${armed.fill ? "Confirmer" : "Verser un sac"}</button><button class="btn o" data-act="pellet-buy">+ 1 sac</button></div>`;
+    }
+    if (kind === "ballon") {
+      const boost = n(C.ballon_boost) === 1, bt = n(C.ballon_temp), bc = at(C.ballon, "temperature");
+      return top("drop", "#3a7bec", "Ballon d'eau chaude", on(C.ballon_chauffe) ? "Chauffe en cours" : "Au repos")
+        + `<div class="sh-mid"><div class="vs ro" style="--c:#3a7bec"><i style="height:${clamp((bt / bc) * 100, 0, 100)}%"></i><b>${fr(bt)}°</b></div></div>
+        <div class="sh-row"><span>Consigne</span><b>${fr(bc)}°</b></div>
+        <div class="sh-row"><span>Forcer la chauffe <em>${boost ? "J1 · boost" : "J0 · normal"}</em></span>${sw(boost, "boiler-boost")}</div>
+        <div class="sh-row"><span>Dernier entretien</span><span class="muted small">${ago(new Date(st(C.ballon_entretien)).toISOString())}</span></div>`;
+    }
+    if (kind === "multiprise") {
+      return top("plug", "#1f9d55", "Multiprise", `${C.multiprise.filter(on).length} sur ${C.multiprise.length} allumées`)
+        + `<div class="hk-grid" style="margin-top:6px">${C.multiprise.map((id, k) => `<div class="hk-tile ${on(id) ? "on" : ""}" style="--c:#1f9d55"><button class="hk-ic" data-act="strip" data-i="${k}">${ICONS.plug}</button><button class="hk-tx" data-act="strip" data-i="${k}"><b>${C.multiprise_noms[k]}</b><span>${on(id) ? "Allumée" : "Éteinte"}</span></button></div>`).join("")}</div>`;
+    }
+    if (kind === "robot") {
+      return top("robot", "#3a7bec", "Robot aspirateur", `${robotTxt()} · batterie ${fr(n(C.robot_batterie))} %`)
+        + `<div class="eyebrow" style="margin:10px 0 8px">Zone</div>
+        <div class="sel-wrap"><select data-act="robot-scene" aria-label="Zone à nettoyer">${(at(C.robot_scene, "options") || []).map((o) => `<option ${o === st(C.robot_scene) ? "selected" : ""}>${o}</option>`).join("")}</select>${ICONS.down}</div>
+        <div class="grid2" style="margin-top:14px"><button class="btn" data-act="robot-dock">${ICONS.dock} Base</button><button class="btn o" data-act="robot-start">${ICONS.play} Lancer</button></div>`;
+    }
+    if (kind === "homepod") {
+      const hp = C.homepod, playing = st(hp) === "playing", vol = Math.round((at(hp, "volume_level") || 0) * 100);
+      return top("speaker", "#8a5cf6", "HomePod salon", playing ? "Lecture en cours" : "En pause")
+        + `<div class="player"><div class="art ${playing ? "playing" : ""}"><i></i><i></i><i></i></div>
+          <div class="pl-t"><b>${at(hp, "media_title") || "—"}</b><span>${at(hp, "media_artist") || ""}</span></div>
+          <button class="pl-btn" data-act="media-play" aria-label="${playing ? "Pause" : "Lecture"}">${playing ? ICONS.pause : ICONS.play}</button></div>
+        <div class="sh-mid">${vslider("volume", 0, vol, 0, 100, 1, "Volume", "#8a5cf6", (v) => `${v}`)}</div>`;
+    }
+    return "";
   }
-  function maisonChauffage() {
-    const p = C.poele, pOn = st(p) !== "off";
-    const tremie = n(C.tremie_kg), stock = n(C.stock_kg), conso = n(C.conso_jour_kg), tMax = at(C.tremie_kg, "max") || 15;
-    const dj = Math.round((addMonths(new Date(st(C.poele_entretien)), C.poele_entretien_mois) - Date.now()) / 864e5);
-    const bt = n(C.ballon_temp), bc = at(C.ballon, "temperature"), boost = n(C.ballon_boost) === 1;
-    return `
-      <div class="card">
-        <h3>🔥 Poêle à granulés <span class="end">${sw(pOn, "stove")}</span></h3>
-        <div class="flexrow">${ring(((at(p, "current_temperature") - 15) / 10) * 100, `${fr(at(p, "current_temperature"), 1)}°`, "var(--orange)")}
-          <div class="grow" style="flex:1"><b>${st(C.poele_statut)}</b><div class="muted small">Fumées ${fr(n(C.poele_fumees))} °C · entretien ${dj >= 0 ? `dans ${dj} j` : `en retard de ${-dj} j`}</div>
-          <div style="margin-top:8px">${stepper(`${fr(at(p, "temperature"), 1)}°`, "stove-temp")}</div></div></div>
-        <div class="seg dark" style="margin-top:14px;box-shadow:none;background:var(--soft)">${[1, 2, 3, 4, 5].map((v) => `<button class="${n(C.poele_puissance) === v ? "on" : ""}" data-act="stove-pow" data-i="${v}">P${v}</button>`).join("")}</div>
-      </div>
-      <div class="card">
-        <h3>🪵 Granulés <span class="end">~${fr((tremie + stock) / conso)} jours</span></h3>
-        <div class="row" style="padding-top:0"><div class="grow"><b>Trémie</b><span>${fr(tremie, 1)} kg sur ${fr(tMax)} kg</span></div><b>${fr((tremie / tMax) * 100)} %</b></div>
-        ${prog((tremie / tMax) * 100, tremie < 4 ? "var(--red)" : "var(--orange)")}
-        <div class="row"><div class="grow"><b>Stock maison</b><span>${fr(conso, 1)} kg par jour</span></div><b>${fr(stock)} kg · ${fr(stock / 15)} sacs</b></div>
-        <div class="grid2" style="margin-top:6px"><button class="btn ${armed.fill ? "danger" : ""}" data-act="pellet-fill">${armed.fill ? "Confirmer" : "Verser un sac"}</button><button class="btn o" data-act="pellet-buy">+ 1 sac</button></div>
-      </div>
-      <h2>Radiateurs</h2>
-      ${C.radiateurs.map((id, i) => { const t = C.radiateurs_temp[i], h = C.radiateurs_hum[i], rOn = st(id) !== "off"; return `
-        <div class="dev"><span class="ic" style="background:${rOn ? "#fde8e0" : "var(--soft)"}">🌡️</span>
-          <div class="t"><b>${C.radiateurs_noms[i]}</b><span>${t ? fr(n(t), 1) : fr(at(id, "current_temperature"), 1)} °C${h ? ` · 💧&nbsp;${fr(n(h))}&nbsp;%` : ""}</span></div>
-          ${rOn ? stepper(`${fr(at(id, "temperature"), 1)}°`, "rad-temp", i) : ""}${sw(rOn, "rad", i)}</div>`; }).join("")}
-      <h2>Eau chaude</h2>
-      <div class="card">
-        <div class="flexrow">${ring((bt / bc) * 100, `${fr(bt)}°`, "var(--orange)")}
-          <div style="flex:1"><b>Ballon ${on(C.ballon_chauffe) ? "· chauffe" : ""}</b><div class="muted small">Consigne ${fr(bc)} °C · entretien ${ago(new Date(st(C.ballon_entretien)).toISOString())}</div></div></div>
-        <div class="row" style="margin-top:8px"><div class="grow"><b>Forcer la chauffe</b><span>${boost ? "J1 · boost" : "J0 · normal"}</span></div>${sw(boost, "boiler-boost")}</div>
-      </div>`;
+  function renderSheet() {
+    let el = document.getElementById("sheet");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "sheet";
+      el.innerHTML = `<div class="sh-bg" data-close></div><div class="sh-panel" role="dialog" aria-modal="true"><div class="sh-grab"></div><div class="sh-body"></div></div>`;
+      document.body.appendChild(el);
+    }
+    el.classList.toggle("open", !!sheet);
+    if (sheet) el.querySelector(".sh-body").innerHTML = sheetBody();
   }
-  function maisonAppareils() {
-    const hp = C.homepod, playing = st(hp) === "playing";
-    const robotEtat = { docked: "Sur sa base", cleaning: "Nettoyage en cours", returning: "Retour à la base", idle: "En pause" }[st(C.robot)] || st(C.robot);
-    return `
-      <div class="card">
-        <h3>🔌 Prise chambre <span class="end">${sw(on(C.prise_chambre), "plug")}</span></h3>
-        <div class="kpi"><b style="color:var(--txt)">${on(C.prise_chambre) ? fr(n(C.prise_chambre_w)) : 0} W</b><span class="u">${fr(n(C.prise_chambre_kwh), 2)} kWh au total</span></div>
-      </div>
-      <div class="card"><h3>Multiprise</h3>
-        ${C.multiprise.map((id, i) => `<div class="row"><div class="grow"><b>${C.multiprise_noms[i]}</b></div>${sw(on(id), "strip", i)}</div>`).join("")}</div>
-      <div class="card">
-        <h3>🤖 Robot aspirateur <span class="end">🔋 ${fr(n(C.robot_batterie))} %</span></h3>
-        <div class="muted small" style="margin-bottom:10px">${robotEtat}</div>
-        <select data-act="robot-scene" style="width:100%;padding:12px;border-radius:14px;border:0;background:var(--soft)">${(at(C.robot_scene, "options") || []).map((o) => `<option ${o === st(C.robot_scene) ? "selected" : ""}>${o}</option>`).join("")}</select>
-        <div class="grid2" style="margin-top:12px"><button class="btn" data-act="robot-dock">⌂ Base</button><button class="btn o" data-act="robot-start">▶ Lancer</button></div>
-      </div>
-      <div class="card">
-        <h3>🔊 HomePod salon <span class="end">${playing ? "Lecture" : "En pause"}</span></h3>
-        <div class="flexrow"><button class="round" data-act="media-play" style="background:var(--orange);color:#fff">${playing ? "⏸" : "▶"}</button>
-          <div><b>${at(hp, "media_title") || "—"}</b><div class="muted small">${at(hp, "media_artist") || ""}</div></div></div>
-        <input type="range" min="0" max="100" value="${Math.round((at(hp, "volume_level") || 0) * 100)}" data-act="media-vol" aria-label="Volume" style="width:100%;margin-top:14px;accent-color:var(--orange)">
-      </div>`;
+  // Curseur vertical : glisser pour régler, la commande part au relâchement
+  const VS_ACT = {
+    volet: (i, v) => { const id = C.volets[i]; call("cover.set_cover_position", id, () => set(id, v ? "open" : "closed", { current_position: v }), ` ${v}`); },
+    radiateur: (i, v) => { const id = C.radiateurs[i]; call("climate.set_temperature", id, () => set(id, st(id), { temperature: v }), ` ${v}°`); },
+    poele: (i, v) => call("climate.set_temperature", C.poele, () => set(C.poele, st(C.poele), { temperature: v }), ` ${v}°`),
+    volume: (i, v) => call("media_player.volume_set", C.homepod, () => set(C.homepod, st(C.homepod), { volume_level: v / 100 }), ` ${v} %`),
+  };
+  let drag = null;
+  document.addEventListener("pointerdown", (ev) => {
+    const el = ev.target.closest("[data-vs]");
+    if (!el) return;
+    ev.preventDefault();
+    el.setPointerCapture(ev.pointerId);
+    drag = { el, min: +el.dataset.min, max: +el.dataset.max, step: +el.dataset.step, val: +el.dataset.val };
+    moveVs(ev);
+  });
+  function moveVs(ev) {
+    if (!drag) return;
+    const r = drag.el.getBoundingClientRect();
+    const k = clamp(1 - (ev.clientY - r.top) / r.height, 0, 1);
+    const v = Math.round((drag.min + k * (drag.max - drag.min)) / drag.step) * drag.step;
+    drag.val = +v.toFixed(2);
+    drag.el.querySelector("i").style.height = `${((drag.val - drag.min) / (drag.max - drag.min)) * 100}%`;
+    const kind = drag.el.dataset.vs;
+    drag.el.querySelector("b").textContent = kind === "volet" ? `${drag.val} %` : kind === "volume" ? `${drag.val}` : `${fr(drag.val, 1)}°`;
   }
+  document.addEventListener("pointermove", moveVs);
+  document.addEventListener("pointerup", () => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    if (d.val !== +d.el.dataset.val) VS_ACT[d.el.dataset.vs](+d.el.dataset.i, d.val);
+  });
 
   // Plages tarifaires lisibles, ex. « 23h–2h, 6h–7h » ; HP = le reste de la journée
   const hh = (t) => `${parseInt(t, 10)}h`;
@@ -485,7 +634,7 @@ ${chargeStats()}
     const evol = ((cumul - avant) / avant) * 100;
     const max = Math.max(...ECO_MOIS);
     return `<div class="card">
-      <h3>Économies ${new Date().getFullYear()} <span class="end">depuis le 1er janvier</span></h3>
+      ${ch("euro", "#1f9d55", `Économies ${new Date().getFullYear()}`, "depuis le 1er janvier")}
       <div class="kpi"><b style="color:var(--green)">${fr(cumul)} €</b><span class="u">économisés</span><span class="tag">${evol >= 0 ? "+" : ""}${fr(evol)} % vs ${new Date().getFullYear() - 1}</span></div>
       <div class="ebars" role="img" aria-label="Économies par mois">${ECO_MOIS.map((v, i) => `
         <div class="eb ${i === m ? "hi" : i > m ? "fut" : ""}" title="${MOIS_LONG[i]} : ${i > m ? "prévu" : ""} ${fr(v)} €"><i style="height:${(v / max) * 100}%"></i><span>${MOIS[i][0]}</span></div>`).join("")}</div>
@@ -508,7 +657,7 @@ ${chargeStats()}
     const p = clamp((total / inv) * 100, 0, 100);
     const mo = (d) => d.toLocaleDateString("fr-FR", { month: "short", year: "numeric" });
     return `<div class="card roi">
-      <h3>Retour sur investissement <span class="end">installation solaire</span></h3>
+      ${ch("sun", "#1f9d55", "Retour sur investissement", "installation solaire")}
       <div class="roi-top">
         <div>${ring(p, `<span>${fr(p)}<small style="font-size:.75rem;font-weight:500"> %</small></span>`, "var(--green)")}</div>
         <div class="roi-main">
@@ -537,9 +686,9 @@ ${chargeStats()}
     const j = bilanJour();
     const many = P.data.length > 8;
     const parts = [
-      { k: "Solaire direct", ic: "☀️", v: j.solDirect, c: "#e8711a" },
-      { k: "Batterie", ic: "🔋", v: j.dch, c: "#3a7bec" },
-      { k: "Réseau", ic: "⚡", v: j.imp, c: "#1f9d55" },
+      { k: "Solaire direct", ic: "sun", v: j.solDirect, c: "#e8711a" },
+      { k: "Batterie", ic: "bat", v: j.dch, c: "#3a7bec" },
+      { k: "Réseau", ic: "grid", v: j.imp, c: "#1f9d55" },
     ];
     const tot = parts.reduce((a, p) => a + p.v, 0);
     // Anneau (donut) avec 2px d'écart entre les parts
@@ -556,22 +705,32 @@ ${chargeStats()}
       return out;
     }).join("");
     return `
-      <div class="bar-top"><div><h1>Analyse</h1><div class="sub">Production, économies et origine de l'énergie</div></div></div>
+      ${head("Production · économies · origine", "Analyse")}
       <div class="wrap">
         <div class="seg" style="margin-bottom:14px">${[["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["annee", "Année"]].map(([k, l]) => `<button class="${periode === k ? "on" : ""}" data-per="${k}">${l}</button>`).join("")}</div>
         <div class="card">
-          <div class="kpi"><b>${fr(P.total, 1)}</b><span class="u">${P.titre}</span>${P.evol != null ? `<span class="tag">+${P.evol} % vs avant</span>` : ""}</div>
-          <div class="bars" style="grid-template-columns:repeat(${P.data.length},1fr)">
-            ${P.data.map((v, i) => `<div class="b ${i === P.hi ? "hi" : ""}" title="${P.labels[i]} : ${fr(v, 1)} kWh">${!many || i === P.hi ? `<span class="v">${fr(v, v < 100 ? 1 : 0)}</span>` : ""}<i style="height:${(v / max) * 100}%"></i><span class="d">${P.labels[i]}</span></div>`).join("")}
+          ${ch("sun", "#e8711a", "Production", P.titre.replace("kWh ", ""))}
+          <div class="kpi"><b>${fr(P.total, 1)}</b><span class="u">kWh</span>${P.evol != null ? `<span class="tag">+${P.evol} % ${P.evolTxt || "vs avant"}</span>` : ""}</div>
+          <div class="bars ${periode === "mois" ? "dense" : ""}" style="grid-template-columns:repeat(${P.data.length},1fr)">
+            ${P.avg ? `<div class="avg" style="bottom:${20 + (P.avg / max) * 150}px"><span>moy. ${fr(P.avg, 1)}</span></div>` : ""}
+            ${P.data.map((v, i) => { const fut = P.fut != null && i >= P.fut; const lab = periode !== "mois" || i === 0 || (i + 1) % 5 === 0 || i === P.hi;
+              return `<div class="b ${i === P.hi ? "hi" : ""} ${fut ? "fut" : ""} ${i === P.best ? "best" : ""}" title="${P.labels[i]}${periode === "mois" ? ` ${P.mName}` : ""} : ${fr(v, 1)} kWh${fut ? " (prévu)" : ""}">${!many || i === P.hi ? `<span class="v">${fr(v, v < 100 ? 1 : 0)}</span>` : ""}<i style="height:${(v / max) * 100}%"></i><span class="d">${lab ? P.labels[i] : "&nbsp;"}</span></div>`; }).join("")}
           </div>
+          ${periode === "mois" ? `
+          <div class="legend-m"><span class="lm-past">Produit</span><span class="lm-fut">Prévu</span><span class="lm-best">Meilleur jour</span></div>
+          <div class="sfoot" style="grid-template-columns:repeat(3,1fr)">
+            <div><span>Record</span><b>${fr(P.data[P.best], 1)}</b><small class="muted"> le ${P.best + 1}</small></div>
+            <div><span>Moyenne</span><b>${fr(P.avg, 1)}</b><small class="muted"> /jour</small></div>
+            <div><span>Fin de mois</span><b>~${fr(P.proj)}</b><small class="muted"> kWh</small></div>
+          </div>` : ""}
         </div>
 ${economiesAnnee()}
 ${roiCard()}
         <div class="card" style="overflow:hidden">
-          <h3>D'où vient ton énergie <span class="end">aujourd'hui</span></h3>
+          ${ch("leaf", "#1f9d55", "D'où vient ton énergie", "aujourd'hui")}
           <div class="kpi" style="margin-bottom:10px"><b style="color:var(--txt);font-size:1.9rem">${fr(tot, 1)}</b><span class="u">kWh consommés</span></div>
           <div class="donut-wrap">
-            <div class="lst">${parts.map((p) => `<div class="it"><span class="ic">${p.ic}</span><div><span>${p.k} (${fr((p.v / tot) * 100)} %)</span><b>${fr(p.v, 1)} kWh</b></div></div>`).join("")}</div>
+            <div class="lst">${parts.map((p) => `<div class="it">${chip(p.ic, p.c)}<div><span>${p.k} (${fr((p.v / tot) * 100)} %)</span><b>${fr(p.v, 1)} kWh</b></div></div>`).join("")}</div>
             <svg class="donut" viewBox="0 0 150 150" role="img" aria-label="Origine de l'énergie consommée">${arcs}</svg>
           </div>
         </div>
@@ -580,7 +739,7 @@ ${roiCard()}
           const sp = ANNEE.reduce((a, b) => a + b, 0), sc = CONSO_ANNEE.reduce((a, b) => a + b, 0), si = INJ_ANNEE.reduce((a, b) => a + b, 0);
           const couv = (ANNEE.reduce((a, v, i) => a + Math.min(v, CONSO_ANNEE[i]), 0) / sc) * 100;
           return `<div class="card">
-          <h3>Production et consommation <span class="end">${new Date().getFullYear()}</span></h3>
+          ${ch("chart", "#e8711a", "Production et consommation", `année ${new Date().getFullYear()}`)}
           <div class="ylegend">
             <div style="--c:var(--orange)"><span>Production</span><b>${fr(sp)} <small>kWh</small></b></div>
             <div style="--c:var(--blue)"><span>Consommation</span><b>${fr(sc)} <small>kWh</small></b></div>
@@ -628,6 +787,7 @@ ${roiCard()}
     light: (el) => { const id = C.lumieres[el.dataset.i]; call("light.toggle", id, () => toggle(id)); },
     "lights-off": () => call("light.turn_off", "toutes les lumières", () => C.lumieres.forEach((id) => set(id, "off"))),
     cover: (el) => { const id = C.volets[el.dataset.i], p = +el.dataset.d; call("cover.set_cover_position", id, () => set(id, p ? "open" : "closed", { current_position: p }), ` ${p}`); },
+    "cover-toggle": (el) => { const id = C.volets[el.dataset.i], p = at(id, "current_position") > 0 ? 0 : 100; call("cover.set_cover_position", id, () => set(id, p ? "open" : "closed", { current_position: p }), ` ${p}`); },
     covers: (el) => { const p = +el.dataset.i; call("cover.set_cover_position", "tous les volets", () => C.volets.forEach((id) => set(id, p ? "open" : "closed", { current_position: p })), ` ${p}`); },
     plug: () => call("switch.toggle", C.prise_chambre, () => toggle(C.prise_chambre)),
     strip: (el) => { const id = C.multiprise[el.dataset.i]; call("switch.toggle", id, () => toggle(id)); },
@@ -646,9 +806,12 @@ ${roiCard()}
   };
   document.addEventListener("click", (ev) => {
     const go = ev.target.closest("[data-go]");
-    if (go) { if (go.dataset.gosub) sousMaison = go.dataset.gosub; return show(go.dataset.go); }
-    const sub = ev.target.closest("[data-sub]");
-    if (sub) { sousMaison = sub.dataset.sub; return render(); }
+    if (go) { if (go.dataset.gosub) hkFilter = go.dataset.gosub === "chauffage" ? "climat" : go.dataset.gosub; sheet = null; renderSheet(); return show(go.dataset.go); }
+    const hk = ev.target.closest("[data-hk]");
+    if (hk) { const k = hk.dataset.hk; hkFilter = !k || hkFilter === k ? null : k; return render(); }
+    const shb = ev.target.closest("[data-sheet]");
+    if (shb) { const [kind, i] = shb.dataset.sheet.split(":"); sheet = { kind, i }; return renderSheet(); }
+    if (ev.target.closest("[data-close]")) { sheet = null; return renderSheet(); }
     const cper = ev.target.closest("[data-cper]");
     if (cper) { chargePer = cper.dataset.cper; return render(); }
     const per = ev.target.closest("[data-per]");
@@ -669,6 +832,7 @@ ${roiCard()}
   try { const s = localStorage.getItem("voltia-v3-page"); if (PAGES[s]) current = s; } catch (e) {}
   function show(name) {
     current = name;
+    if (sheet) { sheet = null; renderSheet(); }
     try { localStorage.setItem("voltia-v3-page", name); } catch (e) {}
     document.querySelectorAll(".dock [data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === name));
     entering = true;
@@ -682,6 +846,7 @@ ${roiCard()}
     const el = document.getElementById("page");
     el.innerHTML = PAGES[current]();
     el.className = `page on${entering ? " enter" : ""}`;
+    if (sheet) renderSheet();
     if (entering) countUp(el);
     entering = false;
   }
