@@ -45,7 +45,6 @@
   s("switch.e_niro_e_niro_climate", "off");
   s("switch.e_niro_off_peak_charge_only", "off");
   s("switch.e_niro_scheduled_charging", "off");
-  s("input_select.voltia_mode_recharge", "Soleil", { options: ["Normal", "Soleil", "Soleil + super creuses"] });
   s("input_number.voltia_session_soc", 14);
   s("input_number.voltia_session_sol_kwh", 6.8);
   s("input_number.voltia_session_res_kwh", 2.1);

@@ -37,7 +37,6 @@ window.VOLTIA_CONFIG = {
   voiture_clim: "switch.e_niro_e_niro_climate",
   voiture_heures_creuses: "switch.e_niro_off_peak_charge_only",
   voiture_programmee: "switch.e_niro_scheduled_charging",
-  voiture_mode_recharge: "input_select.voltia_mode_recharge",
   session_soc: "input_number.voltia_session_soc",
   session_sol_kwh: "input_number.voltia_session_sol_kwh",
   session_res_kwh: "input_number.voltia_session_res_kwh",

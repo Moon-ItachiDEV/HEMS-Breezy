@@ -235,7 +235,7 @@
     const events = [
       { h: "06:12", c: "var(--orange)", t: "Début de la production", s: "Premiers rayons · 0,12 kW" },
       { h: "08:45", c: "var(--blue)", t: "La batterie commence à charger", s: "Surplus solaire · batterie à 42 %" },
-      on(C.voiture_branchee) && { h: hhmm(sess), c: "#8a5cf6", t: "e-Niro branchée", s: `Mode ${st(C.voiture_mode_recharge)}` },
+      on(C.voiture_branchee) && { h: hhmm(sess), c: "#8a5cf6", t: "e-Niro branchée", s: `Batterie à ${fr(n(C.voiture_soc) - n(C.session_soc))} %` },
       { h: "10:20", c: "var(--green)", t: "Début de la revente", s: "Maison et batterie servies · surplus revendu" },
       { h: "12:48", c: "var(--orange)", t: "Pic de production", s: "5,20 kW · meilleure heure 12h – 13h" },
       { h: hhmm(new Date()), c: "var(--txt)", t: "Maintenant", s: `${Wt(e.solar)} produits · batterie ${fr(n(C.batterie_soc))} % · ${e.grid < 0 ? `revente ${Wt(-e.grid)}` : `achat ${Wt(e.grid)}`}` },
@@ -268,6 +268,57 @@
       </div>`;
   }
 
+  // ─── Statistiques de recharge par source (démo ; plus tard : historique HA × plages tarifaires)
+  const SOURCES = [
+    { k: "sol", nom: "Soleil", ic: "☀️", c: "#e8711a", tarif: () => 0 },
+    { k: "hsc", nom: "Super creuses", ic: "🌙", c: "#1f9d55", tarif: () => n(C.tarif_hsc) },
+    { k: "hc", nom: "Heures creuses", ic: "🌗", c: "#3a7bec", tarif: () => n(C.tarif_hc) },
+    { k: "hp", nom: "Heures pleines", ic: "⚡", c: "#b8336a", tarif: () => n(C.tarif_hp) },
+  ];
+  const CHARGES = {
+    jour: () => ({ titre: "aujourd'hui", labels: Array.from({ length: 12 }, (_, i) => `${i * 2}h`),
+      sol: [0, 0, 0, 0, 0, 1.6, 2.6, 2.0, 0.6, 0, 0, 0], hsc: Array(12).fill(0), hc: Array(12).fill(0), hp: [0, 0, 0, 0, 1.4, 0, 0, 0, 0, 0.7, 0, 0] }),
+    semaine: () => ({ titre: "cette semaine", labels: Array.from({ length: 7 }, (_, i) => (i === 6 ? "Auj." : dayName(6 - i))),
+      sol: [8.2, 0, 12.5, 6.1, 0, 9.8, 6.8], hsc: [0, 5.2, 0, 0, 4.1, 0, 0], hc: [1.4, 1.6, 0, 0.8, 1.5, 0, 0], hp: [0.7, 0.6, 0, 0.4, 0, 0, 2.1] }),
+    mois: () => ({ titre: "ce mois-ci", labels: ["S1", "S2", "S3", "S4"],
+      sol: [31.2, 38.6, 27.4, 43.4], hsc: [9.3, 4.1, 12.8, 9.3], hc: [3.2, 5.0, 2.1, 5.3], hp: [1.9, 0.8, 3.4, 3.8] }),
+    annee: () => ({ titre: "cette année", labels: MOIS.map((m) => m[0]),
+      sol: [40, 62, 98, 130, 158, 170, 176, 160, 120, 84, 48, 34], hsc: [62, 55, 38, 22, 12, 8, 6, 10, 24, 40, 58, 66],
+      hc: [18, 15, 10, 6, 3, 2, 2, 3, 7, 12, 16, 20], hp: [9, 7, 5, 3, 2, 1, 1, 2, 4, 6, 8, 10] }),
+  };
+  let chargePer = "semaine";
+  function chargeStats() {
+    const D = CHARGES[chargePer]();
+    const sum = (a) => a.reduce((x, y) => x + y, 0);
+    const tot = SOURCES.map((s) => ({ ...s, kwh: sum(D[s.k]) }));
+    const total = sum(tot.map((t) => t.kwh)) || 1;
+    const cout = sum(tot.map((t) => t.kwh * t.tarif()));
+    const toutHP = total * n(C.tarif_hp);
+    const colTot = D.labels.map((_, i) => sum(SOURCES.map((s) => D[s.k][i])));
+    const max = Math.max(...colTot) || 1;
+    const many = D.labels.length > 8;
+    return `
+        <div class="sec-h"><h2>Recharges</h2><span>par source d'énergie</span></div>
+        <div class="seg" style="margin-bottom:12px">${[["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["annee", "Année"]].map(([k, l]) => `<button class="${chargePer === k ? "on" : ""}" data-cper="${k}">${l}</button>`).join("")}</div>
+        <div class="card">
+          <div class="kpi"><b style="color:var(--txt)">${fr(total, total >= 100 ? 0 : 1)}</b><span class="u">kWh ${D.titre}</span><span class="tag">${fr((tot[0].kwh / total) * 100)} % soleil</span></div>
+          <div class="sbars" style="grid-template-columns:repeat(${D.labels.length},1fr)" role="img" aria-label="Recharges par source ${D.titre}">
+            ${D.labels.map((l, i) => `<div class="sb ${many ? "thin" : ""}" title="${l} : ${SOURCES.map((s) => `${s.nom} ${fr(D[s.k][i], 1)} kWh`).join(" · ")}">
+              <div class="stack" style="height:${(colTot[i] / max) * 100}%">${SOURCES.map((s) => D[s.k][i] > 0 ? `<i style="flex:${D[s.k][i]};background:${s.c}"></i>` : "").join("")}</div>
+              <span>${l}</span></div>`).join("")}
+          </div>
+          <div class="srcs">${tot.map((t) => `
+            <div class="src" style="--c:${t.c}"><span class="sic">${t.ic}</span>
+              <div class="sn"><b>${t.nom}</b><span>${t.k === "sol" ? "gratuit" : `${fr(t.tarif(), 4)} €/kWh`}</span></div>
+              <div class="sv"><b>${fr(t.kwh, t.kwh >= 100 ? 0 : 1)} kWh</b><span>${fr((t.kwh / total) * 100)} %${t.k === "sol" ? "" : ` · ${fr(t.kwh * t.tarif(), 2)} €`}</span></div>
+              <i class="sp" style="width:${(t.kwh / total) * 100}%"></i></div>`).join("")}</div>
+          <div class="sfoot">
+            <div><span>Coût des recharges</span><b>${fr(cout, 2)} €</b></div>
+            <div><span>Économisé vs tout en HP</span><b style="color:var(--green)">${fr(toutHP - cout, 2)} €</b></div>
+          </div>
+        </div>`;
+  }
+
   // ─── Voiture
   function pageVoiture() {
     const soc = n(C.voiture_soc), lim = n(C.voiture_limite_pct);
@@ -275,7 +326,6 @@
     const locked = st(C.voiture_verrou) === "locked";
     const sol = n(C.session_sol_kwh), res = n(C.session_res_kwh);
     const odo = n(C.voiture_odometre), last = n(C.entretien_dernier_km), next = last + C.entretien_intervalle_km;
-    const modes = at(C.voiture_mode_recharge, "options") || [];
     const fin = new Date(Date.now() + n(C.voiture_minutes_restantes) * 60e3);
     return `
       <div class="bar-top"><div><h1>Kia e-Niro</h1><div class="sub">MAJ ${ago(st(C.voiture_maj))}</div></div>
@@ -302,8 +352,7 @@
           </div>
         </div>
 
-        <h2>Mode de recharge</h2>
-        <div class="seg" style="margin-bottom:14px">${modes.map((m) => `<button class="${st(C.voiture_mode_recharge) === m ? "on" : ""}" data-act="car-mode" data-i="${m}">${m.replace("Soleil + super creuses", "Soleil + HSC")}</button>`).join("")}</div>
+${chargeStats()}
 
         <div class="card">
           <div class="row"><div class="grow"><b>Limite à la maison</b><span>recharge AC</span></div>${stepper(`${fr(lim)} %`, "car-lim")}</div>
@@ -467,7 +516,6 @@
       twoTap("unlock", "Appuie encore pour déverrouiller", () => call("lock.unlock", C.voiture_verrou, () => set(C.voiture_verrou, "unlocked")));
     },
     "car-clim": () => call("switch.toggle", C.voiture_clim, () => toggle(C.voiture_clim)),
-    "car-mode": (el) => call("input_select.select_option", C.voiture_mode_recharge, () => set(C.voiture_mode_recharge, el.dataset.i), ` ${el.dataset.i}`),
     "car-hc": () => call("switch.toggle", C.voiture_heures_creuses, () => toggle(C.voiture_heures_creuses)),
     "car-prog": () => call("switch.toggle", C.voiture_programmee, () => toggle(C.voiture_programmee)),
     "car-lim": (el) => { const v = stepNum(C.voiture_limite_pct, +el.dataset.d, 10, 50, 100); call("number.set_value", C.voiture_limite_pct, () => set(C.voiture_limite_pct, v), ` ${v}`); },
@@ -501,6 +549,8 @@
     if (go) { if (go.dataset.gosub) sousMaison = go.dataset.gosub; return show(go.dataset.go); }
     const sub = ev.target.closest("[data-sub]");
     if (sub) { sousMaison = sub.dataset.sub; return render(); }
+    const cper = ev.target.closest("[data-cper]");
+    if (cper) { chargePer = cper.dataset.cper; return render(); }
     const per = ev.target.closest("[data-per]");
     if (per) { periode = per.dataset.per; return render(); }
     const el = ev.target.closest("[data-act]");
@@ -520,39 +570,12 @@
   function show(name) {
     current = name;
     try { localStorage.setItem("voltia-v3-page", name); } catch (e) {}
-    document.querySelectorAll(".tabbar [data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === name));
-    followIndicator();
+    document.querySelectorAll(".dock [data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === name));
     entering = true;
     render();
     window.scrollTo({ top: 0 });
   }
-  // L'indicateur orange suit l'onglet actif pendant que la barre se réorganise
-  const tabbar = document.querySelector(".tabbar"), ind = tabbar.querySelector(".ind");
-  let followUntil = 0, firstPlace = true;
-  function placeIndicator() {
-    const b = tabbar.querySelector("button.on");
-    if (!b) return;
-    ind.style.width = `${b.offsetWidth}px`;
-    ind.style.transform = `translateX(${b.offsetLeft}px)`;
-  }
-  function followIndicator() {
-    if (firstPlace) { firstPlace = false; ind.style.transition = "none"; placeIndicator(); return; }
-    ind.style.transition = "";
-    followUntil = performance.now() + 600;
-    const loop = (t) => { placeIndicator(); if (t < followUntil) requestAnimationFrame(loop); };
-    requestAnimationFrame(loop);
-  }
-  window.addEventListener("resize", placeIndicator);
-  if (document.fonts) document.fonts.ready.then(placeIndicator);
-  tabbar.addEventListener("click", (ev) => { if (ev.target.closest("button") && navigator.vibrate) navigator.vibrate(8); });
-  // La barre se cache quand on descend dans la page et revient dès qu'on remonte
-  let lastY = window.scrollY;
-  window.addEventListener("scroll", () => {
-    const y = window.scrollY, bottom = y + innerHeight >= document.documentElement.scrollHeight - 40;
-    if (y > lastY + 6 && y > 80 && !bottom) tabbar.classList.add("hide");
-    else if (y < lastY - 6 || y < 80 || bottom) tabbar.classList.remove("hide");
-    lastY = y;
-  }, { passive: true });
+  document.querySelector(".dock").addEventListener("click", (ev) => { if (ev.target.closest("button") && navigator.vibrate) navigator.vibrate(8); });
 
   let entering = false;
   function render() {

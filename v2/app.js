@@ -174,7 +174,6 @@
     const autoconso = e.solar > 0 ? clamp((1 - Math.max(0, -e.grid) / e.solar) * 100, 0, 100) : 0;
     const imp = n(C.import_jour_kwh), exp = n(C.export_jour_kwh);
     const rend = (n(C.batterie_total_decharge_kwh) / n(C.batterie_total_charge_kwh)) * 100;
-    const mode = st(C.voiture_mode_recharge);
     return `
       <div class="page-head"><h1>Mon énergie</h1>
         <div class="actions">
@@ -201,7 +200,7 @@
             ${kvIt("Recharge voiture", on(C.voiture_branchee) ? Wt(e.car) : "débranchée", `<span class="lbl">${fr(n(C.voiture_soc))} %</span>`)}
           </div>
           <div class="total"><span class="lbl">Autoconsommation</span><span class="val">${fr(autoconso)} %</span></div>
-          <div class="foot"><button class="btn y full" data-act="car-mode-next">Mode recharge : ${mode}</button></div>
+          <div class="foot"><button class="btn y full" data-page="voiture">Voir la recharge</button></div>
         </div>
 
         <div class="card">
@@ -257,7 +256,6 @@
     const sol = n(C.session_sol_kwh), res = n(C.session_res_kwh);
     const totS = n(C.ve_solaire_kwh), totR = n(C.ve_reseau_kwh);
     const odo = n(C.voiture_odometre), last = n(C.entretien_dernier_km), next = last + C.entretien_intervalle_km;
-    const modes = at(C.voiture_mode_recharge, "options") || [];
     return `
       <div class="page-head"><h1>Kia e-Niro</h1>
         <div class="actions">
@@ -285,8 +283,7 @@
             ${charging ? kvIt("Fin estimée", hhmm(fin)) : ""}
           </div>
           <div class="total"><span class="lbl">Part solaire</span><span class="val">${fr((sol / (sol + res)) * 100)} %</span></div>
-          <div class="foot"><div class="lbl" style="margin-bottom:8px">Mode de recharge</div>
-            <div class="seg">${modes.map((m) => `<button class="${st(C.voiture_mode_recharge) === m ? "on" : ""}" data-act="car-mode" data-i="${m}">${m.replace("Soleil + super creuses", "Soleil + HSC")}</button>`).join("")}</div></div>
+
         </div>
 
         <div class="card">
@@ -460,11 +457,6 @@
       twoTap("unlock", "Appuie encore pour déverrouiller", () => call("lock.unlock", C.voiture_verrou, () => set(C.voiture_verrou, "unlocked")));
     },
     "car-clim": () => call("switch.toggle", C.voiture_clim, () => toggle(C.voiture_clim)),
-    "car-mode": (el) => call("input_select.select_option", C.voiture_mode_recharge, () => set(C.voiture_mode_recharge, el.dataset.i), ` ${el.dataset.i}`),
-    "car-mode-next": () => {
-      const o = at(C.voiture_mode_recharge, "options"), v = o[(o.indexOf(st(C.voiture_mode_recharge)) + 1) % o.length];
-      call("input_select.select_option", C.voiture_mode_recharge, () => set(C.voiture_mode_recharge, v), ` ${v}`);
-    },
     "car-hc": () => call("switch.toggle", C.voiture_heures_creuses, () => toggle(C.voiture_heures_creuses)),
     "car-prog": () => call("switch.toggle", C.voiture_programmee, () => toggle(C.voiture_programmee)),
     "car-lim": (el) => { const v = stepNum(C.voiture_limite_pct, +el.dataset.d, 10, 50, 100); call("number.set_value", C.voiture_limite_pct, () => set(C.voiture_limite_pct, v), ` ${v}`); },

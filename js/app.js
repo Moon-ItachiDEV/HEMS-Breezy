@@ -230,7 +230,6 @@
     const sol = n(C.session_sol_kwh), res = n(C.session_res_kwh);
     const totS = n(C.ve_solaire_kwh), totR = n(C.ve_reseau_kwh);
     const odo = n(C.voiture_odometre), last = n(C.entretien_dernier_km), next = last + C.entretien_intervalle_km;
-    const modes = at(C.voiture_mode_recharge, "options") || [];
     const kwhManquants = Math.max(0, ((lim - soc) / 100) * C.voiture_capacite_kwh);
 
     document.getElementById("voiture").innerHTML = `
@@ -275,9 +274,8 @@
       <h2>Recharge</h2>
       <div class="grid">
         <div class="card">
-          <h3>Mode de recharge</h3>
-          <div class="seg">${modes.map((m) => `<button class="${st(C.voiture_mode_recharge) === m ? "on" : ""}" data-act="car-mode" data-i="${m}">${m}</button>`).join("")}</div>
-          <div class="row" style="margin-top:14px"><span class="grow">Heures creuses seulement</span>${sw(on(C.voiture_heures_creuses), "car-hc", "", "var(--car)")}</div>
+          <h3>Options de recharge</h3>
+          <div class="row"><span class="grow">Heures creuses seulement</span>${sw(on(C.voiture_heures_creuses), "car-hc", "", "var(--car)")}</div>
           <div class="row"><span class="grow">Charge programmée</span>${sw(on(C.voiture_programmee), "car-prog", "", "var(--car)")}</div>
         </div>
         <div class="card">
@@ -442,7 +440,6 @@
       twoTap("unlock", "Appuie encore pour déverrouiller", () => call("lock.unlock", C.voiture_verrou, () => set(C.voiture_verrou, "unlocked")));
     },
     "car-clim": () => call("switch.toggle", C.voiture_clim, () => toggle(C.voiture_clim)),
-    "car-mode": (el) => call("input_select.select_option", C.voiture_mode_recharge, () => set(C.voiture_mode_recharge, el.dataset.i), ` ${el.dataset.i}`),
     "car-hc": () => call("switch.toggle", C.voiture_heures_creuses, () => toggle(C.voiture_heures_creuses)),
     "car-prog": () => call("switch.toggle", C.voiture_programmee, () => toggle(C.voiture_programmee)),
     "car-lim": (el) => { const v = clamp(n(C.voiture_limite_pct) + 10 * +el.dataset.d, 50, 100); call("number.set_value", C.voiture_limite_pct, () => set(C.voiture_limite_pct, v), ` ${v}`); },
