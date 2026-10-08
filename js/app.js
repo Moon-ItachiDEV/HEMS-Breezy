@@ -595,24 +595,22 @@ ${V.entretien}
     const hp = C.homepod, stt = st(hp);
     if (!["playing", "paused"].includes(stt)) return "";
     const playing = stt === "playing", pic = at(hp, "entity_picture");
-    const dur = at(hp, "media_duration") || 0, pos = at(hp, "media_position") || 0, vol = Math.round((at(hp, "volume_level") || 0) * 100);
+    const dur = at(hp, "media_duration") || 0, pos = at(hp, "media_position") || 0;
     const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
     const art = pic ? `<img src="${pic}" alt="">` : `<span class="np-gen" aria-hidden="true"><i></i><i></i><i></i></span>`;
     return `<section class="np ${playing ? "playing" : ""}">
-      <div class="np-glow" aria-hidden="true"></div>
       <button class="np-art" data-sheet="homepod:" aria-label="Ouvrir le lecteur">${art}</button>
-      <div class="np-main">
-        <div class="eyebrow">HomePod salon · ${playing ? "en lecture" : "en pause"}</div>
+      <button class="np-main" data-sheet="homepod:" aria-label="Ouvrir le lecteur">
+        <span class="np-src"><i class="np-eq" aria-hidden="true"><b></b><b></b><b></b></i>HomePod salon</span>
         <b class="np-t">${at(hp, "media_title") || "—"}</b>
-        <span class="np-a">${at(hp, "media_artist") || ""}${at(hp, "media_album_name") ? ` · ${at(hp, "media_album_name")}` : ""}</span>
-        ${dur ? `<div class="np-pos"><span>${mmss(pos)}</span><div class="prog"><i style="width:${pct((pos / dur) * 100)}"></i></div><span>${mmss(dur)}</span></div>` : ""}
-      </div>
+        <span class="np-a">${at(hp, "media_artist") || ""}</span>
+      </button>
       <div class="np-ctl">
         <button data-act="media-prev" aria-label="Précédent">${ICONS.prev}</button>
         <button class="np-play" data-act="media-play" aria-label="${playing ? "Pause" : "Lecture"}">${playing ? ICONS.pause : ICONS.play}</button>
         <button data-act="media-next" aria-label="Suivant">${ICONS.next}</button>
       </div>
-      <div class="np-vol">${ICONS.speaker}<input type="range" min="0" max="100" value="${vol}" data-act="media-vol" aria-label="Volume"></div>
+      ${dur ? `<div class="np-pos"><span>${mmss(pos)}</span><div class="np-bar"><i style="width:${pct((pos / dur) * 100)}"></i></div><span>-${mmss(dur - pos)}</span></div>` : ""}
     </section>`;
   }
 

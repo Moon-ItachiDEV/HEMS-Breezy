@@ -1366,3 +1366,38 @@ body {
   .wrap.hk > .np .np-ctl .np-play { width: 44px; height: 44px; }
   .wrap.hk > .np .np-ctl .np-play svg { width: 17px; height: 17px; }
 }
+
+/* ═══ Lecteur « À l'écoute » : un widget raffiné, identique partout ═══ */
+.np, .wrap.hk > .np, body.desk .wrap.hk > .np {
+  position: relative; display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; grid-template-areas: "art main ctl" "pos pos pos";
+  column-gap: 12px; row-gap: 10px; align-items: center; justify-self: stretch; width: auto;
+  margin: 0 0 22px; padding: 10px 12px 12px 10px; border-radius: 22px;
+  background: rgba(255, 255, 255, .62); backdrop-filter: blur(28px) saturate(1.6); -webkit-backdrop-filter: blur(28px) saturate(1.6);
+  box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .9), 0 1px 2px rgba(60, 40, 20, .05), 0 12px 32px -18px rgba(60, 40, 20, .4);
+}
+@media (min-width: 760px) { .wrap.hk > .np, body.desk .wrap.hk > .np { grid-column: 1 / -1; justify-self: start; width: min(460px, 100%); } }
+.np .np-glow, .np .np-vol { display: none; }
+.np .np-art, body.desk .np-art, .wrap.hk > .np .np-art { grid-area: art; width: 52px; height: 52px; border-radius: 12px; box-shadow: 0 6px 14px -6px rgba(60, 30, 80, .5); transform: none; }
+.np:not(.playing) .np-art { opacity: .75; }
+.np .np-gen, .wrap.hk > .np .np-gen { padding-bottom: 13px; gap: 3px; }
+.np .np-gen i { width: 4px; height: 9px; }
+.np-main { grid-area: main; min-width: 0; border: 0; background: none; padding: 0; text-align: left; display: block; }
+.np-src { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--orange); letter-spacing: 0; }
+.np-eq { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 9px; }
+.np-eq b { width: 2px; height: 4px; border-radius: 1px; background: currentColor; }
+.np.playing .np-eq b { animation: eq2 .9s ease-in-out infinite; }
+.np.playing .np-eq b:nth-child(2) { animation-delay: .15s; }
+.np.playing .np-eq b:nth-child(3) { animation-delay: .3s; }
+@keyframes eq2 { 50% { height: 9px; } }
+.np:not(.playing) .np-src { color: var(--muted); }
+.np .np-t, .wrap.hk > .np .np-t { display: block; font-family: var(--display); font-size: 15px; font-weight: 650; letter-spacing: -.02em; margin: 2px 0 0; line-height: 1.25; }
+.np .np-a, .wrap.hk > .np .np-a { display: block; font-size: 12.5px !important; color: var(--muted); margin-top: 1px; }
+.np .np-ctl, .wrap.hk > .np .np-ctl { grid-area: ctl; display: flex; align-items: center; gap: 4px; }
+.np .np-ctl button { width: 34px; height: 34px; border-radius: 50%; color: var(--txt); padding: 0; }
+.np .np-ctl button svg, .wrap.hk > .np .np-ctl button svg { width: 17px; height: 17px; }
+.np .np-ctl .np-play, .wrap.hk > .np .np-ctl .np-play { width: 40px; height: 40px; background: var(--txt); color: #fff; box-shadow: 0 6px 14px -8px rgba(27, 23, 18, .7); }
+.np .np-ctl .np-play svg, .wrap.hk > .np .np-ctl .np-play svg { width: 15px; height: 15px; }
+.np .np-ctl button:not(.np-play):hover { background: rgba(120, 100, 80, .08); }
+.np .np-pos { grid-area: pos; display: flex; align-items: center; gap: 10px; margin: 0 2px; font-size: 10.5px; color: var(--muted); font-feature-settings: "tnum" 1; }
+.np-bar { flex: 1; height: 3px; border-radius: 99px; background: rgba(120, 100, 80, .16); overflow: hidden; }
+.np-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #8a5cf6, #e8711a); }
