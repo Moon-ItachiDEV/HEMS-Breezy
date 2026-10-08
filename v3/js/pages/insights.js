@@ -374,7 +374,7 @@
       <div class="ph-a">
         <div class="bi-per" role="group" aria-label="Période du bilan">${icon("calendar")}${pills({ name: "period", label: "Durée", value: P.kind, options: [["jour", "Jour"], ["semaine", "7 jours"], ["mois", "Mois"], ["annee", "Année"]] })}
           <span class="bi-sep" aria-hidden="true"></span>${nav(-1)}${nav(1)}</div>
-        <a class="btn btn-primary bi-exp" href="${csvHref(P)}" download="breezy-bilan-${P.kind}-${id}.csv" aria-label="Exporter le bilan de la période en CSV">${DL}<span>Exporter</span></a>
+        ${document.documentElement.dataset.hosted ? "" : h`<a class="btn btn-primary bi-exp" href="${csvHref(P)}" download="breezy-bilan-${P.kind}-${id}.csv" aria-label="Exporter le bilan de la période en CSV">${DL}<span>Exporter</span></a>`}
       </div></header>`;
   }
 
