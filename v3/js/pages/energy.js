@@ -10,7 +10,6 @@
   // Puissance maximale de chaque onduleur, lue dans son nom (« Izy 2 000 W »)
   const caps = () => C.onduleurs_noms.map((n, i) => parseInt(String(n).replace(/\D/g, ""), 10) || [2000, 2000, 1000][i] || 1000);
   const nowH = () => { const d = new Date(); return d.getHours() + d.getMinutes() / 60; };
-  const hm = (t) => `${String(Math.floor(t) % 24).padStart(2, "0")}:${String(Math.round((t % 1) * 60)).padStart(2, "0")}`;
   // Variation colorée sans flèche de tendance (état, pas évolution)
   const tag = (text, tone, ic) => h`<span class="delta en-d" data-tone="${tone}">${ic ? icon(ic) : ""}${text}</span>`;
   // Libellé long sur grand écran, court quand la place manque
@@ -37,7 +36,7 @@
     return h`<header class="ph">
       <div><p class="ph-hi">Temps réel</p><h1>Énergie</h1><p class="ph-sub">${sun}, ${bat} et ${grid}.</p></div>
       <div class="ph-a">
-        <span class="en-live" data-tone="${live.tone}" role="status"><i class="${live.on ? "is-on" : ""}"></i><span>${live.label}</span>${live.v ? h`<b>${live.v}</b>` : ""}</span>
+        <span class="en-live" data-tone="${live.tone}"><i class="${live.on ? "is-on" : ""}"></i><span>${live.label}</span>${live.v ? h`<b>${live.v}</b>` : ""}</span>
         ${btn({ label: boost ? "Arrêter la chauffe" : "Chauffer le ballon", ic: boost ? "x" : "drop", act: "boiler-boost", kind: "primary", pending: BZ.isPending(C.ballon_boost) })}
       </div></header>`;
   }
