@@ -261,3 +261,6 @@
   .kpi-s { grid-column: 3; grid-row: 2 / 4; height: 36px; }
   .kpi-s .spark { height: 36px; }
 }
+
+/* Version hébergée (lien de partage) : les téléchargements y sont bloqués, on n'affiche pas ces boutons */
+:root[data-hosted] a[download] { display: none !important; }

@@ -74,7 +74,7 @@
 
   function mixCard(V) {
     const c = V.cur, parts = [
-      { label: "Soleil direct", v: c.self, tone: "solar" }, { label: "Batterie", v: c.dch, tone: "battery" }, { label: "Réseau", v: c.imp, tone: "grid" },
+      { label: "Soleil direct", v: c.self, tone: "solar" }, { label: "Batterie", v: c.dch, tone: "battery" }, { label: "Réseau", v: c.imp, tone: "neutral" },
     ];
     return card({ cls: "o-mix", title: "D'où vient l'énergie", ic: "leaf", tone: "accent", link: { label: "Détails", to: "insights" }, body: h`
       <div class="mixr">${donut({ parts, size: 132, stroke: 16, center: `${fmt.n(V.autonomy * 100)} %`, sub: "autonome", label: `Autosuffisance ${Math.round(V.autonomy * 100)} %` })}
@@ -110,7 +110,7 @@
   }
 
   function roiCard() {
-    const R = BZ.roi();
+    const R = (BZ.roiFull || BZ.roi)();
     return h`<section class="card o-roi">
       <div class="o-roi-t">
         <h3>Ton installation est rentabilisée à ${fmt.n(R.progress * 100)} %</h3>

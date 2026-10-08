@@ -6,7 +6,7 @@
 @media (min-width: 1000px) { .bi-pair { grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); } }
 @media (min-width: 1200px) { .bi-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); } .bi-r { display: flex; } }
 
-/* ─── En-tête : période dans un champ blanc (comme le sélecteur de date de l'Aperçu) + export ─── */
+/* ─── En-tête : durée + ‹ › dans un champ blanc (comme le sélecteur de date de l'Aperçu), export ─── */
 .bi-per { display: inline-flex; align-items: center; gap: var(--s-2); height: 44px; padding: 0 4px 0 var(--s-4); border-radius: var(--r-md); background: var(--surface);
   border: 1px solid var(--border-2); box-shadow: var(--shadow-card); }
 .bi-per > .ic { width: 18px; height: 18px; color: var(--text-2); }
@@ -14,15 +14,13 @@
 .bi-per .pills button { height: 34px; padding: 0 var(--s-3); border-radius: 9px; background: none; font-weight: 500; }
 .bi-per .pills button:hover { background: var(--hover); }
 .bi-per .pills button[aria-selected="true"] { background: var(--accent-soft); }
+.bi-sep { flex: none; width: 1px; height: 22px; background: var(--border-2); }
+.bi-nav { display: grid; place-items: center; width: 30px; height: 34px; border-radius: 9px; color: var(--text-2); transition: background var(--t-1), color var(--t-1); }
+.bi-nav + .bi-nav { margin-left: -6px; }
+.bi-nav:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.bi-nav:disabled { opacity: .3; cursor: not-allowed; }
+.bi-nav .ic { width: 16px; height: 16px; stroke-width: 2; }
 .bi-exp { min-height: 44px; }
-@media (max-width: 767px) {
-  .ph-a .bi-per { flex: 1; min-width: 0; height: 46px; padding: 0 3px; }
-  .bi-per > .ic { display: none; }
-  .bi-per .pills { flex: 1; }
-  .bi-per .pills button { flex: 1; justify-content: center; padding: 0 6px; height: 40px; }
-  .ph-a .bi-exp { flex: none; width: 46px; min-height: 46px; padding: 0; }
-  .bi-exp span { display: none; }
-}
 
 /* Petite mention grise à droite d'un en-tête de carte */
 .bi-note { font-size: var(--fs-13); color: var(--text-3); white-space: nowrap; }
@@ -55,8 +53,10 @@
 .bi-ax .ax { line-height: 22px; }
 .bi-chart .bar rect { transition: opacity var(--t-1); }
 .bi-chart.is-hover .bar:not(.is-on) rect { opacity: .45; }
-.bi-chart .bar.is-fc rect { opacity: .7; }
-.bi-chart.is-hover .bar.is-fc:not(.is-on) rect { opacity: .35; }
+/* Jours et mois à venir : discrets, l'historique reste au premier plan */
+.bi-chart .bar.is-fc rect { opacity: .38; }
+.bi-chart.is-hover .bar.is-fc:not(.is-on) rect { opacity: .22; }
+.bi-chart .bar.is-fc.is-on rect { opacity: .75; }
 .bi-base { stroke: var(--border-2); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .bi-hl { fill: var(--surface-2); opacity: 0; transition: opacity var(--t-1); }
 .bi-hl.is-on { opacity: .8; }
@@ -70,6 +70,8 @@
 .bi-now-l { position: absolute; left: var(--x); top: 0; transform: translate(-50%, -2px); padding: 1px 6px; border-radius: 6px; background: var(--surface-2); color: var(--text-2);
   font-size: var(--fs-11); font-weight: 600; font-variant-numeric: tabular-nums; pointer-events: none; }
 .bi-dot { position: absolute; left: var(--x); top: var(--y); width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 2px var(--text-2); pointer-events: none; }
+/* Fin projetée de la case en cours : anneau en pointillé */
+.bi-dot.is-proj { width: 10px; height: 10px; margin: -5px 0 0 -5px; box-shadow: none; border: 2px dashed var(--text-3); }
 .bi-cur { width: 12px; height: 12px; margin: -6px 0 0 -6px; opacity: 0; box-shadow: inset 0 0 0 3px var(--text), 0 0 0 3px color-mix(in srgb, var(--surface) 80%, transparent); transition: opacity var(--t-1); }
 .bi-cur.is-p { box-shadow: inset 0 0 0 3px var(--solar), 0 0 0 3px color-mix(in srgb, var(--surface) 80%, transparent); }
 .bi-cur.is-on { opacity: 1; }
@@ -78,15 +80,20 @@
 .bi-band { display: flex; gap: 2px; height: 5px; margin-top: 8px; flex: none; }
 .bi-band i { width: var(--w); border-radius: 3px; background: var(--c); opacity: .85; }
 .bi-tk { justify-content: flex-end; }
-/* Infobulle : total, consommation (rond creux), prévision, tarif de l'heure */
+/* Infobulle : total, consommation (rond creux), prévision, projection, tarif de l'heure */
 .bi-tip-t { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 5px !important; }
 .bi-tip-t span { color: var(--text); font-weight: 600; }
 .bi-tip-c i { background: var(--surface) !important; box-shadow: inset 0 0 0 2px var(--text-2); }
 .bi-tip-f i { background: repeating-linear-gradient(135deg, var(--solar) 0 1.5px, transparent 1.5px 3px) !important; }
+.bi-tip-p { padding-left: 16px !important; font-size: var(--fs-11); }
+.bi-tip-p b { font-weight: 500; color: var(--text-2); }
+.bi-tip-n { color: var(--text-3); font-style: italic; }
 .bi-tip-tar { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 6px !important; }
 .bi-tip-tar i { width: 12px !important; height: 4px !important; border-radius: 2px !important; }
 
-/* ─── Comparaison : tableau de la maquette (en-tête gris, pastilles d'écart) ─── */
+/* ─── Comparaison : tableau de la maquette (en-tête gris, pastilles d'écart) ───
+   Le tableau se resserre selon la largeur de SA carte (pas de l'écran) : icônes, puis colonne d'avant */
+.bi-cmp { container-type: inline-size; }
 .bi-cmp .dt td { height: 46px; }
 .bi-cmp .dt th { height: 38px; }
 .bi-cmp .dt-ic { width: 30px; height: 30px; border-radius: 9px; }
@@ -99,9 +106,16 @@
 .bi-cmp .delta.is-good { background: var(--good-s); }
 .bi-cmp .delta.is-bad { background: var(--bad-s); }
 .bi-cmp .delta .ic { width: 12px; height: 12px; }
+@container (max-width: 400px) {
+  .bi-cmp .dt-ic { display: none; }
+  .bi-cmp .dt th, .bi-cmp .dt td { padding: 0 4px; }
+  .bi-cmp .dt th:first-child, .bi-cmp .dt td:first-child { padding-left: var(--pad); }
+  .bi-cmp .dt th:last-child, .bi-cmp .dt td:last-child { padding-right: var(--pad); }
+  .bi-cmp .delta { padding: 0 6px; }
+}
+@container (max-width: 330px) { .bi-cmp .dt th:nth-child(3), .bi-cmp .dt td:nth-child(3) { display: none; } }
 
 /* ─── Meilleurs moments : liste à barres (style « Recent Projects ») ─── */
-.bi-best { min-height: 0; }
 .bi-best .plist-r { grid-template-columns: auto minmax(0, 1fr) auto minmax(76px, 104px); padding: 9px 0; }
 .bi-rk { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; flex: none; font-size: var(--fs-13); font-weight: 700; color: var(--text-2); background: var(--surface-2);
   font-variant-numeric: tabular-nums; }
@@ -109,15 +123,18 @@
 .bi-now { font-style: normal; font-size: var(--fs-11); font-weight: 600; color: var(--accent-2); margin-left: 4px; }
 .bi-best .plist-p span { color: var(--text); font-weight: 600; }
 .bi-top { container-type: inline-size; }
-@container (max-width: 430px) { .bi-sx, .bi-nx { display: none; } }
-.bi-sn { display: none; }
+.bi-sn, .bi-as { display: none; }
+@container (max-width: 460px) { .bi-sx, .bi-nx { display: none; } }
+@container (max-width: 400px) { .bi-al { display: none; } .bi-as { display: inline; } .bi-top .bi-best .plist-r > .pill { display: none; } .bi-top .bi-best .plist-r { grid-template-columns: auto minmax(0, 1fr) minmax(64px, 96px); } }
 @container (max-width: 300px) {
-  .bi-ln, .bi-top .bi-note, .bi-top .bi-best .plist-r > .pill, .bi-best .plist-p .meter { display: none; }
+  .bi-ln, .bi-top .bi-note, .bi-best .plist-p .meter, .bi-best .bi-now { display: none; }
   .bi-sn { display: inline; }
   .bi-top .bi-best .plist-r { grid-template-columns: auto minmax(0, 1fr) auto; }
 }
+@container (max-width: 250px) { .bi-top .card-i { display: none; } }
 .bi-roi { container-type: inline-size; }
 @container (max-width: 320px) { .bi-rx { display: none; } }
+@container (max-width: 360px) { .bi-roi-from { display: none; } .bi-roi-ax { justify-content: flex-end; } }
 
 /* ─── D'où vient ta consommation ─────────────────────────────────────── */
 .bi-org { gap: var(--s-4); }
@@ -161,8 +178,9 @@
 .bi-roi-kv b { display: block; font-size: var(--fs-17); font-weight: 600; letter-spacing: var(--tr-title); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 /* ─── Bureau « une page » : les colonnes se partagent la hauteur ───────
-   Le graphique prend la place libre ; la paire du bas garde la hauteur du tableau
-   (le classement s'y aligne et défile au besoin). Écran très bas : les deux cèdent. */
+   Le graphique prend la place libre ; la paire du bas garde la hauteur du tableau.
+   Le classement ne montre que des lignes entières : celles qui ne tiennent pas passent
+   dans une colonne masquée (flex-wrap), jamais coupées à moitié. */
 @media (min-width: 1200px) and (min-height: 820px) {
   .fit .bi-grid { grid-template-rows: minmax(0, 1fr); }
   .fit .bi-l > .bi-main { flex: 1 1 280px; }
@@ -172,16 +190,21 @@
   .fit .bi-chart-w { min-height: 0; }
   .fit .bi-r > .bi-org { flex: 1 1 0; }
   .fit .bi-r > .bi-roi { flex: 0 0 auto; }
-  .fit .bi-org .bi-mixr { flex: 1; min-height: 0; }
-  .fit .bi-best { overflow-y: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(#000 calc(100% - 22px), transparent); mask-image: linear-gradient(#000 calc(100% - 22px), transparent); padding-bottom: 10px; }
+  .fit .bi-org .bi-mixr { flex: 1 0 auto; }
+  .fit .bi-best { flex: 1 1 0; min-height: 0; flex-direction: column; flex-wrap: wrap; align-content: flex-start; overflow: hidden; }
+  .fit .bi-best > li { flex: none; width: 100%; }
 }
-/* 1080p plein écran (indicateurs encore « hauts ») : on resserre le tableau et l'anneau */
+/* Bureau peu haut (< 820 px) : la page défile, le graphique garde une vraie hauteur */
+@media (min-width: 1200px) and (max-height: 819px) { .bi-chart-w { min-height: 230px; } }
+/* 1080p plein écran (indicateurs encore « hauts ») : on resserre le tableau, le classement et l'anneau */
 @media (min-width: 1200px) and (min-height: 1001px) and (max-height: 1199px) {
   .bi-l, .bi-r, .bi-pair { gap: var(--s-4); }
   .bi-main, .bi-pair .card, .bi-org, .bi-roi { gap: var(--s-3); }
   .bi-cmp .dt th { height: 34px; }
   .bi-cmp .dt td { height: 40px; }
-  .bi-best .plist-r { padding: 6px 0; }
+  .bi-best .plist-r { padding: 5px 0; }
+  .bi-best .plist-r strong, .bi-best .plist-r small { line-height: 1.3; }
+  .bi-rk { width: 30px; height: 30px; border-radius: 9px; }
   .bi-mixr .donut { --s: 112px !important; }
   .bi-keys { gap: 10px; }
   .bi-tar { padding-top: var(--s-3); gap: 10px; }
@@ -190,7 +213,9 @@
 /* 2K : il y a la place pour le classement complet, c'est lui qui fixe la hauteur de la paire */
 @media (min-width: 1200px) and (min-height: 1200px) {
   .fit .bi-top { contain: none; }
-  .fit .bi-best { -webkit-mask-image: none; mask-image: none; padding-bottom: 0; }
+  .fit .bi-best { flex: 0 0 auto; }
+  .fit .bi-cmp .dt-wrap { display: flex; flex-direction: column; }
+  .fit .bi-cmp .dt { flex: 1 0 auto; }
 }
 /* Écran peu haut (1080p avec la barre du navigateur ≈ 945 px) : on resserre */
 @media (min-width: 1200px) and (max-height: 1000px) {
@@ -201,9 +226,12 @@
   .bi-cmp .dt td { height: 34px; }
   .bi-cmp .dt-ic { width: 26px; height: 26px; border-radius: 8px; }
   .bi-cmp .dt-ic .ic { width: 15px; height: 15px; }
-  .bi-best .plist-r { padding: 5px 0; }
+  .bi-best .plist-r { padding: 3px 0; column-gap: 10px; }
+  .bi-best .plist-r strong { font-size: var(--fs-13); line-height: 1.3; }
+  .bi-best .plist-r small { line-height: 1.3; }
   .bi-rk { width: 28px; height: 28px; border-radius: 8px; }
-  .bi-mixr .donut { --s: 108px !important; }
+  .bi-best .pill { height: 24px; padding: 0 8px; }
+  .bi-mixr .donut { --s: 100px !important; }
   .bi-mixr .donut-c b { font-size: var(--fs-20); }
   .bi-keys { gap: 9px; }
   .bi-tar { padding-top: var(--s-3); gap: 9px; }
@@ -212,61 +240,72 @@
   .bi-roi-big { font-size: var(--fs-28); }
   .bi-roi-kv > div { padding: 6px var(--s-3); }
   .bi-roi-kv b { font-size: var(--fs-16); }
-  .bi-chart-w { min-height: 0; }
-  .bi-plot { margin-top: 8px; }
+}
+@media (min-width: 1200px) and (min-height: 820px) and (max-height: 1000px) { .fit .bi-plot { margin-top: 8px; } }
+/* Dès 880 px de haut, la paire du bas garde sa hauteur : c'est le graphique qui cède */
+@media (min-width: 1200px) and (min-height: 880px) { .fit .bi-l > .bi-pair { flex-shrink: 0; } }
+/* Bureau très bas (820–879 px) : tout se resserre, rien n'est retiré ; le classement passe sur une ligne par moment */
+@media (min-width: 1200px) and (min-height: 820px) and (max-height: 879px) {
+  .fit .bi-l > .bi-pair { flex-shrink: 0; }
+  .fit .bi-l > .bi-main { flex-basis: 160px; }
+  .fit .bi-pair .card, .fit .bi-org { padding-block: 14px; }
+  .fit .bi-org { gap: 8px; }
+  .fit .bi-cmp .dt th { height: 26px; }
+  .fit .bi-cmp .dt td { height: 30px; }
+  .fit .bi-best .plist-r small { display: none; }
+  .fit .bi-best .plist-r { padding: 3px 0; }
+  .fit .bi-rk { width: 26px; height: 26px; }
+  .fit .bi-main .bi-tk { display: none; }
+  .fit .bi-mixr .donut { --s: 80px !important; }
+  .fit .bi-mixr .donut-c b { font-size: var(--fs-16); }
+  .fit .bi-mixr .donut-c span { font-size: var(--fs-11); }
+  .fit .bi-keys { gap: 4px; }
+  .fit .bi-tar { padding-top: 10px; gap: 7px; }
+  .fit .bi-tl { gap: 3px; }
+  .fit .bi-roi { gap: 8px; padding-block: 12px; }
+  .fit .bi-roi-big { font-size: var(--fs-24); }
+  .fit .bi-roi-ax { margin-top: 6px; }
+  .fit .bi-roi-kv > div { padding: 3px 10px; }
+  .fit .bi-roi-kv span { font-size: var(--fs-11); line-height: 1.3; }
+  .fit .bi-roi-kv b { font-size: var(--fs-14); line-height: 1.3; }
+  .fit .bi-roi-from { display: none; }
+  .fit .bi-roi-ax { justify-content: flex-end; }
 }
 /* Largeur bureau étroite (1200–1499) : colonnes plus serrées */
 @media (min-width: 1200px) and (max-width: 1499px) {
-  .bi-pair { grid-template-columns: minmax(0, 1.36fr) minmax(0, 1fr); }
-  .bi-kpis .kpi-s { width: 76px; }
-  .bi-cmp .dt-ic { display: none; }
+  .bi-pair { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
   .bi-org .card-a { display: none; }
   .bi-mixr { gap: var(--s-4); }
   .bi-mixr .donut { --s: 100px !important; }
   .bi-keys em { display: none; }
   .bi-tl em { display: none; }
-  .bi-best .plist-r > .pill { display: none; }
-  .bi-best .plist-r { grid-template-columns: auto minmax(0, 1fr) minmax(70px, 96px); }
-  .bi-cmp .dt th, .bi-cmp .dt td { padding: 0 var(--s-2); }
-  .bi-cmp .dt th:first-child, .bi-cmp .dt td:first-child { padding-left: var(--pad); }
-  .bi-cmp .dt th:last-child, .bi-cmp .dt td:last-child { padding-right: var(--pad); }
-  .bi-roi-ax > span:first-child { display: none; }
-  .bi-roi-ax { justify-content: flex-end; }
 }
-/* Bureau minimal (≈ 1200–1349 px de large) : le tableau garde l'essentiel (valeur et écart) */
+/* Bureau minimal (≈ 1200–1349 px de large) : l'export devient un bouton rond (le libellé reste lu par les lecteurs d'écran) */
 @media (min-width: 1200px) and (max-width: 1349px) {
+  .bi-exp { width: 44px; padding: 0; }
+  .bi-exp span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .bi-grid { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
   .bi-pair { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
-  .bi-kpis .kpi-vs { display: none; }
-  .bi-cmp .dt th:nth-child(3), .bi-cmp .dt td:nth-child(3) { display: none; }
   .bi-pair > .card { --pad: 14px; }
   .bi-main .card-h { row-gap: var(--s-2); }
   .bi-main .card-a { flex-basis: 100%; margin-left: 0; justify-content: flex-start; }
   .bi-lg { justify-content: flex-start; }
   .bi-lg b { display: none; }
-  .bi-cmp .dt th, .bi-cmp .dt td { padding: 0 5px; }
-  .bi-cmp .delta { padding: 0 5px; }
 }
-/* … et la mini-courbe des indicateurs passe à droite de la variation, sous la valeur */
-@media (min-width: 1200px) and (max-width: 1349px) and (max-height: 1000px) {
+/* Indicateurs : en dessous de 1700 px, une valeur à 4 chiffres (« 4 674 kWh ») passerait sous la mini-courbe.
+   La valeur prend toute la largeur ; la mini-courbe descend sur la ligne de la variation, à droite. */
+@media (min-width: 1200px) and (max-width: 1699px) and (max-height: 1000px) {
   .bi-kpis .kpi-v { grid-column: 2 / -1; }
-  .bi-kpis .kpi-s { grid-column: 2 / -1; grid-row: 3; justify-self: end; align-self: end; width: 68px; height: 24px; margin-left: 0; }
+  .bi-kpis .kpi-d { grid-column: 1 / 3; }
+  .bi-kpis .kpi-s { grid-column: 3; grid-row: 3; align-self: center; width: clamp(52px, 4.4vw, 72px); height: 24px; margin: var(--s-2) 0 0; }
   .bi-kpis .kpi-s .spark { height: 24px; }
 }
-@container (max-width: 250px) { .bi-top .card-i { display: none; } }
-/* 2K : le tableau occupe toute la hauteur de sa carte (lignes un peu plus aérées) */
-@media (min-width: 1200px) and (min-height: 1200px) { .fit .bi-cmp .dt-wrap { display: flex; flex-direction: column; } .fit .bi-cmp .dt { flex: 1 0 auto; } }
-/* Dès 880 px de haut, la paire du bas garde sa hauteur : c'est le graphique qui cède */
-@media (min-width: 1200px) and (min-height: 880px) { .fit .bi-l > .bi-pair { flex-shrink: 0; } }
-/* Bureau très bas (≈ 820 px) : la légende des tarifs cède sa place au graphique (l'infobulle nomme le tarif) */
-@media (min-width: 1200px) and (min-height: 820px) and (max-height: 879px) {
-  .fit .bi-cmp .dt-wrap { -webkit-mask-image: linear-gradient(#000 calc(100% - 22px), transparent); mask-image: linear-gradient(#000 calc(100% - 22px), transparent); padding-bottom: 10px; }
-  .fit .bi-main .bi-tk, .fit .bi-tl, .fit .bi-roi-ax { display: none; }
-  .fit .bi-mixr .donut { --s: 92px !important; }
-  .fit .bi-mixr .donut-c b { font-size: var(--fs-17); }
-  .fit .bi-keys { gap: 6px; }
-  .fit .bi-roi-big { font-size: var(--fs-24); }
+@media (min-width: 1200px) and (max-width: 1699px) and (min-height: 1001px) {
+  .bi-kpis .kpi-v { grid-column: 1 / -1; }
+  .bi-kpis .kpi-s { grid-row: 4; align-self: center; width: clamp(56px, 5vw, 84px); height: 28px; }
+  .bi-kpis .kpi-s .spark { height: 28px; }
 }
+@media (min-width: 1200px) and (max-width: 1399px) { .bi-kpis .kpi-vs { display: none; } }
 /* 2K et plus : plus de place, on donne de l'air à l'anneau et au tableau */
 @media (min-width: 2200px) and (min-height: 1200px) {
   .bi-mixr .donut { --s: 164px !important; }
@@ -284,6 +323,8 @@
   .bi-chart-w { min-height: 260px; }
   .bi-per { height: 50px; }
   .bi-per .pills button { height: 40px; }
+  .bi-nav { width: 40px; height: 40px; }
+  .bi-nav + .bi-nav { margin-left: -8px; }
   .bi-exp { min-height: 50px; }
   .bi-org { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); column-gap: var(--s-6); align-items: center; }
   .bi-org .bi-mixr .donut { --s: 112px !important; }
@@ -295,12 +336,17 @@
 }
 /* ─── Mobile ─────────────────────────────────────────────────────────── */
 @media (max-width: 767px) {
+  .ph-a .bi-per { flex: 1; min-width: 0; height: 48px; padding: 0 3px; gap: 2px; }
+  .bi-per > .ic { display: none; }
+  .bi-per .pills { flex: 1; min-width: 0; }
+  .bi-per .pills button { flex: 1 1 auto; min-width: 40px; justify-content: center; padding: 0 5px; height: 40px; }
+  .bi-sep { margin: 0 2px; }
+  .bi-nav { width: 40px; height: 40px; }
+  .bi-nav + .bi-nav { margin-left: -4px; }
+  .ph-a .bi-exp { flex: none; width: 48px; min-height: 48px; padding: 0; }
+  .bi-exp span { display: none; }
   .bi-chart-w { min-height: 220px; }
   .bi-lg { gap: 6px var(--s-4); font-size: var(--fs-12); }
-  .bi-cmp .dt th:nth-child(3), .bi-cmp .dt td:nth-child(3) { display: none; }
-  .bi-best .plist-r > .pill { display: none; }
-  .bi-best .plist-r { grid-template-columns: auto minmax(0, 1fr) 84px; }
-  .bi-sx { display: none; }
   .bi-mixr { gap: var(--s-4); }
   .bi-mixr .donut { --s: 112px !important; }
   .bi-keys em { display: none; }
@@ -308,13 +354,7 @@
   .bi-roi-kv b { font-size: var(--fs-15); }
   .bi-tk { justify-content: flex-start; }
   .bi-org .card-a { display: none; }
-  .bi-nx { display: none; }
 }
+@media (max-width: 380px) { .bi-per .pills button { padding: 0 3px; font-size: var(--fs-12); } .bi-sep { display: none; } }
 /* Écrans tactiles : le lien « Tarifs » garde une zone d'appui de 40 px sans changer la mise en page */
 @media (max-width: 1199px) { .bi-org .more { min-height: 40px; padding: 0 8px; margin: -4px -8px; } }
-@media (max-width: 479px) {
-  .bi-cmp .dt-ic { display: none; }
-  .bi-cmp .dt th, .bi-cmp .dt td { padding: 0 var(--s-2); }
-  .bi-cmp .dt th:first-child, .bi-cmp .dt td:first-child { padding-left: var(--pad); }
-  .bi-cmp .dt th:last-child, .bi-cmp .dt td:last-child { padding-right: var(--pad); }
-}

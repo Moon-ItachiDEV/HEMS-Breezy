@@ -54,7 +54,7 @@
         <strong>Réseau en direct</strong>
         <div class="promo-v"><b class="${exp ? "is-good" : imp ? "is-bad" : ""}">${exp ? "−" : imp ? "+" : ""}${fmt.powerText(Math.abs(g))}</b><span>${exp ? "revente" : imp ? "achat" : "équilibre"}</span></div>
         <p>Compteur L3 · ${t.label.toLowerCase()} à ${fmt.n(t.price, 4)} €/kWh jusqu'à ${fmt.time(t.changeAt)}.</p>
-        <a class="btn btn-primary btn-sm" href="#/energy"><span>Voir l'énergie</span>${icon("arrow")}</a>
+        ${cur === "energy" ? h`<a class="btn btn-primary btn-sm" href="#/insights"><span>Voir le bilan</span>${icon("arrow")}</a>` : h`<a class="btn btn-primary btn-sm" href="#/energy"><span>Voir l'énergie</span>${icon("arrow")}</a>`}
       </div>
       <button type="button" class="side-me" data-act="pop" data-pop="me-side" aria-haspopup="menu" aria-expanded="${String(BZ.ui.pop === "me-side")}">
         ${avatar(BZ.user, "lg")}<span><b>${esc(BZ.user)}</b><small>Mode démo</small></span>${icon("down")}

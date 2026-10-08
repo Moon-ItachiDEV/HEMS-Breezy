@@ -26,7 +26,7 @@ if artifact:
     head = re.search(r"<head>(.*?)</head>", html, re.S).group(1)
     head = re.sub(r'<meta (charset|name="viewport")[^>]*>\s*', "", head)
     m = re.search(r'<body class="([^"]*)">(.*?)</body>', html, re.S)
-    boot = f"<script>document.body.className = {m.group(1)!r};</script>"
+    boot = f"<script>document.body.className = {m.group(1)!r}; document.documentElement.dataset.hosted = '1';</script>"
     html = head.strip() + "\n" + boot + "\n" + m.group(2).strip() + "\n"
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(html, encoding="utf-8")

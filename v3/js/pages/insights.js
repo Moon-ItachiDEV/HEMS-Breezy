@@ -1,35 +1,198 @@
 // Bilan (V3) : l'historique et la rentabilité. Une seule période pilote toute la page.
-//  En-tête : période (Jour / 7 jours / Mois / Année) + export CSV de la période
-//  Ligne 1 : 4 indicateurs (période vs période précédente, mini-courbe sur la période)
+//  En-tête : période (Jour / 7 jours / Mois / Année), ‹ › pour remonter dans le temps, export CSV
+//  Ligne 1 : 4 indicateurs (vs la même durée juste avant, arrêtée à la même heure), mini-courbe sur la période
 //  Gauche  : graphique principal, puis Comparaison (ce que les indicateurs ne disent pas) + Meilleurs moments
 //  Droite  : D'où vient ta consommation (anneau + réseau par tarif), Rentabilité solaire
 (() => {
   const BZ = window.BZ;
-  const { h, esc, fmt, icon, val, card, pill, kpi, pills, donut, delta, meter } = BZ;
+  const { h, esc, fmt, icon, val, card, pill, kpi, pills, donut, meter, C } = BZ;
 
-  /* ─── Libellés et petits calculs ─────────────────────────────────── */
-  const year = () => new Date().getFullYear();
-  const LBL = {
-    jour: () => ({ cur: "Aujourd'hui", prev: "Hier", vs: "vs hier", unit: "heure", per: "par heure" }),
-    semaine: () => ({ cur: "7 jours", prev: "7 j avant", vs: "vs 7 j avant", unit: "jour", per: "par jour" }),
-    mois: () => { const m = new Date().getMonth(); return { cur: fmt.cap(BZ.MONTHS_LONG[m]), prev: fmt.cap(BZ.MONTHS_LONG[(m + 11) % 12]), vs: `vs ${BZ.MONTHS[(m + 11) % 12]}`, unit: "jour", per: "par jour" }; },
-    annee: () => ({ cur: String(year()), prev: String(year() - 1), vs: `vs ${year() - 1}`, unit: "mois", per: "par mois" }),
-  };
+  /* ─── Historique de la page ──────────────────────────────────────────
+     Construit sur BZ.day() (core.js), avec quatre corrections à remonter un jour dans core.js :
+     1. rien n'est produit avant la mise en service (C.solaire_mise_en_service) ;
+     2. la batterie ne stocke que ce que la soirée et la nuit consommeront, et en rend 90 % ;
+     3. les économies des jours passés sont recalées pour que leur somme = compteur cumulé (BZ.roi().total) ;
+     4. la période d'avant s'arrête à la même heure tant que la période en cours n'est pas finie. */
+  const [Y0, M0, D0] = String(C.solaire_mise_en_service).split("-").map(Number);
+  const START = new Date(Y0, M0 - 1, D0);
+  const HRS = Array.from({ length: 24 }, (_, i) => i);
+  const SUN = (x) => Math.max(0, Math.exp(-((x + 0.5 - 13.2) ** 2) / (2 * 2.7 ** 2)) - 0.02);      // mêmes profils que BZ.hours()
+  const USE = (x) => 0.35 + (x >= 6 && x < 8 ? 0.9 : 0) + (x >= 9 && x < 12 ? 1.6 : 0) + (x >= 18 && x < 21 ? 1.2 : 0) + (x >= 2 && x < 5 ? 0.6 : 0);
+  const DARK = (x) => USE(x) * BZ.clamp(1 - 4 * SUN(x), 0, 1);                                   // conso sans soleil : batterie puis réseau
+  const SUN_T = HRS.reduce((a, x) => a + SUN(x), 0), USE_T = HRS.reduce((a, x) => a + USE(x), 0);
+  // Part d'un profil horaire déjà écoulée à l'heure H (décimale), éventuellement sur certaines heures seulement
+  const share = (f, H, keep = () => true) => { let a = 0, t = 0; HRS.forEach((x) => { if (!keep(x)) return; t += f(x); a += f(x) * BZ.clamp(H - x, 0, 1); }); return t ? a / t : 0; };
+  const sod = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const isToday = (d) => sod(d).getTime() === sod(new Date()).getTime();
+  const D12 = (y, m, d) => new Date(y, m, d, 12);
+  const span = (a, n) => Array.from({ length: n }, (_, i) => D12(a.getFullYear(), a.getMonth(), a.getDate() + i));
+  const daysIn = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  const nowH = () => { const n = new Date(); return n.getHours() + n.getMinutes() / 60; };
+  const TAR = ["hp", "hc", "hsc"];
+  const FIELDS = ["prod", "cons", "self", "chg", "dch", "imp", "exp", "hp", "hc", "hsc", "savings"];
+  const sum = (days) => FIELDS.reduce((o, f) => ((o[f] = days.reduce((a, x) => a + (x[f] || 0), 0)), o), {});
+  const worth = (x) => (x.self + x.dch) * 0.2 + x.exp * 0.06;     // même barème que BZ.day()
+
+  const memo = new Map();
+  function pastDay(date) {                                           // journée terminée, corrigée (économies avant recalage)
+    const k = sod(date).getTime();
+    if (memo.has(k)) return memo.get(k);
+    const x = BZ.day(date);
+    let o;
+    if (sod(date) < START) {
+      const r = x.imp ? x.cons / x.imp : 0;
+      o = { ...x, prod: 0, self: 0, chg: 0, dch: 0, exp: 0, imp: x.cons, hp: x.hp * r, hc: x.hc * r, hsc: x.hsc * r, evSun: 0, raw: 0, pre: true };
+    } else {
+      const need = Math.max(0, x.cons - x.self), extra = x.chg + x.exp;
+      const chg = Math.min(x.chg, (need * 0.6) / 0.9), dch = chg * 0.9, imp = Math.max(0, need - dch), r = x.imp ? imp / x.imp : 0;
+      o = { ...x, chg, dch, exp: extra - chg, imp, hp: x.hp * r, hc: x.hc * r, hsc: x.hsc * r };
+      o.raw = worth(o);
+    }
+    memo.set(k, o);
+    return o;
+  }
+  // Recalage : somme des jours passés depuis la mise en service + aujourd'hui (capteur) = compteur cumulé
+  let rawSum = { day: -1, v: 0 }, F = 1;
+  function rescale() {
+    const t = sod(new Date()).getTime();
+    if (rawSum.day !== t) {
+      let v = 0;
+      for (const d = D12(Y0, M0 - 1, D0); sod(d).getTime() < t; d.setDate(d.getDate() + 1)) v += pastDay(new Date(d)).raw;
+      rawSum = { day: t, v };
+    }
+    return Math.max(0, BZ.roi().total - BZ.today().savings) / (rawSum.v || 1);
+  }
+  const dayX = (date) => (isToday(date) ? { ...BZ.day(date), today: true } : { ...pastDay(date), savings: pastDay(date).raw * F });
+
+  // Une journée arrêtée à l'heure H : production au rythme du soleil, batterie et réseau au rythme des heures sans soleil
+  function cut(x, H) {
+    const sP = share(SUN, H), o = { ...x };
+    ["prod", "self", "chg", "exp"].forEach((f) => (o[f] = (x[f] || 0) * sP));
+    o.dch = (x.dch || 0) * share(DARK, H);
+    TAR.forEach((k) => (o[k] = (x[k] || 0) * share(DARK, H, (hh) => BZ.tariffAt(hh) === k)));
+    o.imp = o.hp + o.hc + o.hsc;
+    o.cons = o.self + o.dch + o.imp;
+    o.savings = (x.savings || 0) * (worth(o) / (worth(x) || 1));
+    return o;
+  }
+
+  // Aujourd'hui heure par heure. Heures à venir : le rythme de la journée, ajusté par la prévision (× 0,6 à × 1,3)
+  function todayHours() {
+    const H = nowH(), t = BZ.today(), done = (x) => x + 1 <= H;
+    const sP = HRS.reduce((a, x) => a + (done(x) ? SUN(x) : 0), 0), uP = HRS.reduce((a, x) => a + (done(x) ? USE(x) : 0), 0);
+    const kP = sP > 0 ? t.prod / sP : 0, kC = uP > 0 ? t.cons / uP : 0;
+    const kF = sP >= 0.2 * SUN_T ? kP * BZ.clamp(t.forecast / (kP * SUN_T || 1), 0.6, 1.3) : Math.max(0, t.forecast - t.prod) / (SUN_T - sP || 1);
+    return HRS.map((x) => ({ h: x, key: `${x}h`, tariff: BZ.tariffAt(x), future: !done(x), current: x === Math.floor(H), prod: SUN(x) * (done(x) ? kP : kF), cons: done(x) ? USE(x) * kC : null }));
+  }
+  const dayHours = (x) => HRS.map((hh) => ({ h: hh, key: `${hh}h`, tariff: BZ.tariffAt(hh), prod: (SUN(hh) / SUN_T) * x.prod, cons: (USE(hh) / USE_T) * x.cons }));
+
+  // Répartit les totaux d'une journée sur ses heures (mini-courbes « Jour » : autosuffisance cumulée, économies par heure)
+  function hourly(B, T) {
+    const tot = (a) => a.reduce((s, v) => s + v, 0) || 1;
+    const mn = B.map((b) => Math.min(b.prod, b.cons || 0)), ks = T.self / tot(mn), self = mn.map((v) => v * ks);
+    const gap = B.map((b, i) => Math.max(0, (b.cons || 0) - self[i])), g = tot(gap);
+    const over = B.map((b, i) => Math.max(0, b.prod - self[i])), ov = tot(over);
+    const worthH = B.map((_, i) => (self[i] + (gap[i] / g) * T.dch) * 0.2 + (over[i] / ov) * T.exp * 0.06), w = tot(worthH);
+    let ci = 0, cc = 0;
+    return {
+      aut: B.map((b, i) => { ci += (gap[i] / g) * T.imp; cc += b.cons || 0; return cc ? BZ.clamp(1 - ci / cc, 0, 1) : null; }),
+      eco: worthH.map((v) => (v / w) * T.savings),
+    };
+  }
+
+  /* ─── Périodes : la période affichée et celle d'avant ─────────────── */
+  function minOff(kind) {
+    const t = sod(new Date()), days = Math.round((t - START) / 864e5);
+    if (kind === "jour") return -days;
+    if (kind === "semaine") return -Math.floor(days / 7);
+    if (kind === "mois") return START.getFullYear() * 12 + START.getMonth() - (t.getFullYear() * 12 + t.getMonth());
+    return START.getFullYear() - t.getFullYear();
+  }
+  function build(kind, off) {
+    const now = new Date(), H = nowH(), y = now.getFullYear(), m = now.getMonth(), d = now.getDate(), live = off === 0;
+    const before = (dates) => dates.map((x, i) => (live && i === dates.length - 1 ? cut(dayX(x), H) : dayX(x)));
+    const P = { kind, off, live, H, min: minOff(kind) };
+    if (kind === "jour") {
+      const date = D12(y, m, d + off), x = dayX(date);
+      return { ...P, date, buckets: live ? todayHours() : dayHours(x), total: sum([x]), prevTotal: sum(before([D12(y, m, d + off - 1)])) };
+    }
+    if (kind === "semaine") {
+      const dates = span(D12(y, m, d - 6 + 7 * off), 7), pd = span(D12(y, m, d - 13 + 7 * off), 7);
+      const buckets = dates.map((x) => ({ key: fmt.cap(x.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "")), ...dayX(x), date: x, current: live && isToday(x) }));
+      return { ...P, from: dates[0], to: dates[6], pFrom: pd[0], pTo: pd[6], buckets, total: sum(buckets), prevTotal: sum(before(pd)) };
+    }
+    if (kind === "mois") {
+      const first = D12(y, m + off, 1), n = daysIn(first), fc = live ? BZ.period("mois").buckets : [];
+      const buckets = span(first, n).map((x, i) => (live && x.getDate() > d ? { ...fc[i], key: String(x.getDate()), date: x }
+        : { key: String(x.getDate()), ...dayX(x), date: x, current: live && x.getDate() === d }));
+      const pFirst = D12(first.getFullYear(), first.getMonth() - 1, 1), pn = daysIn(pFirst), whole = !live || d > pn;
+      const pd = span(pFirst, whole ? pn : d);
+      return { ...P, first, pFirst, whole, upTo: d, buckets, total: sum(buckets.filter((b) => !b.forecast)), prevTotal: sum(whole ? pd.map(dayX) : before(pd)) };
+    }
+    const Y = y + off, fc = live ? BZ.period("annee").buckets : [];
+    const buckets = BZ.MONTHS.map((lab, i) => {
+      if (live && i > m) return { ...fc[i], key: lab, i };
+      const n = live && i === m ? d : daysIn(D12(Y, i, 1));
+      return { key: lab, i, ...sum(span(D12(Y, i, 1), n).map(dayX)), days: live && i === m ? d - 1 + share(USE, H) : n, current: live && i === m, pre: D12(Y, i, n) < START };
+    });
+    const pd = [];
+    for (let i = 0; i <= (live ? m : 11); i++) pd.push(...span(D12(Y - 1, i, 1), live && i === m ? d : daysIn(D12(Y - 1, i, 1))));
+    return { ...P, year: Y, buckets, total: sum(buckets.filter((b) => !b.forecast)), prevTotal: sum(before(pd)) };
+  }
+
+  /* ─── Libellés ────────────────────────────────────────────────────── */
+  const dn = (d) => (d.getDate() === 1 ? "1er" : String(d.getDate()));
+  const sh = (d) => `${dn(d)} ${BZ.MONTHS[d.getMonth()]}`;                                           // « 8 oct. », « 1er sept. »
+  const range = (a, b) => (a.getMonth() !== b.getMonth() ? `${sh(a)} – ${sh(b)}` : a.getDate() === b.getDate() ? sh(b) : `${dn(a)}–${sh(b)}`);
+  const monthOf = (d) => BZ.MONTHS_LONG[d.getMonth()];
+  function labels(P) {
+    const t = fmt.time(new Date()), none = P.prevTotal.prod <= 0.01 && P.total.prod > 0.01;
+    const L = { jour: { unit: "heure", per: "par heure" }, semaine: { unit: "jour", per: "par jour" }, mois: { unit: "jour", per: "par jour" }, annee: { unit: "mois", per: "par mois" } }[P.kind];
+    if (P.kind === "jour") {
+      const pd = new Date(P.date); pd.setDate(pd.getDate() - 1);
+      Object.assign(L, P.live
+        ? { title: `Aujourd'hui à ${t}`, compare: "vs hier à la même heure", cur: "Aujourd'hui", prev: `Hier à ${t}`, vs: `vs hier à ${t}` }
+        : { title: P.off === -1 ? `Hier, ${fmt.date(P.date, { weekday: "long", day: "numeric", month: "long" })}` : fmt.cap(fmt.date(P.date, { weekday: "long", day: "numeric", month: "long" })), compare: "vs la veille", cur: sh(P.date), prev: sh(pd), vs: "vs la veille" });
+    } else if (P.kind === "semaine") {
+      Object.assign(L, P.live
+        ? { title: "7 derniers jours", compare: "vs les 7 jours d'avant", cur: "7 jours", prev: "7 j avant", vs: "vs 7 j avant" }
+        : { title: `Du ${P.from.getMonth() === P.to.getMonth() ? dn(P.from) : sh(P.from)} au ${sh(P.to)}`, compare: "vs les 7 jours d'avant", cur: range(P.from, P.to), prev: range(P.pFrom, P.pTo), vs: `vs ${range(P.pFrom, P.pTo)}` });
+    } else if (P.kind === "mois") {
+      const prev = P.whole ? fmt.cap(monthOf(P.pFirst)) : range(P.pFirst, D12(P.pFirst.getFullYear(), P.pFirst.getMonth(), P.upTo));
+      Object.assign(L, P.live
+        ? { title: fmt.cap(monthOf(P.first)), compare: P.whole ? `vs ${monthOf(P.pFirst)} entier` : `vs ${prev}, à la même heure`, cur: range(P.first, D12(P.first.getFullYear(), P.first.getMonth(), P.upTo)), prev, vs: `vs ${P.whole ? monthOf(P.pFirst) : prev}` }
+        : { title: `${fmt.cap(monthOf(P.first))} ${P.first.getFullYear()}`, compare: `vs ${monthOf(P.pFirst)}`, cur: fmt.cap(monthOf(P.first)), prev, vs: `vs ${monthOf(P.pFirst)}` });
+    } else {
+      const Y = P.year;
+      Object.assign(L, P.live
+        ? { title: String(Y), compare: `vs ${Y - 1} à la même date`, cur: String(Y), prev: `${Y - 1} à date`, vs: `vs ${Y - 1} à date` }
+        : { title: String(Y), compare: `vs ${Y - 1}`, cur: String(Y), prev: String(Y - 1), vs: `vs ${Y - 1}` });
+    }
+    if (none) L.compare = `panneaux posés en ${monthOf(START)} ${START.getFullYear()}`;
+    L.none = none;
+    return L;
+  }
+
+  /* ─── Petits calculs et utilitaires ───────────────────────────────── */
   const aut = (x) => (x && x.cons ? BZ.clamp(1 - x.imp / x.cons, 0, 1) : 0);          // part de la conso sans réseau
   const selfUse = (x) => (x && x.prod ? BZ.clamp(1 - x.exp / x.prod, 0, 1) : 0);      // part de la production gardée
-  const bill = (x) => ["hp", "hc", "hsc"].reduce((a, k) => a + (x[k] || 0) * BZ.TARIFS[k].price(), 0);
-  const nameOf = (kind, b, i) => kind === "jour" ? `${b.h}h – ${b.h + 1}h`
-    : kind === "annee" ? fmt.cap(BZ.MONTHS_LONG[i])
+  const bill = (x) => TAR.reduce((a, k) => a + (x[k] || 0) * BZ.TARIFS[k].price(), 0);
+  // Variation : « 1 pt » au singulier
+  const dl = (cur, prev, o = {}) => { const s = BZ.delta(cur, prev, o); return o.unit === "pts" && Math.round(Math.abs(cur - prev) * 100) === 1 ? s.replace(" pts</span>", " pt</span>") : s; };
+  const monthName = (P, i) => fmt.cap(BZ.MONTHS_LONG[i]);
+  const nameOf = (P, b, i) => P.kind === "jour" ? `${b.h}h – ${b.h + 1}h` : P.kind === "annee" ? monthName(P, i)
     : fmt.cap(fmt.date(b.date, { weekday: "long", day: "numeric", month: "short" }));
-  const shortOf = (kind, b, i) => (kind === "jour" ? `${b.h}h` : kind === "annee" ? BZ.MONTHS[i] : fmt.date(b.date, { weekday: "short", day: "numeric" }));   // carte très étroite
-  const tipName = (kind, b, i) => (kind === "annee" ? `${fmt.cap(BZ.MONTHS_LONG[i])} ${year()}` : kind === "jour" ? nameOf(kind, b, i)
-    : fmt.cap(fmt.date(b.date || new Date(year(), new Date().getMonth(), +b.key), { weekday: "long", day: "numeric", month: "long" })));
+  const shortOf = (P, b, i) => (P.kind === "jour" ? `${b.h}h` : P.kind === "annee" ? BZ.MONTHS[i] : fmt.date(b.date, { weekday: "short", day: "numeric" }));   // carte très étroite
+  const tipName = (c, b, i) => (c.kind === "annee" ? `${monthName(c, i)} ${c.year}` : c.kind === "jour" ? `${b.h}h – ${b.h + 1}h`
+    : fmt.cap(fmt.date(b.date, { weekday: "long", day: "numeric", month: "long" })));
   const pc = (v, of) => `${((v / of) * 100).toFixed(3)}%`;
   // Haut d'échelle « rond » mais serré (évite 1 000 pour un maximum de 760)
   const niceTop = (v) => { if (v <= 0) return 1; const p = 10 ** Math.floor(Math.log10(v)), n = v / p; return ([1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((s) => n <= s) || 10) * p; };
   const UP = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>';
   const CMP = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h15M15 4l4 4-4 4M20 16H5M9 12l-4 4 4 4"/></svg>';
   const DL = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11.5M7 10.5l5 5 5-5M4.5 20h15"/></svg>';
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const iso = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
   // Courbe monotone : passe par chaque mesure sans « boucler » au-dessus ou en dessous (Fritsch–Carlson)
   function mono(pts) {
@@ -46,9 +209,10 @@
   }
 
   /* ─── Graphiques de la page (une infobulle partagée : #tip) ──────────
-     « bars »  : production empilée (maison / batterie / revendue), prévision hachurée, courbe de consommation.
-     « lines » : journée heure par heure, production + prévision + consommation, bande des tarifs. */
-  const SER = [["self", "Utilisée à la maison", "solar"], ["chg", "Stockée en batterie", "battery"], ["exp", "Revendue", "grid"]];
+     « bars »  : production empilée (maison / batterie / revendu), prévision hachurée, courbe de consommation
+                 (la case en cours est projetée à sa fin, en pointillé ; la valeur partielle reste dans l'infobulle).
+     « lines » : une journée heure par heure, production (+ prévision aujourd'hui) et consommation, bande des tarifs. */
+  const SER = [["self", "Utilisé à la maison", "solar"], ["chg", "Stocké en batterie", "battery"], ["exp", "Revendu au réseau", "grid"]];
   const REG = new Map();
   const W = 600, H = 300;
   let seq = 0;
@@ -59,13 +223,15 @@
         <span class="bi-dot bi-cur is-p"></span><span class="bi-dot bi-cur is-c"></span></div>
       ${band}<div class="bi-ax" aria-hidden="true">${axis}</div></figure>`;
 
-  function combo({ kind, buckets, label, every = 1 }) {
+  function combo({ P, buckets, label, every = 1 }) {
     const id = `bi${++seq}`, n = buckets.length, slot = W / n;
     const bw = Math.max(4, Math.min(28, slot * (n > 20 ? 0.62 : 0.46)));
     const tot = buckets.map((b) => (b.forecast ? b.prod || 0 : SER.reduce((a, [k]) => a + (b[k] || 0), 0)));
     const rest = buckets.map((b) => (b.current && b.fcRest > 0.05 ? b.fcRest : 0));   // case en cours : ce qui reste prévu
     const cons = buckets.map((b) => (b.forecast || b.cons == null ? null : b.cons));
-    const max = niceTop(Math.max(...tot.map((v, i) => v + rest[i]), ...cons.filter((v) => v != null), 0.1) * 1.06);
+    const end = buckets.map((b, i) => (b.current && cons[i] != null && b.consEnd > cons[i] ? b.consEnd : null));   // projection de la case en cours
+    const shown = cons.map((v, i) => (end[i] != null ? end[i] : v));
+    const max = niceTop(Math.max(...tot.map((v, i) => v + rest[i]), ...shown.filter((v) => v != null), 0.1) * 1.06);
     const y = (v) => 4 + (1 - v / max) * (H - 4), cx = (i) => slot * i + slot / 2;
     const cols = buckets.map((b, i) => {
       const x = cx(i) - bw / 2, r = Math.min(4, bw / 3);
@@ -79,40 +245,43 @@
       const cap = rest[i] ? h`<rect class="bi-rest" x="${x}" y="${y(tot[i] + rest[i])}" width="${bw}" height="${Math.max(0, y(tot[i]) - y(tot[i] + rest[i]) - 1.5)}" rx="${r}"/>` : "";
       return h`<g class="bar ${b.current ? "is-cur" : ""}">${cap}${segs}</g>`;
     });
-    // Consommation : trait plein sur les cases terminées, pointillé vers la case en cours (encore partielle)
-    const pts = cons.map((v, i) => (v == null ? null : [cx(i), y(v)])).filter(Boolean);
-    const curIdx = buckets.findIndex((b) => b.current), partial = curIdx >= 0 && cons[curIdx] != null && pts.length > 2;
-    const line = pts.length < 2 ? "" : partial
-      ? h`<path class="bi-cl" d="${mono(pts.slice(0, -1))}"/><path class="bi-cl is-part" d="M${pts[pts.length - 2].join(",")} L${pts[pts.length - 1].join(",")}"/>`
+    // Consommation : trait plein sur les cases terminées, pointillé vers la fin projetée de la case en cours
+    const pts = shown.map((v, i) => (v == null ? null : [cx(i), y(v), i])).filter(Boolean);
+    const lastIsProj = pts.length > 1 && end[pts[pts.length - 1][2]] != null;
+    const xy = (p) => `${p[0]},${p[1]}`;
+    const line = pts.length < 2 ? "" : lastIsProj
+      ? h`${pts.length > 2 ? h`<path class="bi-cl" d="${mono(pts.slice(0, -1))}"/>` : ""}<path class="bi-cl is-part" d="M${xy(pts[pts.length - 2])} L${xy(pts[pts.length - 1])}"/>`
       : h`<path class="bi-cl" d="${mono(pts)}"/>`;
-    const dots = n <= 12 ? cons.map((v, i) => (v == null ? "" : h`<span class="bi-dot" style="--x:${pc(cx(i), W)};--y:${pc(y(v), H)}"></span>`)) : "";
-    const axis = buckets.map((b, i) => (i % every === 0 || b.current ? h`<span class="ax ${b.current ? "is-cur" : ""}" style="--x:${pc(cx(i), W)}">${esc(b.key)}</span>` : ""));
-    REG.set(id, { type: "bars", kind, n, slot, buckets, tot, rest, cons, y, cx, top: (i) => Math.max(tot[i] + rest[i], cons[i] || 0), marks: (i) => [null, cons[i]] });
+    const dots = pts.map(([px, py, i]) => (n <= 12 || end[i] != null ? h`<span class="bi-dot ${end[i] != null ? "is-proj" : ""}" style="--x:${pc(px, W)};--y:${pc(py, H)}"></span>` : ""));
+    const curIdx = buckets.findIndex((b) => b.current);   // libellé du jour en cours en gras ; son voisin trop proche s'efface
+    const axis = buckets.map((b, i) => ((i % every === 0 && (every === 1 || curIdx < 0 || Math.abs(i - curIdx) >= 3)) || b.current
+      ? h`<span class="ax ${b.current ? "is-cur" : ""}" style="--x:${pc(cx(i), W)}">${esc(b.key)}</span>` : ""));
+    REG.set(id, { type: "bars", kind: P.kind, year: P.year, n, slot, buckets, tot, rest, cons, end, y, cx, top: (i) => Math.max(tot[i] + rest[i], shown[i] || 0), marks: (i) => [null, shown[i]] });
     return shell(id, label,
       h`${gridLines(max, y)}<line class="bi-base" x1="0" x2="${W}" y1="${H - 0.5}" y2="${H - 0.5}"/><rect class="bi-hl" x="0" y="0" width="${slot}" height="${H}"/>${cols}${line}`,
       h`${yTicks(max, y)}${dots}`, axis);
   }
 
-  function dayLines({ buckets: B, label }) {
+  function dayLines({ P, buckets: B, label }) {
     const id = `bi${++seq}`, n = B.length, slot = W / n, cx = (i) => slot * i + slot / 2;
-    const now = new Date(), t = now.getHours() + now.getMinutes() / 60;
     const idx = B.map((_, i) => i), past = idx.filter((i) => !B[i].future), fut = idx.filter((i) => B[i].future), last = past[past.length - 1];
     const prod = B.map((b) => b.prod || 0), cons = B.map((b) => b.cons);
     const max = niceTop(Math.max(...prod, ...cons.filter((v) => v != null), 0.1) * 1.1);
-    const y = (v) => 4 + (1 - v / max) * (H - 4), P = (i, v) => [cx(i), y(v)];
-    const pP = past.map((i) => P(i, prod[i])), fP = (last != null ? [last, ...fut] : fut).map((i) => P(i, prod[i]));
-    const cP = past.filter((i) => cons[i] != null).map((i) => P(i, cons[i]));
+    const y = (v) => 4 + (1 - v / max) * (H - 4), pt = (i, v) => [cx(i), y(v)];
+    const pP = past.map((i) => pt(i, prod[i])), fP = (last != null ? [last, ...fut] : fut).map((i) => pt(i, prod[i]));
+    const cP = past.filter((i) => cons[i] != null).map((i) => pt(i, cons[i]));
     const area = pP.length > 1 ? h`<path class="bi-pa" d="${mono(pP)} L${pP[pP.length - 1][0]},${H} L${pP[0][0]},${H} Z"/><path class="bi-pl" d="${mono(pP)}"/>` : "";
     const segs = [];
     B.forEach((b) => { const s = segs[segs.length - 1]; if (s && s.k === b.tariff) s.n++; else segs.push({ k: b.tariff, n: 1 }); });
     const band = h`<div class="bi-band" aria-hidden="true">${segs.map((s) => h`<i data-tariff="${s.k}" style="--w:${pc(s.n, n)}"></i>`)}</div>`;
     const axis = B.map((b, i) => (i % 3 === 0 ? h`<span class="ax ${i === 0 ? "is-start" : ""}" style="--x:${pc(slot * i, W)}">${b.h}h</span>` : "")).concat(h`<span class="ax is-end" style="--x:100%">24h</span>`);
+    const now = new Date(), t = now.getHours() + now.getMinutes() / 60;
     REG.set(id, { type: "lines", kind: "jour", n, slot, buckets: B, tot: prod, cons, y, cx, top: (i) => Math.max(prod[i], cons[i] || 0), marks: (i) => [prod[i], cons[i]] });
     return shell(id, label,
       h`${gridLines(max, y)}<line class="bi-base" x1="0" x2="${W}" y1="${H - 0.5}" y2="${H - 0.5}"/><rect class="bi-hl" x="0" y="0" width="${slot}" height="${H}"/>
-        ${area}${fP.length > 1 ? h`<path class="bi-fl" d="${mono(fP)}"/>` : ""}${cP.length > 1 ? h`<path class="bi-cl" d="${mono(cP)}"/>` : ""}
-        <line class="bi-now" x1="${slot * t}" x2="${slot * t}" y1="0" y2="${H}"/>`,
-      h`${yTicks(max, y)}<span class="bi-now-l" style="--x:${pc(slot * t, W)}">${fmt.time(now)}</span>`, axis, band);
+        ${area}${fP.length > 1 && fut.length ? h`<path class="bi-fl" d="${mono(fP)}"/>` : ""}${cP.length > 1 ? h`<path class="bi-cl" d="${mono(cP)}"/>` : ""}
+        ${P.live ? h`<line class="bi-now" x1="${slot * t}" x2="${slot * t}" y1="0" y2="${H}"/>` : ""}`,
+      h`${yTicks(max, y)}${P.live ? h`<span class="bi-now-l" style="--x:${pc(slot * t, W)}">${fmt.time(now)}</span>` : ""}`, axis, band);
   }
 
   // Infobulle (souris, toucher, clavier) — écoutée une seule fois pour toute la vie de la page
@@ -136,10 +305,12 @@
       const T = BZ.TARIFS[b.tariff];
       rows = h`${row(b.future ? "Prévision" : "Production", c.tot[i], "solar", b.future ? "bi-tip-f" : "", " kWh", 2)}${c.cons[i] != null ? row("Consommation", c.cons[i], "neutral", "bi-tip-c", " kWh", 2) : ""}
         <div class="tip-r bi-tip-tar"><i data-tone="${b.tariff}"></i><span>${T.label}</span><b>${fmt.n(T.price(), 4)} €/kWh</b></div>`;
-    } else rows = b.forecast ? row("Production prévue", c.tot[i], "solar", "bi-tip-f")
-      : h`${SER.map(([k, l, tone]) => row(l, b[k] || 0, tone))}${row("Production", c.tot[i], null, "bi-tip-t")}${c.rest[i] ? row("Encore prévu", c.rest[i], "solar", "bi-tip-f") : ""}${c.cons[i] != null ? row(b.current ? "Consommation (en cours)" : "Consommation", c.cons[i], "neutral", "bi-tip-c") : ""}`;
+    } else if (b.forecast) rows = row("Production prévue", c.tot[i], "solar", "bi-tip-f");
+    else if (b.pre) rows = h`<div class="tip-r bi-tip-n"><span>Panneaux pas encore posés</span></div>${row("Consommation", c.cons[i] || 0, "neutral", "bi-tip-c")}`;
+    else rows = h`${SER.map(([k, l, tone]) => row(l, b[k] || 0, tone))}${row("Production", c.tot[i], null, "bi-tip-t")}${c.rest[i] ? row("Encore prévu", c.rest[i], "solar", "bi-tip-f") : ""}
+      ${c.cons[i] != null ? row(b.current ? b.consLbl : "Consommation", c.cons[i], "neutral", "bi-tip-c") : ""}${c.end[i] != null ? row(b.projLbl, c.end[i], null, "bi-tip-p") : ""}`;
     const t = tipEl();
-    t.innerHTML = h`<strong>${esc(tipName(c.kind, b, i))}${b.current ? " · en cours" : ""}</strong>${rows}`;
+    t.innerHTML = h`<strong>${esc(tipName(c, b, i))}${b.current ? " · en cours" : ""}</strong>${rows}`;
     t.classList.add("is-on");
     const r = fig.querySelector(".bi-plot").getBoundingClientRect(), tw = t.offsetWidth, th = t.offsetHeight;
     const xPx = r.left + (c.cx(i) / W) * r.width, yPx = r.top + (c.y(c.top(i)) / H) * r.height;
@@ -181,8 +352,8 @@
     const n = (v) => (v == null || !Number.isFinite(v) ? "" : v.toFixed(2).replace(".", ","));
     let rows;
     if (P.kind === "jour") rows = [["Heure", "Production (kWh)", "Consommation (kWh)", "Tarif"], ...P.buckets.filter((b) => !b.future).map((b) => [`${b.h}h`, n(b.prod), n(b.cons), BZ.TARIFS[b.tariff].short])];
-    else rows = [[P.kind === "annee" ? "Mois" : "Jour", "Production (kWh)", "Utilisée à la maison", "Stockée en batterie", "Revendue", "Consommation (kWh)", "Achat réseau", "dont HP", "dont HC", "dont HSC", "Économies (€)"],
-      ...P.buckets.filter((b) => !b.forecast).map((b, i) => [P.kind === "annee" ? BZ.MONTHS_LONG[i] : b.date.toLocaleDateString("fr-FR"), n(b.prod), n(b.self), n(b.chg), n(b.exp), n(b.cons), n(b.imp), n(b.hp), n(b.hc), n(b.hsc), n(b.savings)])];
+    else rows = [[P.kind === "annee" ? "Mois" : "Jour", "Production (kWh)", "Utilisé à la maison", "Stocké en batterie", "Revendu", "Consommation (kWh)", "Achat réseau", "dont HP", "dont HC", "dont HSC", "Économies (€)"],
+      ...P.buckets.filter((b) => !b.forecast).map((b, i) => [P.kind === "annee" ? `${BZ.MONTHS_LONG[i]} ${P.year}` : b.date.toLocaleDateString("fr-FR"), n(b.prod), n(b.self), n(b.chg), n(b.exp), n(b.cons), n(b.imp), n(b.hp), n(b.hc), n(b.hsc), n(b.savings)])];
     return `data:text/csv;charset=utf-8,${encodeURIComponent("﻿" + rows.map((r) => r.join(";")).join("\r\n"))}`;
   }
 
@@ -192,67 +363,84 @@
       ${body}</section>`;
 
   /* ─── Blocs de la page ────────────────────────────────────────────── */
-  function header(P) {
-    const stamp = new Date().toISOString().slice(0, 10);
+  function header(P, L) {
+    const id = P.kind === "annee" ? String(P.year) : P.kind === "mois" ? iso(P.first).slice(0, 7) : iso(P.kind === "jour" ? P.date : P.to);
+    const nav = (dir) => {
+      const to = P.off + dir, ok = dir < 0 ? to >= P.min : to <= 0;
+      return h`<button type="button" class="bi-nav" data-act="set" data-k="biOff" data-value="${P.kind}:${to}" aria-label="${dir < 0 ? "Période précédente" : "Période suivante"}" ${ok ? "" : "disabled"}>${icon(dir < 0 ? "left" : "chevron")}</button>`;
+    };
     return h`<header class="ph">
-      <div><p class="ph-hi">Historique</p><h1>Bilan</h1><p class="ph-sub">${P.title} · ${P.compare}</p></div>
+      <div><p class="ph-hi">Historique</p><h1>Bilan</h1><p class="ph-sub" aria-live="polite">${L.title} · ${L.compare}</p></div>
       <div class="ph-a">
-        <div class="bi-per">${icon("calendar")}${pills({ name: "period", label: "Période du bilan", value: P.kind, options: [["jour", "Jour"], ["semaine", "7 jours"], ["mois", "Mois"], ["annee", "Année"]] })}</div>
-        <a class="btn btn-primary bi-exp" href="${csvHref(P)}" download="breezy-bilan-${P.kind}-${stamp}.csv" aria-label="Exporter le bilan de la période en CSV">${DL}<span>Exporter</span></a>
+        <div class="bi-per" role="group" aria-label="Période du bilan">${icon("calendar")}${pills({ name: "period", label: "Durée", value: P.kind, options: [["jour", "Jour"], ["semaine", "7 jours"], ["mois", "Mois"], ["annee", "Année"]] })}
+          <span class="bi-sep" aria-hidden="true"></span>${nav(-1)}${nav(1)}</div>
+        <a class="btn btn-primary bi-exp" href="${csvHref(P)}" download="breezy-bilan-${P.kind}-${id}.csv" aria-label="Exporter le bilan de la période en CSV">${DL}<span>Exporter</span></a>
       </div></header>`;
   }
 
-  // Mini-courbes : les cases de la période. Jour : heures écoulées (taux et euros : 7 derniers jours).
+  // Mini-courbes : les cases de la période. Jour : heures écoulées (autosuffisance cumulée depuis 0 h, économies par heure).
   // Année : moyenne par jour de chaque mois, pour que le mois en cours ne « s'effondre » pas.
-  function sparks(P) {
+  function sparks(P, T) {
     if (P.kind === "jour") {
-      const past = P.buckets.filter((b) => !b.future), wk = BZ.dayView(0).week;
-      return { prod: past.map((b) => b.prod), cons: past.map((b) => b.cons), aut: wk.map(aut), eco: wk.map((b) => b.savings) };
+      const B = P.buckets.filter((b) => !b.future), A = hourly(B, T);
+      return { prod: B.map((b) => b.prod), cons: B.map((b) => b.cons), aut: A.aut, eco: A.eco };
     }
-    const real = P.buckets.filter((b) => !b.forecast);
-    const days = (b, i) => (P.kind !== "annee" ? 1 : b.current ? new Date().getDate() : new Date(year(), i + 1, 0).getDate());
-    return { prod: real.map((b, i) => b.prod / days(b, i)), cons: real.map((b, i) => b.cons / days(b, i)), aut: real.map(aut), eco: real.map((b, i) => b.savings / days(b, i)) };
+    const real = P.buckets.filter((b) => !b.forecast && !b.pre), per = (b) => (P.kind === "annee" ? b.days || 1 : 1);
+    return { prod: real.map((b) => b.prod / per(b)), cons: real.map((b) => b.cons / per(b)), aut: real.map(aut), eco: real.map((b) => b.savings / per(b)) };
   }
 
   function kpis(P, T, Q, L) {
-    const S = sparks(P), sp = (vals, tone) => (vals.filter((v) => v != null).length > 1 ? BZ.spark(vals, tone) : null);
-    return h`<div class="kpis bi-kpis">
-      ${kpi({ label: "Produit", ic: "sun", tone: "solar", value: val(fmt.kwh(T.prod)), delta: delta(T.prod, Q.prod), vs: L.vs, spark: sp(S.prod, "solar") })}
-      ${kpi({ label: "Consommé", ic: "home", tone: "battery", value: val(fmt.kwh(T.cons)), delta: delta(T.cons, Q.cons, { invert: true }), vs: L.vs, spark: sp(S.cons, "battery") })}
-      ${kpi({ label: "Autosuffisance", ic: "leaf", tone: "good", value: val([fmt.n(aut(T) * 100), "%"]), delta: delta(aut(T), aut(Q), { unit: "pts" }), vs: L.vs, spark: sp(S.aut, "good") })}
-      ${kpi({ label: "Économisé", ic: "euro", tone: "accent", value: val([fmt.n(T.savings, T.savings >= 100 ? 0 : 2), "€"]), delta: delta(T.savings, Q.savings), vs: L.vs, spark: sp(S.eco, "accent") })}
-    </div>`;
+    const S = sparks(P, T), sp = (vals, tone) => (vals.filter((v) => v != null).length > 1 ? BZ.spark(vals, tone) : null);
+    const vs = (d) => (d || !L.none ? L.vs : "rien à comparer");
+    const k = [
+      { label: "Produit", ic: "sun", tone: "solar", value: val(fmt.kwh(T.prod)), delta: dl(T.prod, Q.prod), spark: sp(S.prod, "solar") },
+      { label: "Consommé", ic: "home", tone: "battery", value: val(fmt.kwh(T.cons)), delta: dl(T.cons, Q.cons, { invert: true }), spark: sp(S.cons, "battery") },
+      { label: "Autosuffisance", ic: "leaf", tone: "good", value: val([fmt.n(aut(T) * 100), "%"]), delta: L.none ? "" : dl(aut(T), aut(Q), { unit: "pts" }), spark: sp(S.aut, "good") },
+      { label: "Économisé", ic: "euro", tone: "accent", value: val([fmt.n(T.savings, T.savings >= 100 ? 0 : 2), "€"]), delta: dl(T.savings, Q.savings), spark: sp(S.eco, "accent") },
+    ];
+    return h`<div class="kpis bi-kpis">${k.map((x) => kpi({ ...x, vs: vs(x.delta) }))}</div>`;
   }
 
   function chartCard(P, T) {
     if (P.kind === "jour") {
       const fc = P.buckets.reduce((a, b) => a + (b.future ? b.prod : 0), 0);
-      const key = h`<div class="tariff-key bi-tk">${["hp", "hc", "hsc"].map((k) => h`<span data-tariff="${k}"><i></i>${BZ.TARIFS[k].short} <em>${BZ.rangeLabel(k)}</em> <b>${fmt.n(BZ.TARIFS[k].price(), 4)} €</b></span>`)}</div>`;
-      return card({ cls: "bi-main is-day", title: "Ta journée heure par heure", ic: "chart", tone: "accent",
+      const key = h`<div class="tariff-key bi-tk">${TAR.map((k) => h`<span data-tariff="${k}"><i></i>${BZ.TARIFS[k].short} <em>${BZ.rangeLabel(k)}</em> <b>${fmt.n(BZ.TARIFS[k].price(), 4)} €</b></span>`)}</div>`;
+      return card({ cls: "bi-main is-day", title: P.live ? "Ta journée heure par heure" : "La journée heure par heure", ic: "chart", tone: "accent",
         aside: legendRow([["Production", "solar", "area", fmt.kwhText(T.prod)], ...(fc > 0.05 ? [["Prévision", "solar", "dash", `+${fmt.kwhText(fc)}`]] : []), ["Consommation", "neutral", "line", fmt.kwhText(T.cons)]]),
-        body: h`<div class="bi-chart-w">${dayLines({ buckets: P.buckets, label: "Production, prévision et consommation par heure, tarifs sous l'axe" })}</div>${key}` });
+        body: h`<div class="bi-chart-w">${dayLines({ P, buckets: P.buckets, label: "Production, prévision et consommation par heure, tarifs sous l'axe" })}</div>${key}` });
     }
-    const fcTot = P.forecastTotal - T.prod, every = P.buckets.length > 14 ? 5 : 1;
-    // Case en cours : la part encore attendue aujourd'hui (et, en vue Année, les jours restants du mois)
-    const t = BZ.today(), restToday = Math.max(0, t.forecast - t.prod);
-    const restMonth = P.kind === "annee" ? BZ.period("mois").buckets.reduce((a, b) => a + (b.forecast ? b.prod : 0), 0) : 0;
-    const buckets = P.buckets.map((b) => ({ ...b, key: P.kind === "semaine" ? fmt.cap(b.key) : b.key, fcRest: b.current ? restToday + restMonth : 0 }));
+    const every = P.buckets.length > 14 ? 5 : 1;
+    // Case en cours : la production encore attendue (et, en vue Année, les jours restants du mois) ;
+    // la consommation est projetée à la fin de la case, au rythme habituel des heures et des jours qui restent
+    let restToday = 0, restMonth = 0;
+    if (P.live) {
+      restToday = todayHours().reduce((a, b) => a + (b.future ? b.prod : 0), 0);
+      if (P.kind === "annee") restMonth = BZ.period("mois").buckets.reduce((a, b) => a + (b.forecast ? b.prod : 0), 0);
+    }
+    const uShare = Math.max(0.05, share(USE, P.H)), t = fmt.time(new Date());
+    const buckets = P.buckets.map((b) => {
+      if (!b.current) return b;
+      const yr = P.kind === "annee";
+      return { ...b, fcRest: restToday + restMonth, consEnd: yr ? (b.cons / (b.days || 1)) * daysIn(D12(P.year, b.i, 1)) : b.cons / uShare,
+        consLbl: yr ? `Consommé au ${sh(new Date())}` : `Consommé à ${t}`, projLbl: yr ? "Projection fin de mois" : "Projection fin de journée" };
+    });
+    const hasFc = buckets.some((b) => b.forecast || b.fcRest > 0.05);
     return card({ cls: "bi-main", title: P.kind === "annee" ? "Production et consommation" : "Où va ta production", ic: "chart", tone: "accent",
       aside: legendRow([
-        ["Utilisée", "solar", "bar", fmt.kwhText(T.self)], ["Stockée", "battery", "bar", fmt.kwhText(T.chg)], ["Revendue", "grid", "bar", fmt.kwhText(T.exp)],
-        ["Consommation", "neutral", "line", ""], ...(fcTot > 0.5 || restToday > 0.05 ? [["Prévision", "solar", "hatch", ""]] : []),
+        ["Utilisé", "solar", "bar", fmt.kwhText(T.self)], ["Stocké", "battery", "bar", fmt.kwhText(T.chg)], ["Revendu", "grid", "bar", fmt.kwhText(T.exp)],
+        ["Consommation", "neutral", "line", ""], ...(hasFc ? [["Prévision", "solar", "hatch", ""]] : []),
       ]),
-      body: h`<div class="bi-chart-w">${combo({ kind: P.kind, buckets, every, label: `Destination de la production par ${LBL[P.kind]().unit} et consommation` })}</div>` });
+      body: h`<div class="bi-chart-w">${combo({ P, buckets, every, label: `Destination de la production par ${labels(P).unit} et consommation` })}</div>` });
   }
 
   // Comparaison : uniquement ce que les 4 indicateurs du haut ne montrent pas déjà
   function compareCard(T, Q, L) {
     const rows = [
-      { ic: "grid", tone: "grid", name: "Achat réseau", cur: fmt.kwhText(T.imp), prev: fmt.kwhText(Q.imp), d: delta(T.imp, Q.imp, { invert: true }) },
-      { ic: "euro", tone: "hp", name: "Facture réseau", cur: fmt.eur(bill(T)), prev: fmt.eur(bill(Q)), d: delta(bill(T), bill(Q), { invert: true }) },
-      { raw: UP, tone: "grid", name: "Revente", cur: fmt.kwhText(T.exp), prev: fmt.kwhText(Q.exp), d: delta(T.exp, Q.exp) },
-      { ic: "battery", tone: "battery", name: "Batterie restituée", cur: fmt.kwhText(T.dch), prev: fmt.kwhText(Q.dch), d: delta(T.dch, Q.dch) },
-      { ic: "sun", tone: "solar", name: "Autoconsommation", cur: fmt.pct(selfUse(T)), prev: fmt.pct(selfUse(Q)), d: delta(selfUse(T), selfUse(Q), { unit: "pts" }) },
+      { ic: "grid", tone: "neutral", name: "Achat réseau", cur: fmt.kwhText(T.imp), prev: fmt.kwhText(Q.imp), d: dl(T.imp, Q.imp, { invert: true }) },
+      { ic: "euro", tone: "hp", name: "Facture réseau", cur: fmt.eur(bill(T)), prev: fmt.eur(bill(Q)), d: dl(bill(T), bill(Q), { invert: true }) },
+      { raw: UP, tone: "grid", name: "Revendu", cur: fmt.kwhText(T.exp), prev: fmt.kwhText(Q.exp), d: dl(T.exp, Q.exp) },
+      { ic: "battery", tone: "battery", name: "Batterie restituée", cur: fmt.kwhText(T.dch), prev: fmt.kwhText(Q.dch), d: dl(T.dch, Q.dch) },
+      { ic: "sun", tone: "solar", name: "Autoconsommation", cur: fmt.pct(selfUse(T)), prev: L.none ? "—" : fmt.pct(selfUse(Q)), d: L.none ? "" : dl(selfUse(T), selfUse(Q), { unit: "pts" }) },
     ];
     return cardSvg({ cls: "bi-cmp", title: "Comparaison", svg: CMP, aside: h`<span class="bi-note">${L.vs}</span>`, body: h`
       <div class="dt-wrap"><table class="dt">
@@ -268,23 +456,24 @@
     const avg = real.reduce((a, x) => a + x.b.prod, 0) / (real.length || 1);
     const best = [...real].sort((a, z) => z.b.prod - a.b.prod).slice(0, 5);
     const body = best.length ? h`<ol class="plist bi-best">${best.map(({ b, i }, r) => {
-      const vs = (b.prod / avg - 1) * 100;
+      const vs = (b.prod / avg - 1) * 100, a = fmt.n(aut(b) * 100);
       const sub = isDay ? h`<span class="bi-ln">${BZ.TARIFS[b.tariff].label}</span><span class="bi-sn">${BZ.TARIFS[b.tariff].short}</span>${b.cons != null ? h`<span class="bi-sx"> · ${fmt.kwhText(b.cons)} conso.</span>` : ""}`
-        : h`${fmt.n(aut(b) * 100)} % autonome<span class="bi-sx"> · ${fmt.kwhText(b.exp)} revendus</span>`;
+        : h`<span class="bi-al">${a} % autonome</span><span class="bi-as">${a} % auto.</span><span class="bi-sx"> · ${fmt.kwhText(b.exp)} revendus</span>`;
       return h`<li><div class="plist-r">
         <span class="bi-rk ${r === 0 ? "is-1" : ""}"><span class="sr">Rang </span>${r + 1}</span>
-        <span><strong><span class="bi-ln">${nameOf(P.kind, b, i)}</span><span class="bi-sn" aria-hidden="true">${shortOf(P.kind, b, i)}</span>${b.current ? h` <em class="bi-now">en cours</em>` : ""}</strong><small>${sub}</small></span>
+        <span><strong><span class="bi-ln">${nameOf(P, b, i)}</span><span class="bi-sn" aria-hidden="true">${shortOf(P, b, i)}</span>${b.current ? h` <em class="bi-now">en cours</em>` : ""}</strong><small>${sub}</small></span>
         ${pill(vs >= 0.5 ? `+${fmt.n(vs)} %` : "moyenne", vs >= 0.5 ? "good" : "neutral")}
         <span class="plist-p"><span>${fmt.kwhText(b.prod)}</span>${meter({ value: (b.prod / best[0].b.prod) * 100, tone: "solar", size: "xs" })}</span></div></li>`;
     })}</ol>`
-      : BZ.empty({ ic: "sun", title: "Pas encore de production", text: "Le classement se remplit dès le lever du soleil." });
+      : BZ.empty({ ic: "sun", title: P.kind === "jour" && P.live ? "Pas encore de production" : "Pas de production", text: P.live ? "Le classement se remplit dès le lever du soleil." : "Les panneaux n'étaient pas encore posés." });
     return card({ cls: "bi-top", title: "Meilleurs moments", ic: "star", tone: "accent", aside: h`<span class="bi-note">${L.per}${best.length ? h`<span class="bi-nx"> · moy. ${fmt.kwhText(avg)}</span>` : ""}</span>`, body });
   }
 
   function originCard(T) {
-    const parts = [{ label: "Soleil direct", v: T.self, tone: "solar" }, { label: "Batterie", v: T.dch, tone: "battery" }, { label: "Réseau", v: T.imp, tone: "grid" }];
+    // Réseau en gris : le vert reste réservé à ce qui est revendu
+    const parts = [{ label: "Soleil direct", v: T.self, tone: "solar" }, { label: "Batterie", v: T.dch, tone: "battery" }, { label: "Réseau", v: T.imp, tone: "neutral" }];
     const cons = parts.reduce((a, p) => a + p.v, 0) || 1;
-    const tar = ["hp", "hc", "hsc"].map((k) => ({ k, label: BZ.TARIFS[k].label, v: T[k] || 0, eur: (T[k] || 0) * BZ.TARIFS[k].price() }));
+    const tar = TAR.map((k) => ({ k, label: BZ.TARIFS[k].label, v: T[k] || 0, eur: (T[k] || 0) * BZ.TARIFS[k].price() }));
     return card({ cls: "bi-org", title: "D'où vient ta consommation", ic: "leaf", tone: "accent", link: { label: "Tarifs", to: "energy" }, body: h`
       <div class="bi-mixr">${donut({ parts, size: 128, stroke: 15, center: fmt.n(T.cons, T.cons < 100 ? 1 : 0), sub: "kWh", label: `${fmt.kwhText(T.cons)} consommés : ${parts.map((p) => `${p.label} ${Math.round((p.v / cons) * 100)} %`).join(", ")}` })}
         <ul class="bi-keys">${parts.map((p) => h`<li data-tone="${p.tone}"><i></i><span>${p.label}</span><em>${fmt.n((p.v / cons) * 100)} %</em><b>${fmt.kwhText(p.v)}</b></li>`)}</ul></div>
@@ -295,25 +484,40 @@
       </div>` });
   }
 
+  // Rentabilité : compteur cumulé (BZ.roi), rythme des 12 derniers mois, date d'amortissement à ce rythme
+  function roiData() {
+    const R = BZ.roi(), now = new Date(), y = now.getFullYear();
+    const year = sum(span(D12(y - 1, now.getMonth(), now.getDate() + 1), 365).map(dayX)).savings;
+    const months = (now - START) / (30.44 * 864e5);
+    const perYear = months < 12 ? (year * 12) / Math.max(1, months) : year;     // moins d'un an de recul : ramené à l'année
+    const ytd = sum(span(D12(y, 0, 1), Math.round((sod(now) - new Date(y, 0, 1)) / 864e5) + 1).map(dayX)).savings;
+    const payback = new Date(now.getTime() + (R.remaining / (perYear || 1)) * 365.25 * 864e5);
+    return { ...R, perYear, ytd, payback, totalYears: (payback - START) / (365.25 * 864e5) };
+  }
+  BZ.roiFull = roiData;   // partagé avec l'Aperçu : même date d'amortissement partout
   function roiCard(P) {
-    const R = BZ.roi(), isYear = P.kind === "annee", ytd = BZ.period("annee").total.savings;
-    // En vue « Année », l'économie de l'année est déjà dans les indicateurs : on montre la durée d'amortissement
-    const first = isYear ? ["Amortie en", `${fmt.n(R.totalYears, 1)} ans`] : [`En ${year()}`, fmt.eur(ytd, 0)];
+    const R = roiData(), y = new Date().getFullYear();
+    // En vue « Année » en cours, l'économie de l'année est déjà dans les indicateurs : on montre la durée d'amortissement
+    const first = P.kind === "annee" && P.live ? ["Amortie en", `${fmt.n(R.totalYears, 1)} ans`] : [`En ${y}`, fmt.eur(R.ytd, 0)];
     return card({ cls: "bi-roi", title: "Rentabilité solaire", ic: "sun", tone: "accent", aside: pill(h`${fmt.n(R.progress * 100)} %<span class="bi-rx"> remboursé</span>`, "accent"), body: h`
       <div class="bi-roi-v">${val([fmt.n(R.total), "€"], "bi-roi-big")}<span>économisés sur ${fmt.eur(R.inv, 0)} investis</span></div>
       <div class="bi-roi-m">${meter({ value: R.progress * 100, tone: "accent", size: "lg", label: "Part de l'installation remboursée" })}
-        <div class="bi-roi-ax"><span>Depuis ${fmt.date(R.start, { month: "short", year: "numeric" })}</span><span>Amortie vers <b>${fmt.date(R.payback, { month: "long", year: "numeric" })}</b></span></div></div>
+        <div class="bi-roi-ax"><span class="bi-roi-from">Depuis ${fmt.date(R.start, { month: "short", year: "numeric" })}</span><span>Amortie vers <b>${fmt.date(R.payback, { month: "long", year: "numeric" })}</b></span></div></div>
       <div class="bi-roi-kv">
         <div><span>${first[0]}</span><b>${first[1]}</b></div>
-        <div><span>Par an</span><b>${fmt.eur(R.perYear, 0)}</b></div>
+        <div><span>Sur 12 mois</span><b>${fmt.eur(R.perYear, 0)}</b></div>
         <div><span>Reste</span><b>${fmt.eur(R.remaining, 0)}</b></div>
       </div>` });
   }
 
   BZ.pages.insights = () => {
     REG.clear();
-    const P = BZ.period(LBL[BZ.ui.period] ? BZ.ui.period : "semaine"), T = P.total, Q = P.prevTotal, L = LBL[P.kind]();
-    return h`${header(P)}${kpis(P, T, Q, L)}
+    F = rescale();
+    const kind = ["jour", "semaine", "mois", "annee"].includes(BZ.ui.period) ? BZ.ui.period : "semaine";
+    const [k, n] = String(BZ.ui.biOff || "").split(":");
+    const off = k === kind ? BZ.clamp(Math.round(+n) || 0, minOff(kind), 0) : 0;
+    const P = build(kind, off), T = P.total, Q = P.prevTotal, L = labels(P);
+    return h`${header(P, L)}${kpis(P, T, Q, L)}
       <div class="layout bi-grid">
         <div class="col bi-l">${chartCard(P, T)}<div class="bi-pair">${compareCard(T, Q, L)}${bestCard(P, L)}</div></div>
         <div class="col bi-r">${originCard(T)}${roiCard(P)}</div>
