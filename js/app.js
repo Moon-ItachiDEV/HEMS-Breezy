@@ -263,7 +263,7 @@
           <div><b><span data-count="${j.conso}" data-dec="1">${fr(j.conso, 1)}</span><small>kWh</small></b><div class="l">Consommé</div></div>
           <div><b><span data-count="${n(C.economies_jour_eur)}" data-dec="2">${fr(n(C.economies_jour_eur), 2)}</span><small>€</small></b><div class="l">Économisé</div></div>
         </div>
-        <h2>Répartition du jour</h2>
+        <section class="blk"><h2>Répartition du jour</h2>
         <div class="card">
           ${splitbar([{ v: j.autoUse, c: "var(--orange)" }, { v: j.chg, c: "var(--blue)" }, { v: j.exp, c: "var(--green)" }])}
           <div class="legend3">
@@ -271,8 +271,8 @@
             <div><span style="--c:var(--blue)">Batterie</span><b>${fr(j.chg, 1)} kWh</b><em>${fr((j.chg / j.prod) * 100)} %</em></div>
             <div><span style="--c:var(--green)">Revendu</span><b>${fr(j.exp, 1)} kWh</b><em>${fr((j.exp / j.prod) * 100)} %</em></div>
           </div>
-        </div>
-        ${sec("Appareils actifs", `${devices.length} en marche`)}
+        </div></section>
+        <section class="blk">${sec("Appareils actifs", `${devices.length} en marche`)}
         <div class="devs">${devices.map((d) => { const vu = d.val != null ? [d.val, d.unit] : splitW(d.w); return `
           <button class="devx" data-go="${d.go}" ${d.sub ? `data-gosub="${d.sub}"` : ""} style="--c:${d.c}">
             <span class="dico">${ICONS[d.ic]}</span>
@@ -283,7 +283,7 @@
               <span class="dfoot">${d.foot}</span>
             </span>
             <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-          </button>`; }).join("")}</div>
+          </button>`; }).join("")}</div></section>
       </div>`;
   }
 
@@ -311,13 +311,13 @@
     return `
       ${head("Temps réel", "Flux d'énergie", `<span class="live">En direct</span>`)}
       <div class="wrap">
-        <div class="sun"><div class="orb">${ICONS.sun}</div>
+        <section class="flow-top"><div class="sun"><div class="orb">${ICONS.sun}</div>
           <b><span data-count="${e.solar / 1000}" data-dec="2">${kw(e.solar)}</span><small>kW</small></b><div class="eyebrow" style="margin-top:2px">Production · 3 onduleurs</div></div>
         <svg class="tree" viewBox="0 0 360 70" preserveAspectRatio="none" aria-hidden="true">
           ${N.map((d, i) => `<path class="bg" d="M180 0 C180 40 ${xs[i]} 30 ${xs[i]} 70"/>
             <path class="go ${d.rev ? "rev" : ""}" stroke="${d.c}" d="M180 0 C180 40 ${xs[i]} 30 ${xs[i]} 70" style="${d.w < 15 ? "display:none" : `animation-duration:${clamp(2.2 - d.w / 1500, 0.5, 2.2)}s`}"/>`).join("")}
         </svg>
-        <div class="nodes">${N.map((d) => `<div class="node" style="--c:${d.c}">${chip(d.ic, d.c, "sm")}<div class="n">${d.k}</div><b>${kw(d.w)}<small>kW</small></b><div class="p">${d.p}</div></div>`).join("")}</div>
+        <div class="nodes">${N.map((d) => `<div class="node" style="--c:${d.c}">${chip(d.ic, d.c, "sm")}<div class="n">${d.k}</div><b>${kw(d.w)}<small>kW</small></b><div class="p">${d.p}</div></div>`).join("")}</div></section>
 
         <div class="card" style="margin-top:14px">
           <div class="flexrow">${ring(autosuff, `<span>${fr(autosuff)}<small style="font-size:.7rem;font-weight:500"> %</small></span>`, "", "", null, ["#7fd3a4", "#1f9d55"])}
@@ -367,7 +367,7 @@
     const max = Math.max(...colTot) || 1;
     const many = D.labels.length > 8;
     return `
-        ${sec("Recharges", "par source d'énergie")}
+        <section class="blk">${sec("Recharges", "par source d'énergie")}
         <div class="seg" style="margin-bottom:12px">${[["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["annee", "Année"]].map(([k, l]) => `<button class="${chargePer === k ? "on" : ""}" data-cper="${k}">${l}</button>`).join("")}</div>
         <div class="card">
           <div class="kpi"><b style="color:var(--txt)">${fr(total, total >= 100 ? 0 : 1)}</b><span class="u">kWh ${D.titre}</span><span class="tag">${fr((tot[0].kwh / total) * 100)} % soleil</span></div>
@@ -385,7 +385,7 @@
             <div><span>Coût des recharges</span><b>${fr(cout, 2)} €</b></div>
             <div><span>Économisé vs tout en HP</span><b style="color:var(--green)">${fr(toutHP - cout, 2)} €</b></div>
           </div>
-        </div>`;
+        </div></section>`;
   }
 
   // ─── Voiture
@@ -427,13 +427,13 @@
 
 ${chargeStats()}
 
-        ${sec("Réglages", "recharge")}
+        <section class="blk">${sec("Réglages", "recharge")}
         <div class="card list">
           <div class="li">${chip("home", "#e8711a")}<div class="li-t"><b>Limite à la maison</b><span>recharge AC</span></div>${stepper(`${fr(lim)} %`, "car-lim")}</div>
           <div class="li">${chip("bolt", "#8a5cf6")}<div class="li-t"><b>Recharge rapide</b><span>limite DC</span></div>${stepper(`${fr(n(C.voiture_limite_dc_pct))} %`, "car-limdc")}</div>
           <div class="li">${chip("clock", "#3a7bec")}<div class="li-t"><b>Heures creuses seulement</b><span>ne charge qu'en HC</span></div>${sw(on(C.voiture_heures_creuses), "car-hc")}</div>
           <div class="li">${chip("gauge", "#1f9d55")}<div class="li-t"><b>Charge programmée</b><span>horaire de la voiture</span></div>${sw(on(C.voiture_programmee), "car-prog")}</div>
-        </div>
+        </div></section>
 
         <div class="card">
           ${ch("wrench", "#8a5cf6", "Entretien", `tous les ${fr(C.entretien_intervalle_km)} km`, `${fr(odo)} km`)}

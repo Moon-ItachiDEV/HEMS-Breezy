@@ -765,3 +765,79 @@ body {
 .lm-past::before { background: #f9cfa8; }
 
 .demo-note { padding: 0 20px; line-height: 1.6; }
+
+/* ═══ Responsive : tablette, PC 1080p, 2K ════════════════════════════
+   Mobile d'abord (ci-dessus). Au-delà, les cartes se rangent en colonnes,
+   chaque bloc (titre + carte) reste entier. */
+.blk, .flow-top { display: block; }
+@media (min-width: 760px) {
+  .shell { max-width: none; }
+  .wrap { columns: 2; column-gap: 16px; }
+  .wrap > * { break-inside: avoid; page-break-inside: avoid; }
+  .wrap > .card, .wrap > .blk, .wrap > .hk-room { display: inline-block; width: 100%; vertical-align: top; }
+  .wrap > .flow-top, .wrap > .card.stats { column-span: all; }
+  .flow-top { max-width: 720px; margin: 0 auto 16px; }
+  .ph, .hk-head { padding-left: 24px; padding-right: 24px; }
+  .wrap { padding: 0 24px; }
+  .hk-chips, .per-bar { padding-left: 24px; padding-right: 24px; }
+  .per-bar .seg { max-width: 520px; }
+  .hero { margin: 16px 24px 0; border-radius: 30px; padding: 22px 26px 46px; }
+  .hero .big b { font-size: 4.8rem; }
+  .spark-wrap, .spark-wrap .spark { height: 110px; }
+  .wrap.lift { margin-top: -38px; padding: 0 44px; }
+  .dock-in { max-width: 520px; }
+  .toast { bottom: 96px; }
+  /* Panneau : fenêtre centrée au lieu du tiroir */
+  #sheet .sh-panel { top: 50%; bottom: auto; left: 50%; right: auto; width: min(460px, calc(100% - 48px)); border-radius: 28px;
+    transform: translate(-50%, -46%) scale(.97); opacity: 0; transition: transform .35s cubic-bezier(.2, .9, .25, 1), opacity .25s; }
+  #sheet.open .sh-panel { transform: translate(-50%, -50%); opacity: 1; }
+  #sheet:not(.open) .sh-panel { transition: transform .3s, opacity .2s, visibility 0s .3s; }
+  .sh-grab { display: none; }
+}
+
+/* PC : barre latérale à gauche */
+@media (min-width: 1024px) {
+  body { --side-w: 256px; }
+  .shell { margin-left: var(--side-w); max-width: 1680px; padding-bottom: 40px; }
+  .dock { inset: 0 auto 0 0; width: var(--side-w); padding: 16px 0 16px 16px; display: block; }
+  .dock-in {
+    display: flex; flex-direction: column; align-items: stretch; gap: 4px; height: 100%; max-width: none;
+    padding: 22px 12px; border-radius: 26px;
+  }
+  .dock-in::before {
+    content: "Voltia"; font-family: var(--display); font-size: 1.55rem; font-weight: 700; letter-spacing: -.045em;
+    padding: 4px 14px 26px; color: var(--txt);
+  }
+  .dock button { flex: none; flex-direction: row; justify-content: flex-start; height: auto; gap: 12px; padding: 11px 14px; border-radius: 14px; transition: background .2s; }
+  .dock button span { font-size: .92rem; font-weight: 600; letter-spacing: -.01em; color: #6f665d; }
+  .dock button:hover { background: rgba(120, 100, 80, .07); }
+  .dock button.on { background: rgba(232, 113, 26, .1); }
+  .dock button.on span { color: var(--txt); font-weight: 700; }
+  .dock .core i { width: 32px; height: 26px; border-radius: 9px; }
+  .dock .core i svg { width: 15px; height: 15px; }
+  .dock button svg { width: 22px; height: 22px; }
+  .toast { left: calc(50% + var(--side-w) / 2); bottom: 28px; }
+  .demo-note { margin-top: 24px; }
+  .ph h1, .hk-head h1 { font-size: 2.4rem; }
+  .wrap { columns: 2; }
+  .hero { margin: 20px 28px 0; }
+  .wrap, .ph, .hk-head, .hk-chips, .per-bar { padding-left: 28px; padding-right: 28px; }
+  .wrap.lift { padding: 0 48px; }
+  .card { margin-bottom: 16px; }
+}
+@media (min-width: 1500px) { .wrap { columns: 3; } }
+
+/* 2K : texte un peu plus grand, 4 colonnes */
+@media (min-width: 2200px) {
+  html { font-size: 17px; }
+  body { font-size: 16px; --side-w: 288px; }
+  .shell { max-width: 2200px; }
+  .wrap { columns: 4; column-gap: 20px; }
+  .hero .big b { font-size: 5.6rem; }
+  .card { padding: 22px; }
+}
+@media (min-width: 760px) {
+  .wrap > .card.stats { display: grid; width: auto; }
+  .wrap.lift { columns: auto !important; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); column-gap: 16px; align-items: start; }
+  .wrap.lift > .card.stats { grid-column: 1 / -1; }
+}
