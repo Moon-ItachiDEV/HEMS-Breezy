@@ -1,4 +1,4 @@
-// Voltia — version mobile (thème clair, en-tête orange, arbre de flux, analyse).
+// Breezy HEMS — tableau de bord énergie et maison (mobile, tablette, bureau).
 // Lit les rôles (js/config.js) et les états (js/mock.js, remplacés plus tard par Home Assistant).
 (function () {
   const C = window.VOLTIA_CONFIG;
@@ -398,7 +398,7 @@
   }
 
   // ─── Voiture
-  function pageVoiture() {
+  function voitureParts() {
     const soc = n(C.voiture_soc), lim = n(C.voiture_limite_pct);
     const plugged = on(C.voiture_branchee), charging = plugged && on(C.voiture_en_charge);
     const locked = st(C.voiture_verrou) === "locked";
@@ -406,10 +406,10 @@
     const odo = n(C.voiture_odometre), last = n(C.entretien_dernier_km), next = last + C.entretien_intervalle_km;
     const fin = new Date(Date.now() + n(C.voiture_minutes_restantes) * 60e3);
     const act = (icon, label, a, cls = "", dis = false) => `<div class="act"><button class="${cls}" data-act="${a}" ${dis ? "disabled" : ""} aria-label="${label}">${ICONS[icon]}</button><span>${label}</span></div>`;
-    return `
-      ${head(`Mis à jour ${ago(st(C.voiture_maj))}`, "Kia e-Niro", charging ? `<span class="live" style="--lc:#8a5cf6">En charge</span>` : `<span class="pill-n">${plugged ? "Branchée" : "Débranchée"}</span>`)}
-      <div class="wrap">
-        <div class="card car-hero">
+    return {
+      charging, plugged,
+      head: `      ${head(`Mis à jour ${ago(st(C.voiture_maj))}`, "Kia e-Niro", charging ? `<span class="live" style="--lc:#8a5cf6">En charge</span>` : `<span class="pill-n">${plugged ? "Branchée" : "Débranchée"}</span>`)}`,
+      hero: `        <div class="card car-hero">
           <div class="car-ring">${ring(soc, `<div><span data-count="${soc}">${fr(soc)}</span><span style="font-size:1rem;font-weight:500"> %</span></div><small>${fr(n(C.voiture_autonomie_km))} km</small>`, "", "lg", lim, ["#b9a2ff", "#7c4dff"])}</div>
           <div class="car-meta">
             <div><span class="eyebrow">${charging ? "Fin estimée" : "Limite"}</span><b>${charging ? hhmm(fin) : `${fr(lim)} %`}</b></div>
@@ -422,34 +422,63 @@
             ${act("snow", "Clim", "car-clim", on(C.voiture_clim) ? "on" : "")}
             ${act("refresh", "Actualiser", "car-refresh")}
           </div>
-        </div>
-
-        <div class="card">
+        </div>`,
+      charge: `        <div class="card">
           ${ch("bolt", "#8a5cf6", "Cette charge", `depuis ${hhmm(new Date(st(C.session_debut)))}`, `<span class="tag-g">${fr((sol / (sol + res)) * 100)} % soleil</span>`)}
           <div class="kpi" style="margin:4px 0 14px"><b style="color:#7c4dff">+${fr(n(C.session_soc))} %</b><span class="u">${fr(sol + res, 1)} kWh ajoutés</span></div>
           ${splitbar([{ v: sol, c: "var(--orange)" }, { v: res, c: "var(--green)" }])}
           <div class="legend3" style="grid-template-columns:1fr 1fr">
-            <div><span style="--c:var(--orange)">Soleil · ${Wt(n(C.ve_solaire_w))}</span><b>${fr(sol, 1)} kWh</b></div>
-            <div style="text-align:right"><span style="--c:var(--green)">Réseau · ${Wt(n(C.ve_reseau_w))}</span><b>${fr(res, 1)} kWh</b></div>
+            <div><span style="--c:var(--orange)">Soleil</span><b>${fr(sol, 1)} kWh</b></div>
+            <div style="text-align:right"><span style="--c:var(--green)">Réseau</span><b>${fr(res, 1)} kWh</b></div>
           </div>
-        </div>
-
-${chargeStats()}
-
-        <section class="blk">${sec("Réglages", "recharge")}
-        <div class="card list">
+        </div>`,
+      rows: `
           <div class="li">${chip("home", "#e8711a")}<div class="li-t"><b>Limite à la maison</b><span>recharge AC</span></div>${stepper(`${fr(lim)} %`, "car-lim")}</div>
           <div class="li">${chip("bolt", "#8a5cf6")}<div class="li-t"><b>Recharge rapide</b><span>limite DC</span></div>${stepper(`${fr(n(C.voiture_limite_dc_pct))} %`, "car-limdc")}</div>
           <div class="li">${chip("clock", "#3a7bec")}<div class="li-t"><b>Heures creuses seulement</b><span>ne charge qu'en HC</span></div>${sw(on(C.voiture_heures_creuses), "car-hc")}</div>
           <div class="li">${chip("gauge", "#1f9d55")}<div class="li-t"><b>Charge programmée</b><span>horaire de la voiture</span></div>${sw(on(C.voiture_programmee), "car-prog")}</div>
-        </div></section>
-
-        <div class="card">
+`,
+      entretien: `        <div class="card">
           ${ch("wrench", "#8a5cf6", "Entretien", `tous les ${fr(C.entretien_intervalle_km)} km`, `${fr(odo)} km`)}
           <div class="kpi" style="margin:4px 0 12px"><b style="color:var(--txt)">${fr(Math.abs(next - odo))}</b><span class="u">km ${next - odo >= 0 ? "avant le prochain" : "de retard"}</span></div>
           ${prog(((odo - last) / C.entretien_intervalle_km) * 100, "linear-gradient(90deg,#b9a2ff,#7c4dff)")}
           <div class="grid2" style="margin-top:16px"><button class="btn" data-act="car-service">${ICONS.check} Entretien fait</button><button class="btn ghost" data-act="car-service-km">Autre km…</button></div>
           <div class="foot-row"><span>Dernier trajet ${ago(st(C.voiture_dernier_trajet))}</span><span>${fr(soc - n(C.voiture_soc_reference))} % depuis</span></div>
+        </div>
+`,
+    };
+  }
+  function pageVoiture() {
+    const V = voitureParts();
+    return `
+${V.head}
+      <div class="wrap">
+${V.hero}
+${V.charge}
+${chargeStats()}
+        <section class="blk">${sec("Réglages", "recharge")}
+        <div class="card list">${V.rows}        </div></section>
+${V.entretien}
+      </div>`;
+  }
+
+  // Voiture sur le tableau de bord : tout tient sur un écran
+  function deskVoiture() {
+    const V = voitureParts();
+    return `${topbar()}
+      <div class="dk-fit">
+        <div class="dk-col">${V.hero.replace('class="card car-hero"', 'class="card dk-card car-hero"')}${V.charge.replace('<div class="card">', '<div class="card dk-card">')}</div>
+        <div class="dk-col"><div class="card dk-card dk-rech">${chargeStats()}</div></div>
+        <div class="dk-col">
+          <div class="card dk-card">${ch("gauge", "#1f9d55", "Réglages", "recharge")}<div class="list">${V.rows}</div></div>
+          ${V.entretien.replace('<div class="card">', '<div class="card dk-card">')}
+          ${(() => { const so = n(C.ve_solaire_kwh), re = n(C.ve_reseau_kwh), t = so + re; return `<div class="card dk-card dk-total">
+            ${ch("leaf", "#1f9d55", "Depuis le début", "énergie mise dans la voiture", `<span class="tag-g">${fr((so / t) * 100)} % soleil</span>`)}
+            <div class="kpi" style="margin:0 0 12px"><b style="color:var(--txt)">${fr(t)}</b><span class="u">kWh</span></div>
+            ${splitbar([{ v: so, c: "var(--orange)" }, { v: re, c: "var(--green)" }])}
+            <div class="legend3" style="grid-template-columns:1fr 1fr"><div><span style="--c:var(--orange)">Soleil</span><b>${fr(so)} kWh</b></div><div style="text-align:right"><span style="--c:var(--green)">Réseau</span><b>${fr(re)} kWh</b></div></div>
+            <div class="foot-row"><span>Soit ~${fr(re * n(C.tarif_hc), 0)} € payés au réseau</span><span>${fr(so * n(C.tarif_hp), 0)} € évités</span></div>
+          </div>`; })()}
         </div>
       </div>`;
   }
@@ -945,7 +974,6 @@ ${roiCard()}
       <div class="dk-top-r">${extra}
         <span class="dk-chip">${now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</span>
         <span class="dk-chip">${METEO_TXT[t] || ""} · ${fr(at(C.meteo, "temperature"))}°</span>
-        <span class="dk-chip strong">${nomT ? nomT[0] : ""} · ${fr(prix, 4)} €/kWh</span>
         <span class="live">En direct</span>
       </div>
     </header>`;
@@ -959,13 +987,8 @@ ${roiCard()}
     const item = (k, ic, label, badge = "") => `<button class="sd-it ${current === k ? "on" : ""}" data-go="${k}">${ICONS[ic]}<span>${label}</span>${badge}</button>`;
     const charging = on(C.voiture_branchee) && on(C.voiture_en_charge);
     el.innerHTML = `
-      <div class="sd-brand"><span class="sd-logo">${ICONS.bolt}</span><div><b>Voltia</b><span>Énergie &amp; maison</span></div></div>
-      <div class="sd-live">
-        <div class="sd-live-h"><span class="dot"></span>Production en direct</div>
-        <div class="sd-live-v"><b>${kw(e.solar)}</b><small>kW</small></div>
-        ${spark(PROD_H, "#f39a52", 200, 40)}
-        <div class="sd-live-r"><span>Maison <b>${Wt(e.house)}</b></span><span>${e.grid < 0 ? "Revente" : "Achat"} <b>${Wt(Math.abs(e.grid))}</b></span></div>
-      </div>
+      <div class="sd-brand"><span class="sd-logo">${ICONS.bolt}</span><div><b>Breezy <em>HEMS</em></b><span>Énergie &amp; maison</span></div></div>
+      ${gridLive()}
       <div class="sd-grp">Tableau de bord</div>
       ${item("accueil", "home", "Vue d'ensemble")}
       ${item("flux", "bolt", "Flux d'énergie", `<em class="sd-dot"></em>`)}
@@ -979,6 +1002,27 @@ ${roiCard()}
           ${tarifLine(true)}
         </div>
         <div class="sd-note">Démo · valeurs d'exemple</div>
+      </div>`;
+  }
+
+  // Réseau en direct : le capteur L3 P du compteur dit si la maison achète (+) ou revend (−)
+  const GRID_HIST = Array.from({ length: 40 }, (_, k) => Math.round(-380 + 520 * Math.sin(k / 5) * Math.exp(-k / 60) + (k % 7 === 2 ? 260 : 0) - (k > 30 ? 120 : 0)));
+  function gridLive() {
+    const g = n(C.reseau_w), exp = g < -15, imp = g > 15;
+    const hist = GRID_HIST.slice(0, -1).concat([g]);
+    const lim = Math.max(3000, ...hist.map(Math.abs));
+    const w = 200, h = 46, mid = h / 2;
+    const pts = hist.map((v, k) => [(k * w) / (hist.length - 1), mid - (v / lim) * (mid - 3)]);
+    const d = smooth(pts);
+    const col = exp ? "#4ade80" : imp ? "#f87171" : "#9b8f84";
+    return `<div class="sd-live ${exp ? "exp" : imp ? "imp" : ""}">
+        <div class="sd-live-h"><span class="dot"></span>Réseau en direct</div>
+        <div class="sd-live-v"><b>${exp ? "−" : imp ? "+" : ""}${Wt(Math.abs(g))}</b><em>${exp ? "Revente" : imp ? "Achat" : "Équilibre"}</em></div>
+        <div class="gbar" aria-hidden="true"><span class="gbar-l">achat</span><i class="${exp ? "r" : "l"}" style="width:${clamp((Math.abs(g) / lim) * 50, 1, 50)}%"></i><b></b><span class="gbar-r">revente</span></div>
+        <svg class="spk" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+          <line x1="0" x2="${w}" y1="${mid}" y2="${mid}" stroke="rgba(255,255,255,.15)" stroke-dasharray="3 4"/>
+          <path d="${d}" fill="none" stroke="${col}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+        <div class="sd-live-r"><span>Achat max <b>${Wt(Math.max(0, ...hist))}</b></span><span>Revente max <b>${Wt(-Math.min(0, ...hist))}</b></span></div>
       </div>`;
   }
 
@@ -1001,11 +1045,11 @@ ${roiCard()}
   function flowDiagram() {
     const e = energy();
     const N = {
-      sun: { x: 12, y: 50, ic: "sun", c: "#e8711a", l: "Soleil", v: e.solar, s: `${fr(n(C.production_jour_kwh), 1)} kWh aujourd'hui` },
+      sun: { x: 12, y: 50, ic: "sun", c: "#e8711a", l: "Soleil", v: e.solar, s: "3 onduleurs" },
       home: { x: 46, y: 50, ic: "home", c: "#1b1712", l: "Maison", v: e.house, s: "hors voiture" },
-      bat: { x: 86, y: 16, ic: "bat", c: "#3a7bec", l: "Batterie", v: Math.abs(e.bat), s: `${fr(n(C.batterie_soc))} % · ${e.bat >= 0 ? "charge" : "décharge"}` },
+      bat: { x: 86, y: 16, ic: "bat", c: "#3a7bec", l: "Batterie", v: Math.abs(e.bat), s: e.bat >= 0 ? "en charge" : "en décharge" },
       grid: { x: 86, y: 50, ic: "grid", c: "#1f9d55", l: "Réseau", v: Math.abs(e.grid), s: e.grid < 0 ? "revente" : "achat" },
-      car: { x: 86, y: 84, ic: "car", c: "#8a5cf6", l: "e-Niro", v: e.car, s: `${fr(n(C.voiture_soc))} % · ${on(C.voiture_en_charge) ? "en charge" : "branchée"}` },
+      car: { x: 86, y: 84, ic: "car", c: "#8a5cf6", l: "e-Niro", v: e.car, s: on(C.voiture_en_charge) ? "en charge" : "branchée" },
     };
     const W = 1000, H = 360, X = (p) => (p / 100) * W, Y = (p) => (p / 100) * H;
     const link = (a, b, c, w, rev) => {
@@ -1029,7 +1073,7 @@ ${roiCard()}
   function batteryPanel() {
     const e = energy(), soc = n(C.batterie_soc);
     return `<div class="card dk-card">
-      ${ch("bat", "#3a7bec", "Batterie SolarFlow", `${fr(n(C.batterie_dispo_kwh), 1)} kWh disponibles`, `<span class="tag-g" style="background:#e7effd;color:#3a7bec">${e.bat >= 0 ? "Charge" : "Décharge"} ${Wt(Math.abs(e.bat))}</span>`)}
+      ${ch("bat", "#3a7bec", "Batterie SolarFlow", `${fr(n(C.batterie_dispo_kwh), 1)} kWh disponibles`)}
       <div class="flexrow">${ring(soc, `<span>${fr(soc)}<small style="font-size:.7rem;font-weight:500"> %</small></span>`, "", "", n(C.batterie_max_pct), ["#8fb8ff", "#3a7bec"])}
         <div style="flex:1">${C.packs_soc.map((id, i) => `<div class="pk"><span>Pack ${i + 1}</span><div class="prog" style="--c:#3a7bec"><i style="width:${pct(n(id))}"></i></div><b>${fr(n(id))} %</b></div>`).join("")}</div></div>
       <div class="foot-row"><span>Min ${fr(n(C.batterie_min_pct))} % · max ${fr(n(C.batterie_max_pct))} %</span><span>${fr(n(C.batterie_temp))} °C</span></div>
@@ -1056,39 +1100,44 @@ ${roiCard()}
     const soc = n(C.voiture_soc), charging = on(C.voiture_branchee) && on(C.voiture_en_charge);
     const inv = C.solaire_investissement_eur, tot = n(C.economies_total_eur), pr = clamp((tot / inv) * 100, 0, 100);
     return `${topbar()}
-      <div class="dk-kpis">
-        ${kpi({ ic: "sun", c: "#e8711a", label: "Production", val: kw(e.solar), unit: "kW", sub: `pic ${fr(Math.max(...PROD_H), 2)} kW vers 13h`, spk: spark(PROD_H, "#e8711a") })}
-        ${kpi({ ic: "chart", c: "#e8711a", label: "Produit aujourd'hui", val: fr(j.prod, 1), unit: "kWh", sub: `${fr((j.prod / prev) * 100)} % de la prévision (${fr(prev, 1)} kWh)`, prog: (j.prod / prev) * 100 })}
+      <div class="dk-kpis k4">
+        ${kpi({ ic: "chart", c: "#e8711a", label: "Produit aujourd'hui", val: fr(j.prod, 1), unit: "kWh", sub: `pic ${fr(Math.max(...PROD_H), 2)} kW vers 13h`, spk: spark(PROD_H, "#e8711a") })}
         ${kpi({ ic: "home", c: "#3a7bec", label: "Consommé aujourd'hui", val: fr(j.conso, 1), unit: "kWh", sub: `dont ${fr(j.imp, 1)} kWh achetés au réseau` })}
         ${kpi({ ic: "leaf", c: "#1f9d55", label: "Autosuffisance", val: fr(autosuff), unit: "%", sub: `${fr(j.exp, 1)} kWh revendus`, prog: autosuff })}
-        ${kpi({ ic: "euro", c: "#1f9d55", label: "Économies du jour", val: fr(n(C.economies_jour_eur), 2), unit: "€", sub: `${fr(tot)} € depuis la mise en service`, tag: `<em class="dk-delta">+5 %</em>` })}
+        ${kpi({ ic: "euro", c: "#1f9d55", label: "Économies du jour", val: fr(n(C.economies_jour_eur), 2), unit: "€", sub: "+5 % par rapport à hier" })}
       </div>
-      <div class="dk-grid">
-        <div class="card dk-card s8">${ch("bolt", "#e8711a", "Flux d'énergie", "en temps réel", `<span class="live">En direct</span>`)}${flowDiagram()}</div>
-        <div class="s4 dk-stack">
-          ${batteryPanel()}
+      <div class="dk-fill">
+        <div class="card dk-card a-flow">${ch("bolt", "#e8711a", "Flux d'énergie", "en temps réel", `<span class="live">En direct</span>`)}${flowDiagram()}</div>
+        <div class="a-bat">${batteryPanel()}</div>
+        <div class="a-side1 dk-stack">
           <div class="card dk-card dk-car" data-go="voiture" role="link">
             ${ch("car", "#8a5cf6", "Kia e-Niro", charging ? `en charge · fin vers ${hhmm(new Date(Date.now() + n(C.voiture_minutes_restantes) * 60e3))}` : on(C.voiture_branchee) ? "branchée" : "débranchée", `<b class="num">${fr(soc)} %</b>`)}
             <div class="prog" style="--c:linear-gradient(90deg,#b9a2ff,#7c4dff)"><i style="width:${soc}%"></i><span class="mk" style="left:${n(C.voiture_limite_pct)}%"></span></div>
-            <div class="foot-row"><span>${fr(n(C.voiture_autonomie_km))} km d'autonomie</span><span>${charging ? Wt(n(C.voiture_charge_w)) : "—"}</span></div>
+            <div class="foot-row"><span>${fr(n(C.voiture_autonomie_km))} km d'autonomie</span><span>limite ${fr(n(C.voiture_limite_pct))} %</span></div>
           </div>
+          <div class="card dk-card">${ch("sun", "#e8711a", "Prévision solaire", `${fr((j.prod / prev) * 100)} % déjà produits`)}
+            <div class="fc"><div><span class="eyebrow">Encore attendu</span><b>${fr(Math.max(0, prev - j.prod), 1)} <small>kWh</small></b></div>
+              <div><span class="eyebrow">Prévu sur la journée</span><b>${fr(prev, 1)} <small>kWh</small></b></div></div>
+            <div class="prog" style="--c:linear-gradient(90deg,#f6b27a,#e8711a)"><i style="width:${pct((j.prod / prev) * 100)}"></i></div>
+            <div class="foot-row"><span>Pic prévu vers 13h</span><span>Solcast</span></div></div>
         </div>
-        <div class="card dk-card s8">${ch("chart", "#e8711a", "Production et consommation", "aujourd'hui · kWh par tranche de 2 h")}
+        <div class="card dk-card a-curve">${ch("chart", "#e8711a", "Production et consommation", "aujourd'hui · kWh par tranche de 2 h")}
           <div class="dk-legend"><span style="--c:#e8711a">Production</span><span style="--c:#3a7bec">Consommation</span><span class="dash" style="--c:#1f9d55">Injection</span></div>
           ${dayCurve()}</div>
-        <div class="card dk-card s4">${ch("plug", "#1f9d55", "Appareils actifs", `${devices.length} en marche`)}${devsList(devices).replace('class="devs"', 'class="devs flat"')}</div>
-        <div class="card dk-card s4">${ch("leaf", "#1f9d55", "Répartition de la production", "aujourd'hui")}
+        <div class="card dk-card a-dev">${ch("plug", "#1f9d55", "Appareils actifs", `${devices.filter((d) => d.go !== "voiture").length} en marche`)}${devsList(devices.filter((d) => d.go !== "voiture")).replace('class="devs"', 'class="devs flat"')}</div>
+        <div class="a-side2 dk-stack">
+          <div class="card dk-card">${ch("leaf", "#1f9d55", "Répartition de la production", "aujourd'hui")}
           ${splitbar([{ v: j.autoUse, c: "var(--orange)" }, { v: j.chg, c: "var(--blue)" }, { v: j.exp, c: "var(--green)" }])}
           <div class="legend3">
             <div><span style="--c:var(--orange)">Autoconso</span><b>${fr(j.autoUse, 1)} kWh</b><em>${fr((j.autoUse / j.prod) * 100)} %</em></div>
             <div><span style="--c:var(--blue)">Batterie</span><b>${fr(j.chg, 1)} kWh</b><em>${fr((j.chg / j.prod) * 100)} %</em></div>
             <div><span style="--c:var(--green)">Revendu</span><b>${fr(j.exp, 1)} kWh</b><em>${fr((j.exp / j.prod) * 100)} %</em></div>
           </div></div>
-        <div class="card dk-card s4">${ch("clock", "#b8336a", "Tarif en cours", `super creuses ${plagesTxt("hsc")}`)}${tarifLine()}</div>
-        <div class="card dk-card s4 dk-roi" data-go="analyse" role="link">${ch("sun", "#1f9d55", "Retour sur investissement", "installation solaire")}
+          <div class="card dk-card dk-roi" data-go="analyse" role="link">${ch("sun", "#1f9d55", "Retour sur investissement", "installation solaire")}
           <div class="roi-amt"><b>${fr(tot)} €</b><span>sur ${fr(inv)} € · ${fr(pr)} %</span></div>
           <div class="roi-track" style="margin:14px 0 6px"><i style="width:${pr}%"></i><em style="left:${pr}%"></em></div>
           <div class="muted small">Il reste ${fr(inv - tot)} € à amortir</div></div>
+        </div>
       </div>`;
   }
 
@@ -1117,16 +1166,16 @@ ${roiCard()}
       <div class="dk-legacy no-flow">${PAGES.flux()}</div>`;
     return `${topbar()}<div class="dk-legacy">${PAGES[name]()}</div>`;
   }
-  const DESK = { accueil: deskAccueil, analyse: deskAnalyse };
+  const DESK = { accueil: deskAccueil, analyse: deskAnalyse, voiture: deskVoiture };
 
   // ─── Navigation et rendu
   const PAGES = { accueil: pageAccueil, flux: pageFlux, voiture: pageVoiture, maison: pageMaison, analyse: pageAnalyse };
   let current = "accueil";
-  try { const s = localStorage.getItem("voltia-page"); if (PAGES[s]) current = s; } catch (e) {}
+  try { const s = localStorage.getItem("breezy-page"); if (PAGES[s]) current = s; } catch (e) {}
   function show(name) {
     current = name;
     if (sheet) { sheet = null; renderSheet(); }
-    try { localStorage.setItem("voltia-page", name); } catch (e) {}
+    try { localStorage.setItem("breezy-page", name); } catch (e) {}
     document.querySelectorAll(".dock [data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === name));
     entering = true;
     render();

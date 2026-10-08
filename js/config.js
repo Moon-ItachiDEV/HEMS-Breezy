@@ -1,4 +1,4 @@
-// Correspondance rôle Voltia → entité Home Assistant (copie de la config voltia.entities).
+// Correspondance rôle Breezy HEMS → entité Home Assistant (copie de la config voltia.entities).
 // Le design ne lit jamais une entité directement : il passe toujours par ces rôles.
 window.VOLTIA_CONFIG = {
   // ─── Solaire
