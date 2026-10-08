@@ -1,0 +1,123 @@
+/* Breezy HEMS V2 — design tokens.
+   Toutes les couleurs, tailles, rayons et durées viennent d'ici : aucun composant
+   n'écrit de couleur en dur. Sombre et clair partagent les mêmes rôles. */
+
+:root {
+  /* Typographie : une seule famille, chiffres tabulaires partout */
+  --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fs-11: 11px; --fs-12: 12px; --fs-13: 13px; --fs-14: 14px; --fs-15: 15px; --fs-17: 17px;
+  --fs-20: 20px; --fs-24: 24px; --fs-28: 28px; --fs-34: 34px; --fs-44: 44px; --fs-56: 56px;
+  --lh-tight: 1.1; --lh: 1.45;
+  --tr-display: -0.035em; --tr-title: -0.018em; --tr-caps: 0.07em;
+
+  /* Espacements : grille de 4 px */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-10: 40px; --s-12: 48px;
+  --gutter: 16px; --page-x: 16px;
+
+  /* Rayons : trois tailles seulement */
+  --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-pill: 999px;
+
+  /* Mouvement : rapide, discret, toujours la même courbe */
+  --ease: cubic-bezier(.22, .8, .24, 1); --ease-spring: cubic-bezier(.3, 1.35, .5, 1);
+  --t-1: 120ms; --t-2: 200ms; --t-3: 320ms;
+
+  --tap: 44px;                /* cible tactile minimale */
+  --nav-w: 248px;
+}
+
+/* ─── Sombre (par défaut) ─────────────────────────────────────────── */
+:root, :root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d0e10;
+  --bg-nav: #0a0b0c;
+  --surface: #151619;
+  --surface-2: #1c1d21;
+  --surface-3: #25262b;
+  --hover: rgba(255, 255, 255, .045);
+  --press: rgba(255, 255, 255, .08);
+  --border: rgba(255, 255, 255, .07);
+  --border-2: rgba(255, 255, 255, .12);
+  --text: #f3f3f4;
+  --text-2: #a5a5ad;
+  --text-3: #6f707a;
+  --ink: #f3f3f4;          /* bouton principal : monochrome, la couleur reste aux données */
+  --on-ink: #0d0e10;
+  --focus: #8ab4ff;
+  --shadow-1: 0 0 0 1px var(--border);
+  --shadow-2: 0 0 0 1px var(--border-2), 0 18px 40px -12px rgba(0, 0, 0, .6);
+  --hi: inset 0 1px 0 rgba(255, 255, 255, .04);
+
+  /* Couleurs de données (validées : contraste ≥ 3:1, séparables en daltonisme) */
+  --solar: #c8811d;  --solar-t: #e6a54d;
+  --battery: #3d8fe0; --battery-t: #7db4f0;
+  --grid: #2a9d68;   --grid-t: #4cc58f;
+  --ev: #b35ec9;     --ev-t: #d394e2;
+  --heat: #d26a3c;   --heat-t: #ec9670;
+  --light: #d9a514;  --light-t: #f0c94e;
+  --hp: #d0566a; --hc: #7a82e8; --hsc: #22a39a;
+  --good: #3fbf82; --warn: #e0a43a; --bad: #e5606a;
+  --home: #f3f3f4;
+}
+
+/* ─── Clair ───────────────────────────────────────────────────────── */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f5f3;
+  --bg-nav: #efefec;
+  --surface: #ffffff;
+  --surface-2: #f4f4f2;
+  --surface-3: #eaeae7;
+  --hover: rgba(17, 18, 20, .04);
+  --press: rgba(17, 18, 20, .07);
+  --border: rgba(17, 18, 20, .07);
+  --border-2: rgba(17, 18, 20, .12);
+  --text: #141518;
+  --text-2: #5d5f68;
+  --text-3: #8b8d96;
+  --ink: #141518;
+  --on-ink: #ffffff;
+  --focus: #2f6fdb;
+  --shadow-1: 0 0 0 1px var(--border), 0 1px 2px rgba(17, 18, 20, .04);
+  --shadow-2: 0 0 0 1px var(--border), 0 20px 44px -16px rgba(17, 18, 20, .22);
+  --hi: none;
+  --solar: #c8811d;  --solar-t: #9a5f0c;
+  --battery: #3d8fe0; --battery-t: #2462ad;
+  --grid: #2a9d68;   --grid-t: #1d7a50;
+  --ev: #b35ec9;     --ev-t: #8a3aa0;
+  --heat: #d26a3c;   --heat-t: #a8481e;
+  --light: #d9a514;  --light-t: #8a6600;
+  --good: #23935f; --warn: #b77a10; --bad: #cc3d4a;
+  --home: #141518;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --bg: #f5f5f3; --bg-nav: #efefec; --surface: #ffffff; --surface-2: #f4f4f2; --surface-3: #eaeae7;
+    --hover: rgba(17, 18, 20, .04); --press: rgba(17, 18, 20, .07); --border: rgba(17, 18, 20, .07); --border-2: rgba(17, 18, 20, .12);
+    --text: #141518; --text-2: #5d5f68; --text-3: #8b8d96; --ink: #141518; --on-ink: #ffffff; --focus: #2f6fdb;
+    --shadow-1: 0 0 0 1px var(--border), 0 1px 2px rgba(17, 18, 20, .04); --shadow-2: 0 0 0 1px var(--border), 0 20px 44px -16px rgba(17, 18, 20, .22); --hi: none;
+    --solar-t: #9a5f0c; --battery-t: #2462ad; --grid-t: #1d7a50; --ev-t: #8a3aa0; --heat-t: #a8481e; --light-t: #8a6600;
+    --good: #23935f; --warn: #b77a10; --bad: #cc3d4a; --home: #141518;
+  }
+}
+
+/* Une teinte de données par composant : data-tone="solar" fixe --c et --c-t */
+[data-tone="solar"] { --c: var(--solar); --c-t: var(--solar-t); }
+[data-tone="battery"] { --c: var(--battery); --c-t: var(--battery-t); }
+[data-tone="grid"] { --c: var(--grid); --c-t: var(--grid-t); }
+[data-tone="ev"] { --c: var(--ev); --c-t: var(--ev-t); }
+[data-tone="heat"] { --c: var(--heat); --c-t: var(--heat-t); }
+[data-tone="light"] { --c: var(--light); --c-t: var(--light-t); }
+[data-tone="good"] { --c: var(--good); --c-t: var(--good); }
+[data-tone="warn"] { --c: var(--warn); --c-t: var(--warn); }
+[data-tone="bad"] { --c: var(--bad); --c-t: var(--bad); }
+[data-tone="hp"] { --c: var(--hp); --c-t: var(--hp); }
+[data-tone="hc"] { --c: var(--hc); --c-t: var(--hc); }
+[data-tone="hsc"] { --c: var(--hsc); --c-t: var(--hsc); }
+[data-tone="home"] { --c: var(--home); --c-t: var(--home); }
+[data-tone="neutral"] { --c: var(--text-2); --c-t: var(--text-2); }
+[data-tariff="hp"] { --c: var(--hp); } [data-tariff="hc"] { --c: var(--hc); } [data-tariff="hsc"] { --c: var(--hsc); }
+
+@media (min-width: 768px) { :root { --gutter: 16px; --page-x: 28px; } }
+@media (min-width: 1200px) { :root { --gutter: 18px; --page-x: 36px; } }
+@media (min-width: 2000px) { :root { --gutter: 22px; --page-x: 48px; --nav-w: 272px; } html { font-size: 17px; } }
