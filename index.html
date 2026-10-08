@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HEMS Breezy</title>
+  <style>
+    :root { --bg:#0f1115; --card:#1a1d24; --txt:#e8eaf0; --muted:#8a90a0; --accent:#f5b400; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,sans-serif; background:var(--bg); color:var(--txt); padding:24px 16px; }
+    h1 { font-size:1.4rem; margin:0 0 4px; }
+    p { color:var(--muted); margin:0 0 24px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; max-width:800px; }
+    .card { background:var(--card); border-radius:12px; padding:16px; }
+    .label { color:var(--muted); font-size:.85rem; }
+    .val { font-size:1.8rem; font-weight:600; margin-top:6px; }
+  </style>
+</head>
+<body>
+  <h1>HEMS Breezy</h1>
+  <p>Page de test — valeurs statiques (data/mock.js)</p>
+  <div class="grid" id="grid"></div>
+  <script src="data/mock.js"></script>
+  <script>
+    const d = window.HEMS_DATA;
+    const cards = [
+      ["☀️ Production solaire", d.solaire_w + " W"],
+      ["🏠 Consommation maison", d.maison_w + " W"],
+      ["🔋 Batterie", d.batterie_pct + " %"],
+      ["⚡ Réseau", (d.reseau_w < 0 ? "Injection " : "Achat ") + Math.abs(d.reseau_w) + " W"],
+    ];
+    document.getElementById("grid").innerHTML = cards
+      .map(([l, v]) => `<div class="card"><div class="label">${l}</div><div class="val">${v}</div></div>`)
+      .join("");
+  </script>
+</body>
+</html>
