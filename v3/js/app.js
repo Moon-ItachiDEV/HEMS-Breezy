@@ -18,8 +18,19 @@
     { id: "vehicle", label: "Voiture", ic: "car" },
     { id: "home", label: "Maison", ic: "home" },
   ];
-  const route = () => { const r = location.hash.replace("#/", ""); return ROUTES.some((x) => x.id === r) ? r : "overview"; };
+  // Route courante : gardée en mémoire (l'adresse n'est qu'un reflet), pour fonctionner aussi
+  // dans un cadre isolé où les liens d'ancre ne naviguent pas.
+  const fromHash = () => { const r = location.hash.replace("#/", ""); return ROUTES.some((x) => x.id === r) ? r : null; };
+  let current = fromHash() || "overview";
+  const route = () => current;
   BZ.routes = ROUTES;
+  function go(id, push = true) {
+    if (!ROUTES.some((x) => x.id === id)) return;
+    current = id; BZ.ui.sheet = null; BZ.ui.pop = null;
+    if (push) try { if (location.hash !== `#/${id}`) history.pushState(null, "", `#/${id}`); } catch {}
+    render();
+  }
+  BZ.go = go;
 
   /* ─── Barre latérale ───────────────────────────────────────────────── */
   function side() {
@@ -74,7 +85,7 @@
     const pick = (r) => {
       if (!r) return;
       q.value = ""; draw(); q.blur();
-      if (r.to) location.hash = `#/${r.to}`; else if (r.sheet) openSheet(r.sheet); else if (r.act) A[r.act]({ ...r.args });
+      if (r.to) go(r.to); else if (r.sheet) openSheet(r.sheet); else if (r.act) A[r.act]({ ...r.args });
     };
     q.addEventListener("input", () => { sel = 0; draw(); });
     q.addEventListener("keydown", (e) => {
@@ -169,7 +180,7 @@
   };
   const done = (msg) => () => BZ.toast(msg, "good");
   const A = {
-    nav: (d) => (location.hash = `#/${d.to}`),
+    nav: (d) => go(d.to),
     set: (d) => { BZ.ui[d.k] = d.value; persist(); if (d.k === "stovePower") return call("number.set_value", C.poele_puissance, { value: d.value }).then(done(`Poêle réglé sur P${d.value}`)); render(); },
     day: (d) => { BZ.ui.dayOffset = BZ.clamp(BZ.ui.dayOffset + +d.d, -29, 0); render(); },
     pop: (d) => { BZ.ui.pop = BZ.ui.pop === d.pop ? null : d.pop; render(); },
@@ -207,6 +218,9 @@
   };
   BZ.actions = A;
   document.addEventListener("click", (e) => {
+    // Liens internes « #/page » : navigation gérée ici
+    const a = e.target.closest('a[href^="#/"]');
+    if (a && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); go(a.getAttribute("href").slice(2)); return; }
     const el = e.target.closest("[data-act]");
     // Clic hors d'un menu ouvert : on le ferme
     if (BZ.ui.pop && !e.target.closest(".pop, [data-act=pop]")) { BZ.ui.pop = null; render(); }
@@ -220,7 +234,7 @@
     if (e.key === "Escape") { if (BZ.ui.sheet) closeSheet(); else if (BZ.ui.pop) { BZ.ui.pop = null; render(); } }
     const typing = e.target.closest("input, select, textarea, [role=slider]");
     if (!typing && e.key === "/" && !e.metaKey && !e.ctrlKey) { const q = document.getElementById("q"); if (q && q.offsetParent) { e.preventDefault(); q.focus(); } }
-    if (!typing && !e.metaKey && !e.ctrlKey && !e.altKey && /^[1-5]$/.test(e.key)) location.hash = `#/${ROUTES[+e.key - 1].id}`;
+    if (!typing && !e.metaKey && !e.ctrlKey && !e.altKey && /^[1-5]$/.test(e.key)) go(ROUTES[+e.key - 1].id);
   });
   document.addEventListener("change", (e) => {
     if (e.target.dataset.act === "robot-scene") call("select.select_option", C.robot_scene, { option: e.target.value });
@@ -270,7 +284,9 @@
   /* ─── Démarrage ────────────────────────────────────────────────────── */
   applyTheme();
   topInit();
-  window.addEventListener("hashchange", () => { BZ.ui.sheet = null; BZ.ui.pop = null; render(); });
+  const sync = () => { const r = fromHash(); if (r && r !== current) go(r, false); };
+  window.addEventListener("hashchange", sync);
+  window.addEventListener("popstate", sync);
   BZ.subscribe(render);
   setTimeout(() => { document.body.classList.remove("is-loading"); render(); }, 400);
 })();
