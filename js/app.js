@@ -297,7 +297,7 @@
   }
 
   // ─── Flux
-  function pageFlux() {
+  function fluxParts() {
     const e = energy(), j = bilanJour();
     const autosuff = clamp((1 - j.imp / j.conso) * 100, 0, 100);
     const share = (w) => e.solar > 0 ? fr((Math.abs(w) / e.solar) * 100) : "0";
@@ -317,32 +317,68 @@
       { h: "12:48", c: "#e8711a", t: "Pic de production", s: "5,20 kW · meilleure heure 12h – 13h" },
       { h: hhmm(new Date()), c: "var(--txt)", now: true, t: "Maintenant", s: `${Wt(e.solar)} produits · batterie ${fr(n(C.batterie_soc))} % · ${e.grid < 0 ? `revente ${Wt(-e.grid)}` : `achat ${Wt(e.grid)}`}` },
     ].filter(Boolean);
-    return `
-      ${head("Temps réel", "Flux d'énergie", `<span class="live">En direct</span>`)}
-      <div class="wrap">
-        <section class="flow-top"><div class="sun"><div class="orb">${ICONS.sun}</div>
+    return {
+      head: `      ${head("Temps réel", "Flux d'énergie", `<span class="live">En direct</span>`)}`,
+      top: `        <section class="flow-top"><div class="sun"><div class="orb">${ICONS.sun}</div>
           <b><span data-count="${e.solar / 1000}" data-dec="2">${kw(e.solar)}</span><small>kW</small></b><div class="eyebrow" style="margin-top:2px">Production · 3 onduleurs</div></div>
         <svg class="tree" viewBox="0 0 360 70" preserveAspectRatio="none" aria-hidden="true">
           ${N.map((d, i) => `<path class="bg" d="M180 0 C180 40 ${xs[i]} 30 ${xs[i]} 70"/>
             <path class="go ${d.rev ? "rev" : ""}" stroke="${d.c}" d="M180 0 C180 40 ${xs[i]} 30 ${xs[i]} 70" style="${d.w < 15 ? "display:none" : `animation-duration:${clamp(2.2 - d.w / 1500, 0.5, 2.2)}s`}"/>`).join("")}
         </svg>
-        <div class="nodes">${N.map((d) => `<div class="node" style="--c:${d.c}">${chip(d.ic, d.c, "sm")}<div class="n">${d.k}</div><b>${kw(d.w)}<small>kW</small></b><div class="p">${d.p}</div></div>`).join("")}</div></section>
-
-        <div class="card" style="margin-top:14px">
+        <div class="nodes">${N.map((d) => `<div class="node" style="--c:${d.c}">${chip(d.ic, d.c, "sm")}<div class="n">${d.k}</div><b>${kw(d.w)}<small>kW</small></b><div class="p">${d.p}</div></div>`).join("")}</div></section>`,
+      auto: `        <div class="card" style="margin-top:14px">
           <div class="flexrow">${ring(autosuff, `<span>${fr(autosuff)}<small style="font-size:.7rem;font-weight:500"> %</small></span>`, "", "", null, ["#7fd3a4", "#1f9d55"])}
             <div><div class="eyebrow">Aujourd'hui</div><b style="font-size:1.05rem;letter-spacing:-.02em">Autosuffisance</b><div class="muted small" style="margin-top:2px">Seulement <b style="color:var(--txt)">${fr(j.imp, 1)} kWh</b> achetés au réseau, le reste vient du soleil et de la batterie.</div></div></div>
-        </div>
-
-        <div class="card">
+        </div>`,
+      jour: `        <div class="card">
           ${ch("clock", "#e8711a", "Journée", "Ce qui s'est passé aujourd'hui")}
           <div class="timeline">${events.map((ev) => `<div class="tl ${ev.now ? "now" : ""}" style="--c:${ev.c}"><div class="h">${ev.h}</div><i></i><div><b>${ev.t}</b><span>${ev.s}</span></div></div>`).join("")}</div>
-        </div>
-
-        <div class="card">
+        </div>`,
+      ond: `        <div class="card">
           ${ch("sun", "#e8711a", "Onduleurs", "Production par appareil", `${Wt(e.solar)}`)}
           ${C.onduleurs_w.map((id, i) => { const max = [2000, 2000, 1000][i]; return `<div class="inv"><div class="inv-t"><b>${C.onduleurs_noms[i]}</b><span>${fr((n(id) / max) * 100)} % de sa capacité</span></div><b class="num">${Wt(n(id))}</b></div>
             ${prog((n(id) / max) * 100)}`; }).join("")}
         </div>
+`,
+    };
+  }
+  function pageFlux() {
+    const F = fluxParts();
+    return `
+${F.head}
+      <div class="wrap">
+${F.top}
+${F.auto}
+${F.jour}
+${F.ond}
+      </div>`;
+  }
+
+  // Flux sur le tableau de bord : le détail du temps réel (le schéma est dans la Vue d'ensemble)
+  function deskFlux() {
+    const F = fluxParts(), D = periodData("jour");
+    const lab = D.past(D.labels);
+    const car = D.B.map((b, k) => ([8, 10].includes(k * 2) ? Math.min(b.c * 0.6, 4.6) : 0));
+    const kwS = (arr) => D.past(arr).map((v) => v / 2);   // kWh par tranche de 2 h -> puissance moyenne
+    const series = [
+      { name: "Soleil", data: kwS(D.prod), color: "#e8711a", fill: 0.18 },
+      { name: "Maison", data: kwS(D.B.map((b, k) => b.c - car[k])), color: "#3a7bec", fill: 0 },
+      { name: "Voiture", data: kwS(car), color: "#8a5cf6", fill: 0 },
+      { name: "Achat réseau", data: kwS(D.col("grid")), color: "#b8336a", fill: 0 },
+      { name: "Revente", data: kwS(D.col("inj")), color: "#1f9d55", fill: 0, dash: "4 4" },
+    ];
+    const peak = Math.max(...series[0].data), peakI = series[0].data.indexOf(peak);
+    return `${topbar()}
+      <div class="dk-flux">
+        <div class="card dk-card f-curve">${ch("chart", "#e8711a", "Puissances de la journée", "moyenne par tranche de 2 h · kW", `<span class="tag-g">pic ${fr(peak, 2)} kW à ${lab[peakI]}</span>`)}
+          <div class="dk-legend">${series.map((x) => `<span class="${x.dash ? "dash" : ""}" style="--c:${x.color}">${x.name}</span>`).join("")}</div>
+          ${lab.length < 2 ? `<p class="muted small">Pas encore assez de données aujourd'hui.</p>` : curve("dk-flux", { labels: lab, series, unit: "kW", dec: 2, hi: lab.length - 1 })}
+        </div>
+        <div class="f-side dk-stack">
+          ${F.auto.replace('<div class="card" style="margin-top:14px">', '<div class="card dk-card">')}
+          ${F.ond.replace('<div class="card">', '<div class="card dk-card">')}
+        </div>
+        ${F.jour.replace('<div class="card">', '<div class="card dk-card f-time">')}
       </div>`;
   }
 
@@ -1162,11 +1198,9 @@ ${roiCard()}
 
   // Les autres pages gardent leur contenu, avec la barre du haut du tableau de bord
   function deskWrap(name) {
-    if (name === "flux") return `${topbar()}<div class="dk-grid"><div class="card dk-card s8">${ch("bolt", "#e8711a", "Flux d'énergie", "en temps réel")}${flowDiagram()}</div><div class="s4 dk-stack">${batteryPanel()}</div></div>
-      <div class="dk-legacy no-flow">${PAGES.flux()}</div>`;
     return `${topbar()}<div class="dk-legacy">${PAGES[name]()}</div>`;
   }
-  const DESK = { accueil: deskAccueil, analyse: deskAnalyse, voiture: deskVoiture };
+  const DESK = { accueil: deskAccueil, analyse: deskAnalyse, voiture: deskVoiture, flux: deskFlux };
 
   // ─── Navigation et rendu
   const PAGES = { accueil: pageAccueil, flux: pageFlux, voiture: pageVoiture, maison: pageMaison, analyse: pageAnalyse };
