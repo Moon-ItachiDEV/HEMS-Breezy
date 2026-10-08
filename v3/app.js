@@ -60,7 +60,11 @@
   };
   const ANNEE = PERIODES.annee().data;
   const MOIS_LONG = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  const INJ_ANNEE = [20, 45, 110, 180, 250, 280, 300, 260, 160, 80, 25, 10]; // injection réseau par mois (démo)
   const CONSO_ANNEE = [610, 540, 500, 420, 380, 350, 360, 370, 400, 470, 560, 640]; // conso réelle maison + voiture (démo)
+  // Achats réseau par plage tarifaire (démo) : le reste de la conso vient du soleil et de la batterie
+  const RESEAU_ANNEE = CONSO_ANNEE.map((c, i) => Math.max(20, c - Math.min(ANNEE[i] - INJ_ANNEE[i], c)));
+  const PLAGES_ANNEE = RESEAU_ANNEE.map((g) => ({ hsc: Math.round(g * 0.55), hc: Math.round(g * 0.2), hp: g - Math.round(g * 0.55) - Math.round(g * 0.2) }));
 
   // ─── Commandes simulées
   const toastEl = document.getElementById("toast");
@@ -148,7 +152,7 @@
     svg.querySelectorAll(".dotc").forEach((d, k) => { d.setAttribute("cx", c.xs(i)); d.setAttribute("cy", c.ys(c.series[k].data[i])); d.style.display = ""; });
     const tip = box.querySelector(".tip");
     const top = Math.min(...c.series.map((se) => c.ys(se.data[i])));
-    tip.innerHTML = `<b>${c.labels[i]}</b><br>${c.series.map((se) => `<span class="tdot" style="--c:${se.color}"></span>${se.name} ${fr(se.data[i])} ${c.unit}`).join("<br>")}`;
+    tip.innerHTML = `<b>${c.labels[i]}</b>${c.series.map((se) => `<div class="trow"><span class="tdot" style="--c:${se.color}"></span>${se.name}<b>${fr(se.data[i])} ${c.unit}</b></div>${se.detail ? se.detail(i).map(([l, v]) => `<div class="tsub"><span>${l}</span><b>${fr(v)}</b></div>`).join("") : ""}`).join("")}`;
     const left = i < c.len / 2;
     tip.style.left = `${(c.xs(i) / c.W) * 100}%`;
     tip.style.transform = `translate(${left ? "10px" : "calc(-100% - 10px)"}, -50%)`;
@@ -463,6 +467,68 @@ ${chargeStats()}
       </div>`;
   }
 
+  // Plages tarifaires lisibles, ex. « 23h–2h, 6h–7h » ; HP = le reste de la journée
+  const hh = (t) => `${parseInt(t, 10)}h`;
+  function plagesTxt(k) {
+    const P = C.plages_tarifaires || {};
+    if (k === "hp") return "7h–23h";
+    return (P[k] || []).map((r) => r.split("-").map(hh).join("–")).join(", ");
+  }
+
+  // ─── Économies de l'année (démo : plus tard, statistiques mensuelles du capteur d'économies)
+  const ECO_MOIS = [28, 36, 52, 61, 72, 78, 80, 74, 58, 44, 30, 24];
+  const ECO_MOIS_AVANT = [22, 30, 44, 55, 63, 70, 71, 66, 50, 38, 26, 20];
+  function economiesAnnee() {
+    const m = new Date().getMonth();
+    const cumul = ECO_MOIS.slice(0, m + 1).reduce((a, b) => a + b, 0);
+    const avant = ECO_MOIS_AVANT.slice(0, m + 1).reduce((a, b) => a + b, 0);
+    const evol = ((cumul - avant) / avant) * 100;
+    const max = Math.max(...ECO_MOIS);
+    return `<div class="card">
+      <h3>Économies ${new Date().getFullYear()} <span class="end">depuis le 1er janvier</span></h3>
+      <div class="kpi"><b style="color:var(--green)">${fr(cumul)} €</b><span class="u">économisés</span><span class="tag">${evol >= 0 ? "+" : ""}${fr(evol)} % vs ${new Date().getFullYear() - 1}</span></div>
+      <div class="ebars" role="img" aria-label="Économies par mois">${ECO_MOIS.map((v, i) => `
+        <div class="eb ${i === m ? "hi" : i > m ? "fut" : ""}" title="${MOIS_LONG[i]} : ${i > m ? "prévu" : ""} ${fr(v)} €"><i style="height:${(v / max) * 100}%"></i><span>${MOIS[i][0]}</span></div>`).join("")}</div>
+      <div class="sfoot">
+        <div><span>Ce mois-ci</span><b>${fr(ECO_MOIS[m])} €</b></div>
+        <div><span>Aujourd'hui</span><b>${fr(n(C.economies_jour_eur), 2)} €</b></div>
+      </div>
+    </div>`;
+  }
+
+  // ─── Retour sur investissement solaire
+  function roiCard() {
+    const inv = C.solaire_investissement_eur, total = n(C.economies_total_eur);
+    const debut = new Date(C.solaire_mise_en_service), now = new Date();
+    const ans = Math.max(0.1, (now - debut) / (365.25 * 864e5));
+    const parAn = total / ans;
+    const reste = Math.max(0, inv - total);
+    const fin = new Date(now.getTime() + (reste / parAn) * 365.25 * 864e5);
+    const dureeTot = inv / parAn;
+    const p = clamp((total / inv) * 100, 0, 100);
+    const mo = (d) => d.toLocaleDateString("fr-FR", { month: "short", year: "numeric" });
+    return `<div class="card roi">
+      <h3>Retour sur investissement <span class="end">installation solaire</span></h3>
+      <div class="roi-top">
+        <div>${ring(p, `<span>${fr(p)}<small style="font-size:.75rem;font-weight:500"> %</small></span>`, "var(--green)")}</div>
+        <div class="roi-main">
+          <div class="roi-amt"><b>${fr(total)} €</b><span>sur ${fr(inv)} €</span></div>
+          <div class="muted small">${reste > 0 ? `Il reste <b style="color:var(--txt)">${fr(reste)} €</b> à amortir` : "Installation rentabilisée 🎉"}</div>
+        </div>
+      </div>
+      <div class="roi-line">
+        <div class="roi-track"><i style="width:${p}%"></i><em style="left:${p}%"></em></div>
+        <div class="roi-dates"><span>${mo(debut)}<br><small>mise en service</small></span><span style="text-align:right">${reste > 0 ? mo(fin) : mo(now)}<br><small>${reste > 0 ? "rentabilisé (estim.)" : "rentabilisé"}</small></span></div>
+      </div>
+      <div class="sfoot" style="grid-template-columns:repeat(3,1fr)">
+        <div><span>Par an</span><b>${fr(parAn)} €</b></div>
+        <div><span>Par jour</span><b>${fr(parAn / 365.25, 2)} €</b></div>
+        <div><span>Amorti en</span><b>${fr(dureeTot, 1)}<small class="muted" style="font-family:Inter;font-weight:500"> ans</small></b></div>
+      </div>
+      <p class="muted small" style="margin:12px 2px 0">Estimation au rythme moyen depuis la mise en service. Ensuite, chaque année rapporte environ <b style="color:var(--txt)">${fr(parAn)} €</b> net.</p>
+    </div>`;
+  }
+
   // ─── Analyse
   let periode = "semaine";
   function pageAnalyse() {
@@ -499,11 +565,8 @@ ${chargeStats()}
             ${P.data.map((v, i) => `<div class="b ${i === P.hi ? "hi" : ""}" title="${P.labels[i]} : ${fr(v, 1)} kWh">${!many || i === P.hi ? `<span class="v">${fr(v, v < 100 ? 1 : 0)}</span>` : ""}<i style="height:${(v / max) * 100}%"></i><span class="d">${P.labels[i]}</span></div>`).join("")}
           </div>
         </div>
-        <div class="grid3" style="margin-bottom:14px">
-          <div class="mini"><b>16,80 €</b><span>Semaine</span><em>+16 %</em></div>
-          <div class="mini"><b>62,40 €</b><span>Mois</span><em>+12 %</em></div>
-          <div class="mini"><b>518 €</b><span>Année</span><em>+28 %</em></div>
-        </div>
+${economiesAnnee()}
+${roiCard()}
         <div class="card" style="overflow:hidden">
           <h3>D'où vient ton énergie <span class="end">aujourd'hui</span></h3>
           <div class="kpi" style="margin-bottom:10px"><b style="color:var(--txt);font-size:1.9rem">${fr(tot, 1)}</b><span class="u">kWh consommés</span></div>
@@ -514,18 +577,25 @@ ${chargeStats()}
         </div>
         ${(() => {
           const m = new Date().getMonth();
-          const sp = ANNEE.reduce((a, b) => a + b, 0), sc = CONSO_ANNEE.reduce((a, b) => a + b, 0);
+          const sp = ANNEE.reduce((a, b) => a + b, 0), sc = CONSO_ANNEE.reduce((a, b) => a + b, 0), si = INJ_ANNEE.reduce((a, b) => a + b, 0);
           const couv = (ANNEE.reduce((a, v, i) => a + Math.min(v, CONSO_ANNEE[i]), 0) / sc) * 100;
           return `<div class="card">
           <h3>Production et consommation <span class="end">${new Date().getFullYear()}</span></h3>
           <div class="ylegend">
             <div style="--c:var(--orange)"><span>Production</span><b>${fr(sp)} <small>kWh</small></b></div>
             <div style="--c:var(--blue)"><span>Consommation</span><b>${fr(sc)} <small>kWh</small></b></div>
+            <div style="--c:var(--green)"><span>Injection</span><b>${fr(si)} <small>kWh</small></b></div>
             <div><span>Couverture</span><b>${fr(couv)} <small>%</small></b></div>
           </div>
           ${curve("annee", { labels: MOIS, series: [
             { name: "Production", data: ANNEE, color: "#e8711a", fill: 0.2 },
-            { name: "Consommation", data: CONSO_ANNEE, color: "#3a7bec", fill: 0.06 },
+            { name: "Consommation", data: CONSO_ANNEE, color: "#3a7bec", fill: 0.06, detail: (i) => [
+              ["Soleil + batterie", CONSO_ANNEE[i] - RESEAU_ANNEE[i]],
+              [`Réseau HP <i>${plagesTxt("hp")}</i>`, PLAGES_ANNEE[i].hp],
+              [`Réseau HC <i>${plagesTxt("hc")}</i>`, PLAGES_ANNEE[i].hc],
+              [`Réseau super creuses <i>${plagesTxt("hsc")}</i>`, PLAGES_ANNEE[i].hsc],
+            ] },
+            { name: "Injection", data: INJ_ANNEE, color: "#1f9d55", fill: 0, dash: "4 4" },
           ], unit: "kWh", hi: m })}
           <div class="muted small" style="margin-top:8px">${ANNEE[m] >= CONSO_ANNEE[m]
             ? `En ${MOIS_LONG[m]}, tu produis <b style="color:var(--txt)">${fr(ANNEE[m] - CONSO_ANNEE[m])} kWh de plus</b> que tu ne consommes.`

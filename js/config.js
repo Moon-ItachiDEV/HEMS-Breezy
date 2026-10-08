@@ -63,10 +63,17 @@ window.VOLTIA_CONFIG = {
   // ─── Tarifs
   prix_kwh: "sensor.hv_prix_kwh",
   economies_jour_eur: "sensor.hv_eco_reel_jour",
+  economies_total_eur: "sensor.hv_eco_reel_total",      // à vérifier : le capteur qui affiche le cumul (≈ 950 €) dans HA
+  solaire_investissement_eur: 4400,                     // un nombre : ce que l'installation solaire a coûté
+  solaire_mise_en_service: "2025-03-01",                // à corriger : la date de mise en service (AAAA-MM-JJ)
   tarif_hp: "input_number.tarif_hp",
   tarif_hc: "input_number.tarif_hc",
   tarif_hsc: "input_number.tarif_hsc",
   tarif_hsc_debut: "input_datetime.hsc_debut",
+  plages_tarifaires: {                                  // à confirmer : HP = tout le reste (7h → 23h)
+    hsc: ["02:00-06:00"],
+    hc: ["23:00-02:00", "06:00-07:00"],
+  },
 
   // ─── Domotique
   lumieres: [

@@ -69,6 +69,7 @@
   // Tarifs
   s("sensor.hv_prix_kwh", 0.2302, { unit_of_measurement: "€/kWh" });
   s("sensor.hv_eco_reel_jour", 2.84, { unit_of_measurement: "€" });
+  s("sensor.hv_eco_reel_total", 950, { unit_of_measurement: "€" });
   s("input_number.tarif_hp", 0.2302);
   s("input_number.tarif_hc", 0.1576);
   s("input_number.tarif_hsc", 0.1335);
