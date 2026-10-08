@@ -140,6 +140,8 @@
     gauge: SV('<path d="M12 14l4-4"/><path d="M3.3 17a9 9 0 1 1 17.4 0"/>'),
     euro: SV('<path d="M17 6a7 7 0 1 0 0 12M4 10h9M4 14h9"/>'),
     chart: SV('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+    prev: SV('<path d="M18 5v14L8 12z" fill="currentColor"/><path d="M6 5v14"/>'),
+    next: SV('<path d="M6 5v14l10-7z" fill="currentColor"/><path d="M18 5v14"/>'),
   };
   // Pastille d'icône teintée, en-tête de page, en-tête de carte, titre de section
   const chip = (icon, c, cls = "") => `<span class="chip-ic ${cls}" style="--c:${c}">${ICONS[icon]}</span>`;
@@ -532,7 +534,7 @@ ${V.entretien}
     if (r === "volets") { const id = C.volets[i], p = at(id, "current_position"); return { key, cat: "volets", ic: "blinds", c: "#3a7bec", nom: C.volets_noms[i], on: p > 0, etat: p === 0 ? "Fermé" : p === 100 ? "Ouvert" : `${p} % ouvert`, sheet: "volet", i }; }
     if (r === "radiateurs") { const id = C.radiateurs[i], rOn = st(id) !== "off", t = C.radiateurs_temp[i]; return { key, cat: "climat", ic: "therm", c: "#e8711a", nom: C.radiateurs_noms[i], on: rOn, etat: `${t ? fr(n(t), 1) : fr(at(id, "current_temperature"), 1)}°${rOn ? ` → ${fr(at(id, "temperature"), 1)}°` : " · éteint"}`, sheet: "radiateur", i }; }
     if (r === "poele") { const pOn = st(C.poele) !== "off"; return { key, cat: "climat", ic: "flame", c: "#e5484d", nom: "Poêle", on: pOn, etat: pOn ? `${fr(at(C.poele, "current_temperature"), 1)}° · P${st(C.poele_puissance)} · ${fr(n(C.tremie_kg))} kg` : "Éteint", sheet: "poele" }; }
-    if (r === "ballon") { const ch = on(C.ballon_chauffe); return { key, cat: "climat", ic: "drop", c: "#3a7bec", nom: "Ballon d'eau chaude", on: ch || n(C.ballon_boost) === 1, etat: `${fr(n(C.ballon_temp))}° → ${fr(at(C.ballon, "temperature"))}°${ch ? " · chauffe" : ""}`, sheet: "ballon" }; }
+    if (r === "ballon") { const ch = on(C.ballon_chauffe); return { key, cat: "climat", ic: "drop", c: "#3a7bec", nom: "Ballon", on: ch || n(C.ballon_boost) === 1, etat: `${fr(n(C.ballon_temp))}° → ${fr(at(C.ballon, "temperature"))}°${ch ? " · chauffe" : ""}`, sheet: "ballon" }; }
     if (r === "prise_chambre") return { key, cat: "appareils", ic: "plug", c: "#1f9d55", nom: "Prise chambre", on: on(C.prise_chambre), etat: on(C.prise_chambre) ? `${fr(n(C.prise_chambre_w))} W` : "Éteinte", act: "plug" };
     if (r === "multiprise") { const k = C.multiprise.filter(on).length; return { key, cat: "appareils", ic: "plug", c: "#1f9d55", nom: "Multiprise", on: k > 0, etat: `${k} sur ${C.multiprise.length} allumées`, sheet: "multiprise" }; }
     if (r === "robot") return { key, cat: "appareils", ic: "robot", c: "#3a7bec", nom: "Aspirateur", on: st(C.robot) === "cleaning", etat: `${robotTxt()} · ${fr(n(C.robot_batterie))} %`, sheet: "robot" };
@@ -569,7 +571,7 @@ ${V.entretien}
       { k: "volets", titre: "Volets", meta: `${nbOpen} sur ${C.volets.length} ouverts`, keys: C.volets.map((_, i) => `volets:${i}`),
         extra: `<span class="hk-links"><button class="hk-link" data-act="covers" data-i="100">Tout ouvrir</button><button class="hk-link" data-act="covers" data-i="0">Tout fermer</button></span>` },
       { k: "climat", titre: "Chauffage", meta: `${nbRad} en marche · ${fr(Math.min(...temps), 0)}–${fr(Math.max(...temps), 0)}°`, keys: ["poele", "ballon", ...C.radiateurs.map((_, i) => `radiateurs:${i}`)] },
-      { k: "appareils", titre: "Appareils", meta: "", keys: ["prise_chambre", "multiprise", "robot", "homepod"] },
+      { k: "appareils", titre: "Appareils", meta: "", keys: ["prise_chambre", "multiprise", "robot"] },
     ];
     const section = (c) => `<div class="hk-room"><div class="hk-rh"><h2>${c.titre}</h2>${c.meta ? `<span>${c.meta}</span>` : ""}${c.extra || ""}</div>
       <div class="hk-grid">${c.keys.map((k) => tile(acc(k))).join("")}${c.keys.length % 2 ? `<div class="hk-tile ghost" aria-hidden="true"></div>` : ""}</div></div>`;
@@ -579,13 +581,39 @@ ${V.entretien}
         <div class="hk-tile ${locked ? "on" : ""} wide" style="--c:#1f9d55"><button class="hk-ic" data-act="car-lock">${ICONS[locked ? "lock" : "unlock"]}</button>
         <button class="hk-tx" data-act="car-lock"><b>Kia e-Niro</b><span>${armed.unlock ? "Appuie encore pour ouvrir" : locked ? "Verrouillée" : "Déverrouillée"}</span></button></div></div></div>`;
     } else {
-      body = CATS.filter((c) => !hkFilter || c.k === hkFilter).map(section).join("");
+      body = (!hkFilter || hkFilter === "appareils" ? nowPlaying() : "") + CATS.filter((c) => !hkFilter || c.k === hkFilter).map(section).join("");
     }
     return `<div class="hk-wall" aria-hidden="true"></div>
       <header class="hk-head"><div><div class="eyebrow">${METEO_TXT[st(C.meteo)] || "Dehors"} · ${fr(at(C.meteo, "temperature"))}° dehors</div><h1>Ma maison</h1></div></header>
       <div class="hk-chips">${chips.map(([k, ic, c, l, v]) => `<button class="hk-chip ${hkFilter === k ? "on" : ""}" data-hk="${k}" style="--c:${c}">${chip(ic, c, "sm")}<span><b>${l}</b><em>${v}</em></span></button>`).join("")}</div>
       ${hkFilter ? `<button class="hk-back" data-hk="">${ICONS.up} Toutes les pièces</button>` : ""}
       <div class="wrap hk">${body}</div>`;
+  }
+
+  // Lecteur « en cours de lecture », posé sur le fond de la page (sans carte), avec la pochette
+  function nowPlaying() {
+    const hp = C.homepod, stt = st(hp);
+    if (!["playing", "paused"].includes(stt)) return "";
+    const playing = stt === "playing", pic = at(hp, "entity_picture");
+    const dur = at(hp, "media_duration") || 0, pos = at(hp, "media_position") || 0, vol = Math.round((at(hp, "volume_level") || 0) * 100);
+    const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+    const art = pic ? `<img src="${pic}" alt="">` : `<span class="np-gen" aria-hidden="true"><i></i><i></i><i></i></span>`;
+    return `<section class="np ${playing ? "playing" : ""}">
+      <div class="np-glow" aria-hidden="true"></div>
+      <button class="np-art" data-sheet="homepod:" aria-label="Ouvrir le lecteur">${art}</button>
+      <div class="np-main">
+        <div class="eyebrow">HomePod salon · ${playing ? "en lecture" : "en pause"}</div>
+        <b class="np-t">${at(hp, "media_title") || "—"}</b>
+        <span class="np-a">${at(hp, "media_artist") || ""}${at(hp, "media_album_name") ? ` · ${at(hp, "media_album_name")}` : ""}</span>
+        ${dur ? `<div class="np-pos"><span>${mmss(pos)}</span><div class="prog"><i style="width:${pct((pos / dur) * 100)}"></i></div><span>${mmss(dur)}</span></div>` : ""}
+      </div>
+      <div class="np-ctl">
+        <button data-act="media-prev" aria-label="Précédent">${ICONS.prev}</button>
+        <button class="np-play" data-act="media-play" aria-label="${playing ? "Pause" : "Lecture"}">${playing ? ICONS.pause : ICONS.play}</button>
+        <button data-act="media-next" aria-label="Suivant">${ICONS.next}</button>
+      </div>
+      <div class="np-vol">${ICONS.speaker}<input type="range" min="0" max="100" value="${vol}" data-act="media-vol" aria-label="Volume"></div>
+    </section>`;
   }
 
   // Panneau du bas (comme la vue détaillée d'un accessoire Apple Maison)
@@ -949,6 +977,8 @@ ${roiCard()}
     strip: (el) => { const id = C.multiprise[el.dataset.i]; call("switch.toggle", id, () => toggle(id)); },
     "robot-start": () => call("vacuum.start", C.robot, () => set(C.robot, "cleaning")),
     "robot-dock": () => call("vacuum.return_to_base", C.robot, () => set(C.robot, "returning")),
+    "media-prev": () => call("media_player.media_previous_track", C.homepod),
+    "media-next": () => call("media_player.media_next_track", C.homepod),
     "media-play": () => call("media_player.media_play_pause", C.homepod, () => toggle(C.homepod, "playing", "paused")),
     stove: () => call("climate.set_hvac_mode", C.poele, () => toggle(C.poele, "heat", "off")),
     "stove-temp": (el) => { const v = clamp(at(C.poele, "temperature") + 0.5 * +el.dataset.d, 15, 25); call("climate.set_temperature", C.poele, () => set(C.poele, st(C.poele), { temperature: v }), ` ${v}°`); },

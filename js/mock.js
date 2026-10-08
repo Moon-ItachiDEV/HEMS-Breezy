@@ -88,7 +88,7 @@
   s("vacuum.robovac", "docked");
   s("sensor.robovac_battery", 100, { unit_of_measurement: "%" });
   s("select.robovac_scene", "Tout le rez-de-chaussée", { options: ["Tout le rez-de-chaussée", "Cuisine", "Salon", "Chambres"] });
-  s("media_player.salon", "playing", { media_title: "Midnight City", media_artist: "M83", volume_level: 0.35 });
+  s("media_player.salon", "playing", { media_title: "Midnight City", media_artist: "M83", media_album_name: "Hurry Up, We're Dreaming", media_duration: 243, media_position: 97, volume_level: 0.35, entity_picture: "" });
 
   // Chauffage
   s("climate.poele", "heat", { current_temperature: 20.4, temperature: 21, min_temp: 15, max_temp: 25 });
