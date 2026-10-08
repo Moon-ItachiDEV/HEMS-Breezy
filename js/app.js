@@ -303,13 +303,6 @@
     const e = energy(), j = bilanJour();
     const autosuff = clamp((1 - j.imp / j.conso) * 100, 0, 100);
     const share = (w) => e.solar > 0 ? fr((Math.abs(w) / e.solar) * 100) : "0";
-    const N = [
-      { k: "Maison", ic: "home", c: "#e8711a", w: e.house, p: `${share(e.house)} %` },
-      { k: "Batterie", ic: "bat", c: "#3a7bec", w: Math.abs(e.bat), p: e.bat >= 0 ? `${share(e.bat)} %` : "décharge", rev: e.bat < 0 },
-      { k: "Réseau", ic: "grid", c: "#1f9d55", w: Math.abs(e.grid), p: e.grid < 0 ? `${share(e.grid)} %` : "achat", rev: e.grid > 0 },
-      { k: "e-Niro", ic: "car", c: "#8a5cf6", w: e.car, p: `${share(e.car)} %` },
-    ];
-    const xs = [45, 135, 225, 315];
     const sess = new Date(st(C.session_debut));
     const events = [
       { h: "06:12", c: "#e8711a", t: "Début de la production", s: "Premiers rayons · 0,12 kW" },
@@ -321,13 +314,7 @@
     ].filter(Boolean);
     return {
       head: `      ${head("Temps réel", "Flux d'énergie", `<span class="live">En direct</span>`)}`,
-      top: `        <section class="flow-top"><div class="sun"><div class="orb">${ICONS.sun}</div>
-          <b><span data-count="${e.solar / 1000}" data-dec="2">${kw(e.solar)}</span><small>kW</small></b><div class="eyebrow" style="margin-top:2px">Production · 3 onduleurs</div></div>
-        <svg class="tree" viewBox="0 0 360 70" preserveAspectRatio="none" aria-hidden="true">
-          ${N.map((d, i) => `<path class="bg" d="M180 0 C180 40 ${xs[i]} 30 ${xs[i]} 70"/>
-            <path class="go ${d.rev ? "rev" : ""}" stroke="${d.c}" d="M180 0 C180 40 ${xs[i]} 30 ${xs[i]} 70" style="${d.w < 15 ? "display:none" : `animation-duration:${clamp(2.2 - d.w / 1500, 0.5, 2.2)}s`}"/>`).join("")}
-        </svg>
-        <div class="nodes">${N.map((d) => `<div class="node" style="--c:${d.c}">${chip(d.ic, d.c, "sm")}<div class="n">${d.k}</div><b>${kw(d.w)}<small>kW</small></b><div class="p">${d.p}</div></div>`).join("")}</div></section>`,
+      top: `<section class="flow-top">${flowHub()}</section>`,
       auto: `        <div class="card" style="margin-top:14px">
           <div class="flexrow">${ring(autosuff, `<span>${fr(autosuff)}<small style="font-size:.7rem;font-weight:500"> %</small></span>`, "", "", null, ["#7fd3a4", "#1f9d55"])}
             <div><div class="eyebrow">Aujourd'hui</div><b style="font-size:1.05rem;letter-spacing:-.02em">Autosuffisance</b><div class="muted small" style="margin-top:2px">Seulement <b style="color:var(--txt)">${fr(j.imp, 1)} kWh</b> achetés au réseau, le reste vient du soleil et de la batterie.</div></div></div>
@@ -1109,31 +1096,73 @@ ${roiCard()}
   }
 
   // Grand schéma des flux : soleil → maison → batterie / réseau / voiture
+  // Part solaire de la recharge voiture en ce moment (capteurs VE soleil / réseau)
+  function veSolar() {
+    const so = Math.max(0, n(C.ve_solaire_w)), re = Math.max(0, n(C.ve_reseau_w));
+    return so + re > 0 ? (so / (so + re)) * 100 : 0;
+  }
   function flowDiagram() {
-    const e = energy();
+    const e = energy(), charging = on(C.voiture_branchee) && on(C.voiture_en_charge), vs = veSolar();
     const N = {
-      sun: { x: 12, y: 50, ic: "sun", c: "#e8711a", l: "Soleil", v: e.solar, s: "3 onduleurs" },
-      home: { x: 46, y: 50, ic: "home", c: "#1b1712", l: "Maison", v: e.house, s: "hors voiture" },
-      bat: { x: 86, y: 16, ic: "bat", c: "#3a7bec", l: "Batterie", v: Math.abs(e.bat), s: e.bat >= 0 ? "en charge" : "en décharge" },
-      grid: { x: 86, y: 50, ic: "grid", c: "#1f9d55", l: "Réseau", v: Math.abs(e.grid), s: e.grid < 0 ? "revente" : "achat" },
-      car: { x: 86, y: 84, ic: "car", c: "#8a5cf6", l: "e-Niro", v: e.car, s: on(C.voiture_en_charge) ? "en charge" : "branchée" },
+      sun: { x: 11, y: 50, ic: "sun", c: "#e8711a", l: "Soleil", v: e.solar, s: "3 onduleurs" },
+      home: { x: 45, y: 50, ic: "home", c: "#1b1712", l: "Maison", v: e.house, s: "hors voiture" },
+      bat: { x: 85, y: 15, ic: "bat", c: "#3a7bec", l: "Batterie", v: Math.abs(e.bat), s: Math.abs(e.bat) < 15 ? "en veille" : e.bat >= 0 ? "en charge" : "en décharge" },
+      grid: { x: 85, y: 50, ic: "grid", c: "#1f9d55", l: "Réseau", v: Math.abs(e.grid), s: "",
+        tag: Math.abs(e.grid) < 15 ? "équilibre" : e.grid < 0 ? `<i class="fn-tag ok">revente</i>` : `<i class="fn-tag bad">achat</i>` },
+      car: { x: 85, y: 85, ic: "car", c: "#8a5cf6", l: "e-Niro", v: e.car, s: charging ? `☀ ${fr(vs)} % soleil` : on(C.voiture_branchee) ? "branchée" : "débranchée", ve: charging },
     };
     const W = 1000, H = 360, X = (p) => (p / 100) * W, Y = (p) => (p / 100) * H;
-    const link = (a, b, c, w, rev) => {
-      const A = N[a], B = N[b], x1 = X(A.x) + 70, y1 = Y(A.y), x2 = X(B.x) - 70, y2 = Y(B.y), mx = (x1 + x2) / 2;
+    const labels = [];
+    const link = (a, b, c, w, rev, grad) => {
+      const A = N[a], B = N[b], x1 = X(A.x) + 78, y1 = Y(A.y), x2 = X(B.x) - 84, y2 = Y(B.y), mx = (x1 + x2) / 2;
       const d = `M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`;
-      return `<path class="fl-bg" d="${d}"/><path class="fl-go ${rev ? "rev" : ""}" d="${d}" stroke="${c}" style="${w < 15 ? "display:none" : `animation-duration:${clamp(2.4 - w / 1400, 0.5, 2.4)}s;stroke-width:${clamp(2 + w / 900, 2, 6)}px`}"/>
-        ${w >= 15 ? `<text class="fl-lbl" x="${mx}" y="${(y1 + y2) / 2 - 8}">${Wt(w)}</text>` : ""}`;
+      if (w >= 15) labels.push(`<span class="fl-pill" style="left:${(mx / W) * 100}%;top:${(((y1 + y2) / 2) / H) * 100}%;--c:${c}">${Wt(w)}</span>`);
+      return `${grad || ""}<path class="fl-bg" d="${d}"/><path class="fl-go ${rev ? "rev" : ""}" d="${d}" stroke="${grad ? "url(#veg)" : c}" style="--c:${c};${w < 15 ? "display:none" : `animation-duration:${clamp(2.4 - w / 1400, 0.5, 2.4)}s;stroke-width:${clamp(2.5 + w / 800, 2.5, 6)}px`}"/>`;
     };
+    // La liaison vers la voiture se colore selon la part solaire de sa recharge (orange = soleil, vert = réseau)
+    const stop = clamp(vs, 0, 100) / 100;
+    const veGrad = `<defs><linearGradient id="veg" gradientUnits="userSpaceOnUse" x1="${X(N.home.x) + 78}" y1="0" x2="${X(N.car.x) - 84}" y2="0">
+      <stop offset="0" stop-color="#e8711a"/><stop offset="${stop}" stop-color="#e8711a"/><stop offset="${stop}" stop-color="#1f9d55"/><stop offset="1" stop-color="#1f9d55"/></linearGradient></defs>`;
     return `<div class="flow-d">
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
         ${link("sun", "home", "#e8711a", e.solar)}
         ${link("home", "bat", "#3a7bec", Math.abs(e.bat), e.bat < 0)}
         ${link("home", "grid", "#1f9d55", Math.abs(e.grid), e.grid > 0)}
-        ${link("home", "car", "#8a5cf6", e.car)}
+        ${link("home", "car", "#8a5cf6", e.car, false, veGrad)}
       </svg>
-      ${Object.entries(N).map(([k, d]) => `<div class="fn ${k}" style="left:${d.x}%;top:${d.y}%;--c:${d.c}">
-        ${chip(d.ic, d.c)}<div><span>${d.l}</span><b>${Wt(d.v)}</b><em>${d.s}</em></div></div>`).join("")}
+      ${labels.join("")}
+      ${Object.entries(N).map(([k, d]) => `<div class="fn ${k} ${d.v < 15 && k !== "home" ? "idle" : ""}" style="left:${d.x}%;top:${d.y}%;--c:${d.c}">
+        ${chip(d.ic, d.c)}<div class="fn-t"><span>${d.l}</span><b>${Wt(d.v)}</b><em>${d.s}${d.tag || ""}</em>
+        ${d.ve ? `<div class="fn-ve" title="part solaire de la recharge"><i style="width:${vs}%"></i></div>` : ""}</div></div>`).join("")}
+    </div>`;
+  }
+
+  // Schéma mobile : maison au centre, soleil au-dessus, batterie et réseau de chaque côté, voiture en dessous
+  function flowHub() {
+    const e = energy(), charging = on(C.voiture_branchee) && on(C.voiture_en_charge), vs = veSolar();
+    const socB = n(C.batterie_soc), socV = n(C.voiture_soc);
+    const P = { sun: [50, 15], bat: [15, 50], home: [50, 50], grid: [85, 50], car: [50, 84] };
+    const line = (a, b, c, w, rev) => {
+      const [x1, y1] = P[a], [x2, y2] = P[b], dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy);
+      const r1 = a === "home" ? 13 : 10, r2 = b === "home" ? 13 : 10;
+      const d = `M${x1 + (dx / L) * r1} ${y1 + (dy / L) * r1} L${x2 - (dx / L) * r2} ${y2 - (dy / L) * r2}`;
+      return `<path class="hb-bg" d="${d}"/><path class="hb-go ${rev ? "rev" : ""}" d="${d}" stroke="${c}" style="--c:${c};${w < 15 ? "display:none" : `animation-duration:${clamp(2.2 - w / 1500, 0.45, 2.2)}s`}"/>`;
+    };
+    const node = (k, ic, c, label, w, sub, soc) => `<div class="hb-n ${k} ${w < 15 && k !== "home" ? "idle" : ""}" style="left:${P[k][0]}%;top:${P[k][1]}%;--c:${c};${soc != null ? `--soc:${soc}%;` : ""}">
+      <span class="hb-b ${soc != null ? "soc" : ""}">${ICONS[ic]}</span>
+      <span class="hb-x"><span class="hb-l">${label}</span><b>${Wt(w)}</b>${sub ? `<em>${sub}</em>` : ""}</span></div>`;
+    return `<div class="hub">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        ${line("sun", "home", "#e8711a", e.solar)}
+        ${line("home", "bat", "#3a7bec", Math.abs(e.bat), e.bat < 0)}
+        ${line("home", "grid", "#1f9d55", Math.abs(e.grid), e.grid > 0)}
+        ${line("home", "car", charging && vs > 50 ? "#e8711a" : "#8a5cf6", e.car)}
+      </svg>
+      ${node("sun", "sun", "#e8711a", "Soleil", e.solar, "3 onduleurs")}
+      ${node("bat", "bat", "#3a7bec", "Batterie", Math.abs(e.bat), `${fr(socB)} % · ${Math.abs(e.bat) < 15 ? "veille" : e.bat >= 0 ? "charge" : "décharge"}`, socB)}
+      <div class="hb-n home" style="left:50%;top:50%"><span class="hb-b">${ICONS.home}<b>${Wt(e.house)}</b><em>maison</em></span></div>
+      ${node("grid", "grid", "#1f9d55", "Réseau", Math.abs(e.grid), Math.abs(e.grid) < 15 ? "équilibre" : e.grid < 0 ? "revente" : "achat")}
+      ${node("car", "car", "#8a5cf6", "e-Niro", e.car, charging ? `${fr(socV)} % · ☀ ${fr(vs)} % soleil` : `${fr(socV)} % · ${on(C.voiture_branchee) ? "branchée" : "débranchée"}`, socV)}
     </div>`;
   }
 

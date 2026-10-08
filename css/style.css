@@ -1431,3 +1431,72 @@ body {
   body.desk .dk-legacy .hk-bar { padding: 0 0 14px; }
   body.desk .hk-chip { padding: 7px 12px 7px 7px; }
 }
+
+/* ═══ Schéma de flux bureau : pastilles de puissance, lueur, recharge VE ═══ */
+@media (min-width: 1100px) {
+  .fl-go { filter: drop-shadow(0 0 3px color-mix(in srgb, var(--c) 55%, transparent)); }
+  .fl-bg { stroke: #ece5dc; stroke-width: 5; }
+  .fl-pill { position: absolute; transform: translate(-50%, -50%); padding: 3px 9px; border-radius: 99px; background: #fff; font-family: var(--display);
+    font-size: 12px; font-weight: 650; letter-spacing: -.01em; color: var(--txt); box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 30%, transparent), 0 4px 10px -4px rgba(60, 40, 20, .25); white-space: nowrap; }
+  .fl-pill::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--c); margin-right: 6px; vertical-align: 1px; }
+  .fn { gap: 10px; padding: 10px 14px 10px 10px; min-width: 160px; border-radius: 18px; transition: opacity .3s; }
+  .fn.idle { opacity: .55; }
+  .fn .chip-ic { width: 40px; height: 40px; border-radius: 13px; }
+  .fn-t { min-width: 0; }
+  .fn em { display: flex; align-items: center; gap: 6px; }
+  .fn-tag { font-style: normal; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 1px 7px; border-radius: 99px; }
+  .fn-tag.ok { background: #e3f5ea; color: var(--green); }
+  .fn-tag.bad { background: #fde8ec; color: #b8336a; }
+  .fn.car { min-width: 180px; box-shadow: 0 0 0 1.5px rgba(138, 92, 246, .35), 0 12px 26px -12px rgba(138, 92, 246, .45); }
+  .fn-ve { height: 4px; border-radius: 99px; margin-top: 6px; background: #1f9d55; overflow: hidden; }
+  .fn-ve i { display: block; height: 100%; background: #e8711a; border-radius: inherit; }
+}
+
+/* ═══ Schéma de flux mobile : la maison au centre ═════════════════════ */
+.flow-top { margin-bottom: 8px; }
+.hub { position: relative; width: 100%; max-width: 380px; aspect-ratio: 1; margin: 0 auto; }
+.hub > svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.hb-bg { fill: none; stroke: #ece5dc; stroke-width: 1.6; stroke-linecap: round; }
+.hb-go { fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: .4 3.6; animation: hbrun 1s linear infinite; filter: drop-shadow(0 0 1px var(--c)); }
+.hb-go.rev { animation-direction: reverse; }
+@keyframes hbrun { to { stroke-dashoffset: -8; } }
+.hb-n { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; text-align: center; transition: opacity .3s; }
+.hb-n.idle { opacity: .5; }
+.hb-b { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; color: var(--c); position: relative;
+  background: #fff; box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 22%, transparent), 0 10px 22px -10px color-mix(in srgb, var(--c) 60%, transparent); }
+.hb-b svg { width: 24px; height: 24px; }
+/* Anneau de charge autour de la batterie et de la voiture */
+.hb-b.soc::before { content: ""; position: absolute; inset: -4px; border-radius: 50%;
+  background: conic-gradient(var(--c) var(--soc), color-mix(in srgb, var(--c) 14%, transparent) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); }
+.hb-n.home .hb-b { width: 76px; height: 76px; background: #1b1712; color: #fff; box-shadow: 0 14px 28px -12px rgba(27, 23, 18, .6); }
+.hb-n.home .hb-b svg { width: 30px; height: 30px; }
+.hb-n.sun .hb-b { background: radial-gradient(circle at 35% 30%, #ffd08a, #f39a3a 60%, #e2650f); color: #fff; box-shadow: 0 0 0 6px rgba(243, 154, 58, .12), 0 10px 22px -8px rgba(226, 101, 15, .6); }
+.hb-x { display: flex; flex-direction: column; align-items: center; margin-top: 6px; line-height: 1.2; }
+.hb-l { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.hb-n b { font-family: var(--display); font-size: 16px; font-weight: 650; letter-spacing: -.03em; }
+.hb-n em { font-style: normal; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+/* le soleil a son texte au-dessus, la maison sous la bulle, batterie / réseau sous la bulle */
+.hb-n.sun { flex-direction: column-reverse; }
+.hb-n.sun .hb-x { margin: 0 0 6px; }
+.hb-n.home .hb-x { position: absolute; top: 100%; }
+.hb-n.car .hb-x { position: absolute; top: 100%; }
+.hb-n.car em { color: #7c4dff; font-weight: 600; }
+
+.hub { margin-bottom: 64px; max-width: 360px; }
+.hb-n.home .hb-b { width: 92px; height: 92px; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
+.hb-n.home .hb-b svg { width: 22px; height: 22px; opacity: .85; }
+.hb-n.home .hb-b b { font-size: 16px; color: #fff; margin-top: 2px; }
+.hb-n.home .hb-b em { font-size: 10px; color: #a39a90; letter-spacing: .06em; text-transform: uppercase; font-weight: 600; }
+@media (min-width: 1100px) {
+  .fn { padding: 8px 12px 8px 8px; min-width: 150px; gap: 9px; }
+  .fn .chip-ic { width: 32px; height: 32px; border-radius: 10px; }
+  .fn .chip-ic svg { width: 17px; height: 17px; }
+  .fn span { font-size: 10.5px !important; }
+  .fn b { font-size: 15px !important; }
+  .fn em { font-size: 11.5px !important; }
+  .fn.car { min-width: 160px; }
+  .fn.home { min-width: 160px; padding: 12px 16px 12px 12px; }
+  .fn.home b { font-size: 18px !important; }
+}
+@media (min-width: 1100px) { .fn.sun { min-width: 140px; } .fn.sun .fn-t, .fn.sun { text-align: left; } }
