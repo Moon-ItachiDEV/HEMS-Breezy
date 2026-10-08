@@ -1,1 +1,256 @@
-/* energy */
+/* Énergie (V3) — ⅔ : flux en direct, puis Onduleurs + Production du jour | ⅓ : Batterie SolarFlow, Tarifs du jour.
+   Le schéma des flux (BZ.flow, partagé) est mis en forme ici, sous .en-flow uniquement. */
+
+.en-grid { grid-template-columns: minmax(0, 1fr); }
+.en-pair { display: grid; gap: var(--gap); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1200px) { .en-pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); } }
+@media (min-width: 1500px) { .en-pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); } }
+@media (min-width: 640px) and (max-width: 1199px) { .en-r { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; } }
+@media (min-width: 1200px) { .en-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); } }
+
+/* Petite note grise dans l'en-tête de carte */
+.en-note { font-size: var(--fs-13); color: var(--text-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.en-note b { color: var(--text); font-weight: 600; }
+/* Libellés longs / courts : le court quand la place manque (bureau étroit, tuiles serrées, mobile) */
+.en-sh { display: none; }
+@media (min-width: 1200px) and (max-width: 1499px) { .en-lo { display: none; } .en-sh { display: inline; } }
+@media (max-width: 1199px) { .en-kv .en-lo { display: none; } .en-kv .en-sh { display: inline; } }
+@media (max-width: 767px) { .en-day .en-lo, .en-inv .en-lo { display: none; } }
+
+/* ─── En-tête : surplus disponible (pastille blanche, comme le sélecteur de date) ─── */
+.en-live { display: inline-flex; align-items: center; gap: var(--s-2); height: 44px; padding: 0 var(--s-4); border-radius: var(--r-md); background: var(--surface);
+  border: 1px solid var(--border-2); box-shadow: var(--shadow-card); font-size: var(--fs-14); font-weight: 500; color: var(--text-2); white-space: nowrap; }
+.en-live i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex: none; }
+.en-live i.is-on { animation: ping 2.4s var(--ease) infinite; }
+.en-live b { color: var(--c-t); font-weight: 600; font-variant-numeric: tabular-nums; }
+@media (max-width: 767px) { .en-live { justify-content: center; } }
+
+/* ─── Indicateurs ─────────────────────────────────────────────────── */
+.en-d { color: var(--c-t); }
+.en-gv.is-good .val-n { color: var(--good-t); }
+.en-gv.is-bad .val-n { color: var(--bad-t); }
+@media (min-width: 1200px) and (max-width: 1499px) { .en-kpis .kpi-s { width: 64px; } }
+.en-spark-now { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
+
+/* ─── Flux en direct ──────────────────────────────────────────────── */
+.en-flow .flow { container-type: inline-size; position: relative; flex: 1 1 auto; display: flex; min-height: 0; }
+.en-flow .flow-wide, .en-flow .flow-cross { position: relative; width: 100%; }
+.en-flow .flow-wide { display: none; aspect-ratio: 1000 / 340; min-height: 250px; }
+.en-flow .flow-cross { aspect-ratio: 1; max-width: 380px; margin: 0 auto; }
+@container (min-width: 520px) { .en-flow .flow-wide { display: block; } .en-flow .flow-cross { display: none; } }
+.en-flow .flow-wide > svg, .en-flow .flow-cross > svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.en-flow .fl-bg { fill: none; stroke: var(--surface-3); stroke-width: 2.5; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.en-flow .fl-go { fill: none; stroke: var(--c); stroke-width: var(--sw); vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-dasharray: 1 12;
+  animation: en-dash var(--sp) linear infinite; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--c) 60%, transparent)); }
+.en-flow .fl-go.is-rev { animation-direction: reverse; }
+@keyframes en-dash { to { stroke-dashoffset: -26; } }
+.en-flow .fl-pill { position: absolute; left: var(--x); top: var(--y); transform: translate(-50%, -50%); padding: 3px 10px; border-radius: var(--r-pill);
+  background: var(--surface); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent), 0 4px 10px -6px rgba(20, 24, 36, .2);
+  font-size: var(--fs-12); font-weight: 600; color: var(--c-t); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Nœuds : pastille ronde teintée (opaque, pour masquer les liaisons), libellé, valeur, précision */
+.en-flow .fn { --ir: 26px; position: absolute; left: var(--x); top: var(--y); display: flex; align-items: center; gap: var(--s-3); transition: opacity var(--t-3); }
+.en-flow .fn.is-idle { opacity: .5; }
+.en-flow .fn-i { position: relative; display: grid; place-items: center; width: calc(2 * var(--ir)); height: calc(2 * var(--ir)); border-radius: 50%; flex: none; color: var(--c);
+  background: color-mix(in srgb, var(--c) 12%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 26%, transparent), 0 10px 20px -12px color-mix(in srgb, var(--c) 80%, transparent); }
+.en-flow .fn-i .ic { width: 22px; height: 22px; stroke-width: 1.8; }
+.en-flow .fn-soc { position: absolute; inset: -6px; width: calc(100% + 12px); height: calc(100% + 12px); transform: rotate(-90deg); }
+.en-flow .fn-soc circle { fill: none; stroke: var(--c); stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: var(--p) 100; transition: stroke-dasharray var(--t-3) var(--ease); }
+.en-flow .fn-t { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.en-flow .fn-l { font-size: var(--fs-12); font-weight: 500; color: var(--text-2); }
+.en-flow .fn-v { font-size: var(--fs-20); color: var(--text); }
+.en-flow .fn-n { font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; }
+/* Maison : le centre du schéma, à l'accent de l'application */
+.en-flow .fn-home { --ir: 36px; }
+.en-flow .fn-home .fn-i { color: var(--on-accent); background: linear-gradient(140deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 0 7px var(--accent-soft), 0 16px 30px -12px color-mix(in srgb, var(--accent) 75%, transparent); }
+.en-flow .fn-home .fn-i .ic { width: 30px; height: 30px; stroke-width: 1.9; }
+
+/* En ligne : soleil et maison avec le texte dessous (l'icône est sur l'axe), destinations à droite */
+.en-flow .flow-wide .fn-sun, .en-flow .flow-wide .fn-home { flex-direction: column; gap: var(--s-2); text-align: center; transform: translate(-50%, calc(-1 * var(--ir))); }
+.en-flow .flow-wide .fn-sun .fn-t, .en-flow .flow-wide .fn-home .fn-t { align-items: center; }
+.en-flow .flow-wide .fn-bat, .en-flow .flow-wide .fn-grid, .en-flow .flow-wide .fn-car { left: min(calc(var(--x) - 7.8% + 8px), calc(100% - 176px)); transform: translateY(-50%); }
+
+/* En ligne, carte étroite ou peu haute : pastilles et textes plus compacts */
+@container (max-width: 680px) or (max-height: 196px) {
+  .en-flow .flow-wide .fn { --ir: 22px; gap: 10px; }
+  .en-flow .flow-wide .fn-home { --ir: 30px; }
+  .en-flow .flow-wide .fn-i .ic { width: 19px; height: 19px; }
+  .en-flow .flow-wide .fn-home .fn-i .ic { width: 25px; height: 25px; }
+  .en-flow .flow-wide .fn-v { font-size: var(--fs-17); }
+  .en-flow .flow-wide .fn-l, .en-flow .flow-wide .fn-n { font-size: var(--fs-11); }
+  .en-flow .flow-wide .fn-bat, .en-flow .flow-wide .fn-grid, .en-flow .flow-wide .fn-car { left: min(calc(var(--x) - 7.8% + 6px), calc(100% - 150px)); }
+}
+
+@container (max-height: 190px) { .en-flow .flow-wide .fn-home .fn-n, .en-flow .flow-wide .fn-sun .fn-n { display: none; } }
+
+/* En croix (carte étroite) : icône sur le point, texte autour */
+.en-flow .flow-cross .fn { --ir: 23px; transform: translate(-50%, -50%); }
+.en-flow .flow-cross .fn-i .ic { width: 20px; height: 20px; }
+.en-flow .flow-cross .fn-t { position: absolute; }
+.en-flow .flow-cross .fn-bat .fn-t, .en-flow .flow-cross .fn-grid .fn-t { top: calc(100% + 8px); left: 50%; transform: translateX(-50%); align-items: center; text-align: center; }
+.en-flow .flow-cross .fn-sun .fn-t, .en-flow .flow-cross .fn-car .fn-t { left: calc(100% + 12px); top: 50%; transform: translateY(-50%); }
+.en-flow .flow-cross .fn-v { font-size: var(--fs-17); }
+.en-flow .flow-cross .fn-home { --ir: 44px; }
+.en-flow .flow-cross .fn-home .fn-i .ic { width: 22px; height: 22px; transform: translateY(-12px); opacity: .85; }
+.en-flow .flow-cross .fn-home .fn-t { inset: 0; justify-content: center; align-items: center; padding-top: 26px; pointer-events: none; }
+.en-flow .flow-cross .fn-home .fn-l, .en-flow .flow-cross .fn-home .fn-n { display: none; }
+.en-flow .flow-cross .fn-home .fn-v { font-size: var(--fs-15); color: var(--on-accent); }
+.en-flow .flow-cross .fn-home .fn-v .val-u { color: color-mix(in srgb, var(--on-accent) 75%, transparent); }
+
+/* ─── Onduleurs (liste à barres) ──────────────────────────────────── */
+.en-inv .plist-r { grid-template-columns: auto minmax(0, 1fr) auto minmax(72px, 100px); }
+
+/* ─── Production du jour ──────────────────────────────────────────── */
+.en-chart { flex: 1; min-height: 150px; display: flex; }
+.en-chart .chart { min-height: 0; }
+.en-chart .chart svg { min-height: 0; }
+.en-lg { display: flex; flex-wrap: wrap; gap: 4px var(--s-4); font-size: var(--fs-12); color: var(--text-2); }
+.en-lg li { display: inline-flex; align-items: center; gap: 6px; }
+.en-lg i { width: 14px; height: 0; border-top: 2px solid var(--c); border-radius: 2px; }
+.en-lg li.is-fc i { border-top-style: dashed; opacity: .8; }
+.en-lg-t i { height: 4px; border: 0; background: linear-gradient(90deg, var(--hsc) 0 33%, var(--hc) 33% 66%, var(--hp) 66%); }
+
+/* ─── Batterie SolarFlow ──────────────────────────────────────────── */
+.en-bat-top { display: flex; align-items: center; gap: var(--s-5); container-type: inline-size; }
+@container (max-width: 300px) { .en-packs li { grid-template-columns: auto minmax(30px, 1fr) 36px; gap: var(--s-2); } .en-packs small { display: none; } }
+.en-bat-top .ring-c span { font-variant-numeric: tabular-nums; }
+.en-packs { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+.en-packs li { display: grid; grid-template-columns: auto minmax(40px, 1fr) 38px 28px; align-items: center; gap: var(--s-3); font-size: var(--fs-13); }
+.en-packs b { font-weight: 500; color: var(--text-2); white-space: nowrap; }
+.en-packs em { font-style: normal; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.en-packs small { text-align: right; font-size: var(--fs-12); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.en-kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); }
+.en-kv > div { padding: 9px var(--s-3); border-radius: var(--r-md); background: var(--surface-2); min-width: 0; }
+.en-kv > div > span { display: block; font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.en-kv b { display: block; font-size: var(--fs-17); white-space: nowrap; }
+.en-set { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-3); }
+.en-set > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.en-set > div > span { font-size: var(--fs-12); font-weight: 500; color: var(--text-3); }
+.en-set .stepper { justify-content: space-between; }
+.en-set .stepper output { min-width: 0; flex: 1; }
+.en-bat-f { padding-top: var(--s-3); }
+
+/* ─── Tarifs du jour ──────────────────────────────────────────────── */
+.en-rib-w { display: flex; flex-direction: column; gap: 6px; }
+.en-rib { position: relative; display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 2px; height: 14px; }
+.en-rib i { border-radius: 3px; background: var(--c); }
+.en-rib i.is-past { opacity: .35; }
+.en-rib b { position: absolute; top: -5px; bottom: -5px; left: var(--x); width: 3px; margin-left: -1.5px; border-radius: 2px; background: var(--text); box-shadow: 0 0 0 2px var(--surface); }
+.en-rib-ax { display: flex; justify-content: space-between; font-size: var(--fs-11); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.en-tl { display: flex; flex-direction: column; gap: 2px; }
+.en-tl li { display: grid; grid-template-columns: 4px minmax(0, 1fr) auto; align-items: center; gap: var(--s-3); padding: 8px var(--s-3); margin: 0 calc(-1 * var(--s-3)); border-radius: var(--r-md); }
+.en-tl li > i { align-self: stretch; border-radius: 2px; background: var(--c); }
+.en-tl strong { display: block; font-size: var(--fs-14); font-weight: 600; }
+.en-tl small { display: block; font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.en-tl em { font-style: normal; color: var(--c-t); font-weight: 600; }
+.en-tl-v { text-align: right; }
+.en-tl-v b { display: block; font-size: var(--fs-14); font-weight: 600; font-variant-numeric: tabular-nums; }
+.en-tl li.is-cur { background: var(--c-s); }
+.en-tl li.is-cur strong { color: var(--c-t); }
+/* Bureau : les trois tarifs en tuiles (même balisage, disposition en colonne) */
+@media (min-width: 1200px) {
+  .en-tl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); }
+  .en-tl li { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 1px; margin: 0; padding: 12px var(--s-3) 10px; border: 1px solid var(--border); }
+  .en-tl li > i { position: absolute; top: -1px; left: var(--s-3); width: 22px; height: 3px; border-radius: 0 0 3px 3px; }
+  .en-tl-n, .en-tl-v { display: contents; text-align: left; }
+  .en-tl strong { order: 0; font-size: var(--fs-13); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .en-tl-v b { order: 1; font-size: var(--fs-17); letter-spacing: var(--tr-title); margin: 2px 0 1px; white-space: nowrap; }
+  .en-tl-n small { order: 2; }
+  .en-nw { white-space: nowrap; }
+  .en-tl-v small { order: 3; }
+  .en-tl-s { display: none; }
+  .en-tl li.is-cur { border-color: color-mix(in srgb, var(--c) 30%, transparent); }
+}
+
+/* ─── Bureau « une page » : les colonnes se partagent la hauteur ─────── */
+@media (min-width: 1200px) and (min-height: 820px) {
+  .fit .en-grid { grid-template-rows: minmax(0, 1fr); }
+  .fit .en-l > .en-flow { flex: 1 1 0; }
+  .fit .en-l > .en-pair { flex: 0 0 auto; }
+  .fit .en-flow .flow { container-type: size; }
+  .fit .en-flow .flow-wide { display: block; aspect-ratio: auto; height: 100%; min-height: 0; }
+  .fit .en-flow .flow-cross { display: none; }
+  .fit .en-r > .en-bat { flex: 0 0 auto; }
+  .fit .en-r > .en-tar { flex: 1 1 0; }
+  .fit .en-tar .en-tl { margin-top: auto; }
+}
+/* Écran peu haut (1080p avec la barre du navigateur ≈ 945 px) : on resserre */
+@media (min-width: 1200px) and (max-height: 1000px) {
+  .en-l, .en-r, .en-pair { gap: var(--s-4); }
+  .en-flow, .en-pair .card, .en-bat, .en-tar { gap: var(--s-3); }
+  .en-inv .plist-r { padding: 7px 0; }
+  .en-inv .dt-ic { width: 30px; height: 30px; border-radius: 9px; }
+  .en-bat-top .ring { --s: 96px !important; }
+  .en-packs { gap: 10px; }
+  .en-kv > div { padding: 6px var(--s-3); }
+  .en-kv b { font-size: var(--fs-15); }
+  .en-bat-f { display: none; }
+  .en-tl-v small { display: none; }
+  .en-chart { min-height: 120px; }
+}
+/* Bureau de hauteur moyenne (1080p sans barre, 1200 px) : on garde l'essentiel */
+@media (min-width: 1200px) and (min-height: 1001px) and (max-height: 1199px) {
+  .en-bat-f, .en-tl-v small { display: none; }
+  .en-flow, .en-pair .card, .en-bat, .en-tar { gap: var(--s-3); }
+}
+/* Bureau peu haut (≈ 820–860 px) : le schéma garde sa place */
+@media (min-width: 1200px) and (min-height: 820px) and (max-height: 860px) {
+  .en-kv { display: none; }
+  .en-inv .plist-r small { display: none; }
+  .en-inv .plist-r { padding: 5px 0; }
+  .en-inv .dt-ic { width: 28px; height: 28px; }
+  .en-tl-n small { display: none; }
+  .en-tl li { padding-block: 9px 7px; }
+  .en-chart { min-height: 96px; }
+}
+/* Largeur bureau étroite (1200–1499) : colonnes plus serrées */
+@media (min-width: 1200px) and (max-width: 1499px), (max-width: 767px) {
+  .en-inv .plist-r > .pill { display: none; }
+  .en-inv .plist-r { grid-template-columns: auto minmax(0, 1fr) minmax(64px, 84px); }
+}
+@media (min-width: 1200px) and (max-width: 1499px) {
+  .en-bat-top { gap: var(--s-4); }
+  .en-packs li { grid-template-columns: auto minmax(30px, 1fr) 36px 26px; gap: var(--s-2); }
+  .en-tl-v small { display: none; }
+  .en-tl li { padding-inline: 10px; }
+  .en-tl li > i { left: 10px; }
+  .en-tl-n small { font-size: var(--fs-11); }
+}
+@media (min-width: 1200px) and (max-width: 1399px) {
+  .en-kpis .kpi-s { width: 48px; }
+  .en-kpis .kpi-d, .en-kpis .kpi-vs { font-size: var(--fs-12); }
+  .en-inv .card-a { display: none; }
+  .en-inv .plist-r { grid-template-columns: auto minmax(0, 1fr) 52px; gap: var(--s-2); }
+  .en-inv .plist-r strong { font-size: var(--fs-13); }
+  .en-day .en-note, .en-bat .card-a, .en-tar .card-a { display: none; }
+  .en-lg .en-lg-t { display: none; }
+  .en-tl li { padding-inline: 8px; }
+  .en-tl li > i { left: 8px; }
+  .en-tl-v b { font-size: var(--fs-14); }
+}
+/* 2K : le schéma grandit avec le reste */
+@media (min-width: 2200px) {
+  .en-flow .fn { --ir: 31px; }
+  .en-flow .fn-home { --ir: 42px; }
+  .en-flow .fn-i .ic { width: 26px; height: 26px; }
+  .en-flow .fn-home .fn-i .ic { width: 34px; height: 34px; }
+  .en-bat-top .ring { --s: 128px !important; }
+}
+
+/* ─── Tablette et mobile : cibles tactiles d'au moins 40 px ────────── */
+@media (max-width: 1199px) {
+  .en-set .stepper button { width: 40px; height: 40px; }
+  .en-flow .card-a .more { min-height: 40px; }
+}
+
+/* ─── Mobile ──────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .en-flow .card-a .more { display: none; }
+  .en-kpis .kpi-vs { display: inline; font-size: var(--fs-12); }
+  .en-chart { min-height: 180px; }
+  .en-bat-top { gap: var(--s-4); }
+  .en-bat-top .ring { --s: 100px !important; }
+  .en-kv b { font-size: var(--fs-15); }
+}

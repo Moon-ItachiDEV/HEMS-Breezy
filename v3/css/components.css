@@ -349,7 +349,8 @@ a.plist-r:hover, button.plist-r:hover { background: var(--hover); box-shadow: -8
 /* ─── Popovers (recherche, notifications, profil) ─────────────────────── */
 .pop { position: absolute; z-index: 60; top: calc(100% + 8px); min-width: 300px; padding: var(--s-2); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-pop);
   opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity var(--t-2), transform var(--t-2) var(--ease); }
-.pop.is-open { opacity: 1; transform: none; pointer-events: auto; }
+.pop { visibility: hidden; transition: opacity var(--t-2), transform var(--t-2) var(--ease), visibility 0s linear var(--t-2); }
+.pop.is-open { opacity: 1; transform: none; pointer-events: auto; visibility: visible; transition: opacity var(--t-2), transform var(--t-2) var(--ease), visibility 0s; }
 .pop-h { padding: var(--s-2) var(--s-3) var(--s-1); font-size: var(--fs-12); font-weight: 600; color: var(--text-3); }
 .pop-i { display: flex; align-items: center; gap: var(--s-3); width: 100%; padding: var(--s-2) var(--s-3); border-radius: var(--r-md); text-align: left; font-size: var(--fs-14); }
 .pop-i:hover, .pop-i.is-active { background: var(--hover); }
@@ -400,3 +401,34 @@ a.plist-r:hover, button.plist-r:hover { background: var(--hover); box-shadow: -8
 }
 .np-big { display: flex; justify-content: center; align-items: center; gap: var(--s-6); }
 .keys li.keys-t { grid-template-columns: minmax(0, 1fr) auto; padding-top: var(--s-3); border-top: 1px solid var(--border); }
+
+/* Curseur horizontal (volume) */
+.vs.is-h { width: 100%; height: 48px; border-radius: 16px; cursor: ew-resize; }
+.vs.is-h .vs-f { top: 0; bottom: 0; height: auto; width: var(--v); transition: width var(--t-2) var(--ease); }
+.vs.is-h.is-drag .vs-f { transition: none; }
+.vs.is-h output { bottom: auto; top: 50%; left: auto; right: 14px; transform: translateY(-50%); font-size: var(--fs-14); color: var(--text); text-shadow: none; }
+.sh-vol { display: flex; align-items: center; gap: var(--s-3); color: var(--text-3); }
+.sh-vol .vs { flex: 1; }
+
+/* Gros bouton marche/arrêt (lumières) */
+.sh-power { align-self: center; display: grid; place-items: center; gap: var(--s-2); width: 168px; height: 168px; border-radius: 50%; font-weight: 600; color: var(--text-2);
+  background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); transition: background var(--t-2), color var(--t-2), transform var(--t-1), box-shadow var(--t-2); }
+.sh-power .ic { width: 40px; height: 40px; }
+.sh-power:active { transform: scale(.97); }
+.sh-power.is-on { background: var(--c); color: #3a2a00; box-shadow: 0 18px 40px -16px var(--c); }
+.row .meter { flex: 0 0 120px; }
+
+/* Lecteur partagé : pochette et avancement */
+.np-art { position: relative; display: block; width: 56px; height: 56px; border-radius: 12px; overflow: hidden; flex: none; box-shadow: 0 8px 18px -10px rgba(20, 24, 36, .45); }
+.np-art.lg { width: min(220px, 60vw); height: auto; aspect-ratio: 1; border-radius: 20px; box-shadow: 0 24px 48px -20px rgba(20, 24, 36, .5); }
+.np-art img { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; }
+.np-gen { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center; gap: 3px; padding-bottom: 22%;
+  background: radial-gradient(120% 90% at 20% 10%, #ffb36b, transparent 60%), linear-gradient(145deg, #ff7f9c, var(--accent) 55%, #c42a63); }
+.np-gen i { width: 7%; height: 14%; border-radius: 2px; background: rgba(255, 255, 255, .92); }
+.np-gen.is-playing i { animation: np-eq 1s ease-in-out infinite; }
+.np-gen i:nth-child(2) { animation-delay: .15s; } .np-gen i:nth-child(3) { animation-delay: .3s; } .np-gen i:nth-child(4) { animation-delay: .45s; }
+@keyframes np-eq { 50% { height: 34%; } }
+.sh-art { display: flex; justify-content: center; }
+.np-prog { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-11); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.np-prog i { position: relative; flex: 1; height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
+.np-prog b { position: absolute; inset: 0 auto 0 0; width: var(--v); border-radius: inherit; background: var(--accent); transition: width 1s linear; }

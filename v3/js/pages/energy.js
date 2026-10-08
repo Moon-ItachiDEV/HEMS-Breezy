@@ -13,6 +13,17 @@
   const hm = (t) => `${String(Math.floor(t) % 24).padStart(2, "0")}:${String(Math.round((t % 1) * 60)).padStart(2, "0")}`;
   // Variation colorée sans flèche de tendance (état, pas évolution)
   const tag = (text, tone, ic) => h`<span class="delta en-d" data-tone="${tone}">${ic ? icon(ic) : ""}${text}</span>`;
+  // Libellé long sur grand écran, court quand la place manque
+  const lbl = (long, short) => h`<span class="en-lo">${long}</span><span class="en-sh">${short}</span>`;
+  // Mini-courbe en escalier (prix de l'heure) avec un repère « maintenant »
+  function stepSpark(vals, tone, at) {
+    const w = 120, hh = 36, n = vals.length, max = Math.max(...vals), min = Math.min(...vals);
+    const y = (v) => (hh - 3 - ((v - min) / (max - min || 1)) * (hh - 12)).toFixed(1), x = (i) => ((i / n) * w).toFixed(1);
+    let d = `M0,${y(vals[0])}`;
+    vals.forEach((v, i) => { if (i && v !== vals[i - 1]) d += ` L${x(i)},${y(v)}`; d += ` L${x(i + 1)},${y(v)}`; });
+    return h`<svg class="spark" data-tone="${tone}" viewBox="0 0 ${w} ${hh}" preserveAspectRatio="none" aria-hidden="true">
+      <path class="spark-a" d="${d} L${w},${hh} L0,${hh} Z"/><path class="spark-l" d="${d}"/><line class="en-spark-now" x1="${((at / 24) * w).toFixed(1)}" x2="${((at / 24) * w).toFixed(1)}" y1="2" y2="${hh}"/></svg>`;
+  }
 
   /* ─── En-tête ─────────────────────────────────────────────────────── */
   function header(L) {
@@ -44,13 +55,13 @@
     // Réseau : même convention que le compteur (− revente, + achat)
     const g = L.grid, exp = g < -15, imp = g > 15, [gv, gu] = fmt.power(Math.abs(g));
     // Tarif : profil de prix de la journée
-    const t = BZ.tariffNow(), prices = BZ.tariffHours().flatMap((k) => { const p = BZ.TARIFS[k].price(); return [p, p]; });
-    return h`<div class="kpis">
-      ${kpi({ label: "Production", ic: "sun", tone: "solar", value: val(fmt.power(L.solar)), delta: prodD, vs: prodD ? "vs prévu à cette heure" : `${fmt.kwhText(T.prod)} aujourd'hui`, spark: BZ.spark(prodSpark, "solar"), to: "insights" })}
+    const t = BZ.tariffNow(), prices = BZ.tariffHours().map((k) => BZ.TARIFS[k].price());
+    return h`<div class="kpis en-kpis">
+      ${kpi({ label: "Production", ic: "sun", tone: "solar", value: val(fmt.power(L.solar)), delta: prodD, vs: prodD ? "vs prévision" : `${fmt.kwhText(T.prod)} aujourd'hui`, spark: BZ.spark(prodSpark, "solar"), to: "insights" })}
       ${kpi({ label: "Batterie SolarFlow", ic: "battery", tone: "battery", value: val([fmt.n(soc), "%"]), delta: batD, vs: Math.abs(L.bat) < 15 ? "" : L.bat > 0 ? "en charge" : "en décharge", spark: BZ.spark(week.map((d) => d.chg), "battery") })}
-      ${kpi({ label: "Réseau · compteur L3", ic: "grid", tone: imp ? "bad" : "grid", value: h`<span class="en-gv ${exp ? "is-good" : imp ? "is-bad" : ""}">${val([`${exp ? "−" : imp ? "+" : ""}${gv}`, gu])}</span>`,
-        delta: tag(fmt.kwhText(exp || !imp ? T.exp : T.imp), exp || !imp ? "good" : "bad"), vs: exp || !imp ? "revendus aujourd'hui" : "achetés aujourd'hui", spark: BZ.spark(week.map((d) => d.exp), imp ? "bad" : "grid"), to: "insights" })}
-      ${kpi({ label: "Tarif en cours", ic: "clock", tone: t.key, value: val([fmt.n(t.price, 4), "€/kWh"]), delta: tag(t.short, t.key), vs: `jusqu'à ${fmt.time(t.changeAt)}`, spark: BZ.spark(prices, t.key) })}
+      ${kpi({ label: "Réseau L3", ic: "grid", tone: imp ? "bad" : "grid", value: h`<span class="en-gv ${exp ? "is-good" : imp ? "is-bad" : ""}">${val([`${exp ? "−" : imp ? "+" : ""}${gv}`, gu])}</span>`,
+        delta: tag(fmt.kwhText(exp || !imp ? T.exp : T.imp), exp || !imp ? "good" : "bad"), vs: exp || !imp ? "revendus" : "achetés", spark: BZ.spark(week.map((d) => d.exp), imp ? "bad" : "grid"), to: "insights" })}
+      ${kpi({ label: "Prix du kWh", ic: "clock", tone: t.key, value: val([fmt.n(t.price, 4), "€"]), delta: tag(t.short, t.key), vs: `jusqu'à ${fmt.time(t.changeAt)}`, spark: stepSpark(prices, t.key, nowH()) })}
     </div>`;
   }
 
@@ -72,7 +83,7 @@
         const w = ws[i], load = BZ.clamp((w / K[i]) * 100, 0, 100);
         return h`<li><div class="plist-r">
           <span class="dt-ic" data-tone="solar">${icon("sun")}</span>
-          <span><strong>${esc(name)}</strong><small>${fmt.powerText(w)} · ${fmt.n(tot ? (w / tot) * 100 : 0)} % du total</small></span>
+          <span><strong>${esc(name)}</strong><small>${fmt.powerText(w)}<span class="en-lo"> · ${fmt.n(tot ? (w / tot) * 100 : 0)} % du total</span></small></span>
           ${w > 30 ? pill("Produit", "good", true) : pill("En veille", "neutral")}
           <span class="plist-p"><span>${fmt.n(load)} %</span>${meter({ value: load, tone: "solar", size: "xs", label: `${name} à ${fmt.n(load)} % de sa puissance` })}</span>
         </div></li>`;
@@ -93,7 +104,7 @@
       label: "Production et consommation heure par heure aujourd'hui, avec la prévision et les tarifs",
     });
     return card({ cls: "en-day", title: "Production du jour", ic: "chart", tone: "accent",
-      aside: h`<span class="en-note"><b>${fmt.n(T.prod, 1)}</b> / ${fmt.kwhText(T.forecast)} prévus</span>`, body: h`
+      aside: h`<span class="en-note"><b>${fmt.n(T.prod, 1)}</b> / ${fmt.kwhText(T.forecast)}<span class="en-lo"> prévus</span></span>`, body: h`
       <div class="en-chart">${chart}</div>
       <ul class="en-lg" aria-hidden="true"><li data-tone="solar"><i></i>Production</li><li data-tone="solar" class="is-fc"><i></i>Prévision</li><li data-tone="neutral"><i></i>Consommation</li><li class="en-lg-t"><i></i>Tarif</li></ul>` });
   }
@@ -108,12 +119,12 @@
         ${ring({ value: soc, tone: "battery", size: 112, stroke: 10, mark: min, label: `Batterie à ${fmt.n(soc)} %, réserve à ${fmt.n(min)} %`,
           inner: h`<b>${fmt.n(soc)}<small>%</small></b><span>${fmt.kwhText(num(C.batterie_dispo_kwh))}</span>` })}
         <ul class="en-packs">${C.packs_soc.map((id, i) => h`<li>
-          <span><b>Pack ${i + 1}</b><small>${fmt.n(num(C.packs_temp[i]))} °C · ${fmt.powerText(Math.abs(num(C.packs_w[i])))}</small></span>
-          ${meter({ value: num(id), tone: "battery", size: "xs", label: `Pack ${i + 1} à ${fmt.n(num(id))} %` })}<em>${fmt.n(num(id))} %</em></li>`)}</ul>
+          <b>Pack ${i + 1}</b>${meter({ value: num(id), tone: "battery", size: "xs", label: `Pack ${i + 1} à ${fmt.n(num(id))} %` })}<em>${fmt.n(num(id))} %</em>
+          <small title="Température du pack">${fmt.n(num(C.packs_temp[i]))}°</small></li>`)}</ul>
       </div>
       <div class="en-kv">
-        <div><span>Stocké auj.</span><b>${val(fmt.kwh(num(C.batterie_charge_jour_kwh)))}</b></div>
-        <div><span>Rendu auj.</span><b>${val(fmt.kwh(num(C.batterie_decharge_jour_kwh)))}</b></div>
+        <div><span>${lbl("Stocké aujourd'hui", "Stocké")}</span><b>${val(fmt.kwh(num(C.batterie_charge_jour_kwh)))}</b></div>
+        <div><span>${lbl("Rendu aujourd'hui", "Rendu")}</span><b>${val(fmt.kwh(num(C.batterie_decharge_jour_kwh)))}</b></div>
         <div><span>Rendement</span><b>${val([fmt.n(eff * 100, 1), "%"])}</b></div>
       </div>
       <div class="en-set">
@@ -126,12 +137,14 @@
   /* ─── Tarifs du jour : ruban 24 h + prix ──────────────────────────── */
   function tariffCard() {
     const t = BZ.tariffNow(), hours = BZ.tariffHours(), H = nowH(), T = BZ.TARIFS, hp = T.hp.price();
-    // Prochaine plage super creuse (ou fin de celle en cours)
-    let hscIn = null; for (let k = 1; k <= 24; k++) if (BZ.tariffAt((Math.floor(H) + k) % 24) === "hsc" && BZ.tariffAt((Math.floor(H) + k - 1) % 24) !== "hsc") { hscIn = Math.floor(H) + k - H; break; }
-    const dur = (x) => { const m = Math.round(x * 60); return m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}` : `${m} min`; };
+    // Début des prochaines super creuses
+    let hscIn = null;
+    for (let k = 1; k <= 24; k++) { const a = (Math.floor(H) + k) % 24; if (BZ.tariffAt(a) === "hsc" && BZ.tariffAt((a + 23) % 24) !== "hsc") { hscIn = Math.floor(H) + k - H; break; } }
+    const dur = (x) => { const m = Math.round(x * 60); return m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${String(m % 60).padStart(2, "0")}` : ""}` : `${m} min`; };
     const runs = []; hours.forEach((k, i) => (runs.length && runs[runs.length - 1].k === k ? runs[runs.length - 1].n++ : runs.push({ k, s: i, n: 1 })));
-    const aria = `Tarifs de la journée : ${runs.map((r) => `${T[r.k].short} de ${r.s} h à ${r.s + r.n} h`).join(", ")}.`;
-    return card({ cls: "en-tar", title: "Tarifs du jour", ic: "clock", tone: "accent", aside: h`<span class="en-note">€ / kWh</span>`, body: h`
+    const aria = `Tarifs de la journée : ${runs.map((r) => `${T[r.k].short} de ${r.s} h à ${r.s + r.n} h`).join(", ")}. Il est ${fmt.time(new Date())}.`;
+    const aside = t.key === "hsc" ? pill("HSC en cours", "hsc", true) : hscIn != null ? pill(`HSC dans ${dur(hscIn)}`, "hsc") : "";
+    return card({ cls: "en-tar", title: "Tarifs du jour", ic: "clock", tone: "accent", aside, body: h`
       <div class="en-rib-w">
         <div class="en-rib" role="img" aria-label="${aria}">${hours.map((k, i) => h`<i data-tariff="${k}" class="${i + 1 <= H ? "is-past" : ""}"></i>`)}<b style="--x:${((H / 24) * 100).toFixed(2)}%"></b></div>
         <div class="en-rib-ax" aria-hidden="true"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>24h</span></div>
@@ -139,11 +152,9 @@
       <ul class="en-tl">${["hp", "hc", "hsc"].map((k) => {
         const p = T[k].price(), cur = k === t.key, next = k === t.nextKey;
         return h`<li data-tone="${k}" class="${cur ? "is-cur" : ""}"><i></i>
-          <span><strong>${T[k].label}</strong><small>${BZ.rangeLabel(k)}${cur ? h` · <em>jusqu'à ${fmt.time(t.changeAt)}</em>` : next ? ` · dès ${fmt.time(t.changeAt)}` : ""}</small></span>
-          <span class="en-tl-v"><b>${fmt.n(p, 4)} €</b><small>${k === "hp" ? "référence" : `−${fmt.n((1 - p / hp) * 100)} % vs HP`}</small></span></li>`;
-      })}</ul>
-      <p class="foot en-tar-f">${t.key === "hsc" ? h`<span>Super creuses en cours</span><span>jusqu'à ${fmt.time(t.changeAt)}</span>`
-        : hscIn != null ? h`<span>Prochaines super creuses</span><span>à ${hm(H + hscIn)} · dans ${dur(hscIn)}</span>` : ""}</p>` });
+          <span class="en-tl-n"><strong>${lbl(T[k].label, T[k].short)}</strong><small>${BZ.rangeLabel(k).split(", ").map((r, i) => h`${i ? ", " : ""}<span class="en-nw">${r}</span>`)}${cur ? h`<span class="en-tl-s"> · <em>jusqu'à ${fmt.time(t.changeAt)}</em></span>` : next ? h`<span class="en-tl-s"> · dès ${fmt.time(t.changeAt)}</span>` : ""}</small></span>
+          <span class="en-tl-v"><b>${fmt.n(p, 4)} €</b><small>${k === "hp" ? "prix de référence" : `−${fmt.n((1 - p / hp) * 100)} % vs HP`}</small></span></li>`;
+      })}</ul>` });
   }
 
   BZ.pages.energy = () => {

@@ -12,7 +12,7 @@
   const LBL = {
     jour: () => ({ cur: "Aujourd'hui", prev: "Hier", vs: "vs hier", unit: "heure", per: "par heure" }),
     semaine: () => ({ cur: "7 jours", prev: "7 j avant", vs: "vs 7 j avant", unit: "jour", per: "par jour" }),
-    mois: () => { const m = new Date().getMonth(); return { cur: fmt.cap(BZ.MONTHS_LONG[m]), prev: fmt.cap(BZ.MONTHS_LONG[(m + 11) % 12]), vs: "vs mois dernier", unit: "jour", per: "par jour" }; },
+    mois: () => { const m = new Date().getMonth(); return { cur: fmt.cap(BZ.MONTHS_LONG[m]), prev: fmt.cap(BZ.MONTHS_LONG[(m + 11) % 12]), vs: `vs ${BZ.MONTHS[(m + 11) % 12]}`, unit: "jour", per: "par jour" }; },
     annee: () => ({ cur: String(year()), prev: String(year() - 1), vs: `vs ${year() - 1}`, unit: "mois", per: "par mois" }),
   };
   const aut = (x) => (x && x.cons ? BZ.clamp(1 - x.imp / x.cons, 0, 1) : 0);          // part de la conso sans réseau
@@ -20,9 +20,13 @@
   const bill = (x) => ["hp", "hc", "hsc"].reduce((a, k) => a + (x[k] || 0) * BZ.TARIFS[k].price(), 0);
   const nameOf = (kind, b, i) => kind === "jour" ? `${b.h}h – ${b.h + 1}h`
     : kind === "annee" ? fmt.cap(BZ.MONTHS_LONG[i])
-    : fmt.cap(fmt.date(b.date, { weekday: "long", day: "numeric", month: kind === "mois" ? "long" : "short" }));
-  const tipName = (kind, b, i) => (kind === "annee" ? `${fmt.cap(BZ.MONTHS_LONG[i])} ${year()}` : kind === "mois" && b.forecast ? fmt.cap(fmt.date(new Date(year(), new Date().getMonth(), +b.key), { weekday: "long", day: "numeric", month: "long" })) : nameOf(kind, b, i));
+    : fmt.cap(fmt.date(b.date, { weekday: "long", day: "numeric", month: "short" }));
+  const shortOf = (kind, b, i) => (kind === "jour" ? `${b.h}h` : kind === "annee" ? BZ.MONTHS[i] : fmt.date(b.date, { weekday: "short", day: "numeric" }));   // carte très étroite
+  const tipName = (kind, b, i) => (kind === "annee" ? `${fmt.cap(BZ.MONTHS_LONG[i])} ${year()}` : kind === "jour" ? nameOf(kind, b, i)
+    : fmt.cap(fmt.date(b.date || new Date(year(), new Date().getMonth(), +b.key), { weekday: "long", day: "numeric", month: "long" })));
   const pc = (v, of) => `${((v / of) * 100).toFixed(3)}%`;
+  // Haut d'échelle « rond » mais serré (évite 1 000 pour un maximum de 760)
+  const niceTop = (v) => { if (v <= 0) return 1; const p = 10 ** Math.floor(Math.log10(v)), n = v / p; return ([1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((s) => n <= s) || 10) * p; };
   const UP = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>';
   const DL = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11.5M7 10.5l5 5 5-5M4.5 20h15"/></svg>';
 
@@ -48,7 +52,7 @@
   const W = 600, H = 300;
   let seq = 0;
   const gridLines = (max, y) => [0.25, 0.5, 0.75, 1].map((k) => h`<line class="gl" x1="0" x2="${W}" y1="${y(max * k)}" y2="${y(max * k)}"/>`);
-  const yTicks = (max, y) => [0.5, 1].map((k) => h`<span class="bi-yl" style="--y:${pc(y(max * k), H)}">${fmt.n(max * k, max < 2 ? 1 : 0)}${k === 1 ? " kWh" : ""}</span>`);
+  const yTicks = (max, y) => [0.5, 1].map((k) => h`<span class="bi-yl" style="--y:${pc(y(max * k), H)}">${fmt.n(max * k, Number.isInteger(max * k) ? 0 : 1)}${k === 1 ? " kWh" : ""}</span>`);
   const shell = (id, label, svg, over, axis, band = "") => h`<figure class="bi-chart" data-bi="${id}" tabindex="0" aria-label="${esc(label)}. Flèches gauche et droite pour parcourir.">
       <div class="bi-plot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${svg}</svg>${over}
         <span class="bi-dot bi-cur is-p"></span><span class="bi-dot bi-cur is-c"></span></div>
@@ -58,8 +62,9 @@
     const id = `bi${++seq}`, n = buckets.length, slot = W / n;
     const bw = Math.max(4, Math.min(28, slot * (n > 20 ? 0.62 : 0.46)));
     const tot = buckets.map((b) => (b.forecast ? b.prod || 0 : SER.reduce((a, [k]) => a + (b[k] || 0), 0)));
+    const rest = buckets.map((b) => (b.current && b.fcRest > 0.05 ? b.fcRest : 0));   // case en cours : ce qui reste prévu
     const cons = buckets.map((b) => (b.forecast || b.cons == null ? null : b.cons));
-    const max = BZ.niceMax(Math.max(...tot, ...cons.filter((v) => v != null), 0.1) * 1.06);
+    const max = niceTop(Math.max(...tot.map((v, i) => v + rest[i]), ...cons.filter((v) => v != null), 0.1) * 1.06);
     const y = (v) => 4 + (1 - v / max) * (H - 4), cx = (i) => slot * i + slot / 2;
     const cols = buckets.map((b, i) => {
       const x = cx(i) - bw / 2, r = Math.min(4, bw / 3);
@@ -70,14 +75,20 @@
         const y1 = y(base + v), y0 = y(base); base += v;
         return h`<rect data-tone="${tone}" x="${x}" y="${y1}" width="${bw}" height="${Math.max(0, y0 - y1 - (base < tot[i] - 1e-6 ? 1.5 : 0))}" rx="${r}"/>`;
       });
-      return h`<g class="bar ${b.current ? "is-cur" : ""}">${segs}</g>`;
+      const cap = rest[i] ? h`<rect class="bi-rest" x="${x}" y="${y(tot[i] + rest[i])}" width="${bw}" height="${Math.max(0, y(tot[i]) - y(tot[i] + rest[i]) - 1.5)}" rx="${r}"/>` : "";
+      return h`<g class="bar ${b.current ? "is-cur" : ""}">${cap}${segs}</g>`;
     });
+    // Consommation : trait plein sur les cases terminées, pointillé vers la case en cours (encore partielle)
     const pts = cons.map((v, i) => (v == null ? null : [cx(i), y(v)])).filter(Boolean);
+    const curIdx = buckets.findIndex((b) => b.current), partial = curIdx >= 0 && cons[curIdx] != null && pts.length > 2;
+    const line = pts.length < 2 ? "" : partial
+      ? h`<path class="bi-cl" d="${mono(pts.slice(0, -1))}"/><path class="bi-cl is-part" d="M${pts[pts.length - 2].join(",")} L${pts[pts.length - 1].join(",")}"/>`
+      : h`<path class="bi-cl" d="${mono(pts)}"/>`;
     const dots = n <= 12 ? cons.map((v, i) => (v == null ? "" : h`<span class="bi-dot" style="--x:${pc(cx(i), W)};--y:${pc(y(v), H)}"></span>`)) : "";
     const axis = buckets.map((b, i) => (i % every === 0 || b.current ? h`<span class="ax ${b.current ? "is-cur" : ""}" style="--x:${pc(cx(i), W)}">${esc(b.key)}</span>` : ""));
-    REG.set(id, { type: "bars", kind, n, slot, buckets, tot, cons, y, cx, top: (i) => Math.max(tot[i], cons[i] || 0), marks: (i) => [null, cons[i]] });
+    REG.set(id, { type: "bars", kind, n, slot, buckets, tot, rest, cons, y, cx, top: (i) => Math.max(tot[i] + rest[i], cons[i] || 0), marks: (i) => [null, cons[i]] });
     return shell(id, label,
-      h`${gridLines(max, y)}<line class="bi-base" x1="0" x2="${W}" y1="${H - 0.5}" y2="${H - 0.5}"/><rect class="bi-hl" x="0" y="0" width="${slot}" height="${H}"/>${cols}${pts.length > 1 ? h`<path class="bi-cl" d="${mono(pts)}"/>` : ""}`,
+      h`${gridLines(max, y)}<line class="bi-base" x1="0" x2="${W}" y1="${H - 0.5}" y2="${H - 0.5}"/><rect class="bi-hl" x="0" y="0" width="${slot}" height="${H}"/>${cols}${line}`,
       h`${yTicks(max, y)}${dots}`, axis);
   }
 
@@ -86,7 +97,7 @@
     const now = new Date(), t = now.getHours() + now.getMinutes() / 60;
     const idx = B.map((_, i) => i), past = idx.filter((i) => !B[i].future), fut = idx.filter((i) => B[i].future), last = past[past.length - 1];
     const prod = B.map((b) => b.prod || 0), cons = B.map((b) => b.cons);
-    const max = BZ.niceMax(Math.max(...prod, ...cons.filter((v) => v != null), 0.1) * 1.1);
+    const max = niceTop(Math.max(...prod, ...cons.filter((v) => v != null), 0.1) * 1.1);
     const y = (v) => 4 + (1 - v / max) * (H - 4), P = (i, v) => [cx(i), y(v)];
     const pP = past.map((i) => P(i, prod[i])), fP = (last != null ? [last, ...fut] : fut).map((i) => P(i, prod[i]));
     const cP = past.filter((i) => cons[i] != null).map((i) => P(i, cons[i]));
@@ -125,7 +136,7 @@
       rows = h`${row(b.future ? "Prévision" : "Production", c.tot[i], "solar", b.future ? "bi-tip-f" : "", " kWh", 2)}${c.cons[i] != null ? row("Consommation", c.cons[i], "neutral", "bi-tip-c", " kWh", 2) : ""}
         <div class="tip-r bi-tip-tar"><i data-tone="${b.tariff}"></i><span>${T.label}</span><b>${fmt.n(T.price(), 4)} €/kWh</b></div>`;
     } else rows = b.forecast ? row("Production prévue", c.tot[i], "solar", "bi-tip-f")
-      : h`${SER.map(([k, l, tone]) => row(l, b[k] || 0, tone))}${row("Production", c.tot[i], null, "bi-tip-t")}${c.cons[i] != null ? row("Consommation", c.cons[i], "neutral", "bi-tip-c") : ""}`;
+      : h`${SER.map(([k, l, tone]) => row(l, b[k] || 0, tone))}${row("Production", c.tot[i], null, "bi-tip-t")}${c.rest[i] ? row("Encore prévu", c.rest[i], "solar", "bi-tip-f") : ""}${c.cons[i] != null ? row(b.current ? "Consommation (en cours)" : "Consommation", c.cons[i], "neutral", "bi-tip-c") : ""}`;
     const t = tipEl();
     t.innerHTML = h`<strong>${esc(tipName(c.kind, b, i))}${b.current ? " · en cours" : ""}</strong>${rows}`;
     t.classList.add("is-on");
@@ -199,7 +210,7 @@
 
   function kpis(P, T, Q, L) {
     const S = sparks(P), sp = (vals, tone) => (vals.filter((v) => v != null).length > 1 ? BZ.spark(vals, tone) : null);
-    return h`<div class="kpis">
+    return h`<div class="kpis bi-kpis">
       ${kpi({ label: "Produit", ic: "sun", tone: "solar", value: val(fmt.kwh(T.prod)), delta: delta(T.prod, Q.prod), vs: L.vs, spark: sp(S.prod, "solar") })}
       ${kpi({ label: "Consommé", ic: "home", tone: "battery", value: val(fmt.kwh(T.cons)), delta: delta(T.cons, Q.cons, { invert: true }), vs: L.vs, spark: sp(S.cons, "battery") })}
       ${kpi({ label: "Autosuffisance", ic: "leaf", tone: "good", value: val([fmt.n(aut(T) * 100), "%"]), delta: delta(aut(T), aut(Q), { unit: "pts" }), vs: L.vs, spark: sp(S.aut, "good") })}
@@ -216,11 +227,14 @@
         body: h`<div class="bi-chart-w">${dayLines({ buckets: P.buckets, label: "Production, prévision et consommation par heure, tarifs sous l'axe" })}</div>${key}` });
     }
     const fcTot = P.forecastTotal - T.prod, every = P.buckets.length > 14 ? 5 : 1;
-    const buckets = P.buckets.map((b) => ({ ...b, key: P.kind === "semaine" ? fmt.cap(b.key) : b.key }));
+    // Case en cours : la part encore attendue aujourd'hui (et, en vue Année, les jours restants du mois)
+    const t = BZ.today(), restToday = Math.max(0, t.forecast - t.prod);
+    const restMonth = P.kind === "annee" ? BZ.period("mois").buckets.reduce((a, b) => a + (b.forecast ? b.prod : 0), 0) : 0;
+    const buckets = P.buckets.map((b) => ({ ...b, key: P.kind === "semaine" ? fmt.cap(b.key) : b.key, fcRest: b.current ? restToday + restMonth : 0 }));
     return card({ cls: "bi-main", title: P.kind === "annee" ? "Production et consommation" : "Où va ta production", ic: "chart", tone: "accent",
       aside: legendRow([
-        ["Maison", "solar", "bar", fmt.kwhText(T.self)], ["Batterie", "battery", "bar", fmt.kwhText(T.chg)], ["Revendue", "grid", "bar", fmt.kwhText(T.exp)],
-        ["Consommation", "neutral", "line", ""], ...(fcTot > 0.5 ? [["Prévision", "solar", "hatch", ""]] : []),
+        ["Utilisée", "solar", "bar", fmt.kwhText(T.self)], ["Stockée", "battery", "bar", fmt.kwhText(T.chg)], ["Revendue", "grid", "bar", fmt.kwhText(T.exp)],
+        ["Consommation", "neutral", "line", ""], ...(fcTot > 0.5 || restToday > 0.05 ? [["Prévision", "solar", "hatch", ""]] : []),
       ]),
       body: h`<div class="bi-chart-w">${combo({ kind: P.kind, buckets, every, label: `Destination de la production par ${LBL[P.kind]().unit} et consommation` })}</div>` });
   }
@@ -246,19 +260,19 @@
     const isDay = P.kind === "jour";
     const real = P.buckets.map((b, i) => ({ b, i })).filter(({ b }) => !b.forecast && !b.future && b.prod > 0.05);
     const avg = real.reduce((a, x) => a + x.b.prod, 0) / (real.length || 1);
-    const best = [...real].sort((a, z) => z.b.prod - a.b.prod).slice(0, P.kind === "semaine" ? 3 : 5);
+    const best = [...real].sort((a, z) => z.b.prod - a.b.prod).slice(0, 5);
     const body = best.length ? h`<ol class="plist bi-best">${best.map(({ b, i }, r) => {
       const vs = (b.prod / avg - 1) * 100;
-      const sub = isDay ? h`${BZ.TARIFS[b.tariff].label}${b.cons != null ? h`<span class="bi-sx"> · ${fmt.kwhText(b.cons)} consommés</span>` : ""}`
+      const sub = isDay ? h`${BZ.TARIFS[b.tariff].label}${b.cons != null ? h`<span class="bi-sx"> · ${fmt.kwhText(b.cons)} conso.</span>` : ""}`
         : h`${fmt.n(aut(b) * 100)} % autonome<span class="bi-sx"> · ${fmt.kwhText(b.exp)} revendus</span>`;
       return h`<li><div class="plist-r">
         <span class="bi-rk ${r === 0 ? "is-1" : ""}"><span class="sr">Rang </span>${r + 1}</span>
-        <span><strong>${nameOf(P.kind, b, i)}${b.current ? h` <em class="bi-now">en cours</em>` : ""}</strong><small>${sub}</small></span>
-        ${pill(vs >= 0.5 ? `+${fmt.n(vs)} % vs moy.` : "dans la moyenne", vs >= 0.5 ? "good" : "neutral")}
+        <span><strong><span class="bi-ln">${nameOf(P.kind, b, i)}</span><span class="bi-sn" aria-hidden="true">${shortOf(P.kind, b, i)}</span>${b.current ? h` <em class="bi-now">en cours</em>` : ""}</strong><small>${sub}</small></span>
+        ${pill(vs >= 0.5 ? `+${fmt.n(vs)} %` : "moyenne", vs >= 0.5 ? "good" : "neutral")}
         <span class="plist-p"><span>${fmt.kwhText(b.prod)}</span>${meter({ value: (b.prod / best[0].b.prod) * 100, tone: "solar", size: "xs" })}</span></div></li>`;
     })}</ol>`
       : BZ.empty({ ic: "sun", title: "Pas encore de production", text: "Le classement se remplit dès le lever du soleil." });
-    return card({ cls: "bi-top", title: "Meilleurs moments", ic: "star", tone: "accent", aside: h`<span class="bi-note">${L.per}</span>`, body });
+    return card({ cls: "bi-top", title: "Meilleurs moments", ic: "star", tone: "accent", aside: h`<span class="bi-note">${L.per}${best.length ? h`<span class="bi-nx"> · moy. ${fmt.kwhText(avg)}</span>` : ""}</span>`, body });
   }
 
   function originCard(T) {
@@ -279,7 +293,7 @@
     const R = BZ.roi(), isYear = P.kind === "annee", ytd = BZ.period("annee").total.savings;
     // En vue « Année », l'économie de l'année est déjà dans les indicateurs : on montre la durée d'amortissement
     const first = isYear ? ["Amortie en", `${fmt.n(R.totalYears, 1)} ans`] : [`En ${year()}`, fmt.eur(ytd, 0)];
-    return card({ cls: "bi-roi", title: "Rentabilité solaire", ic: "sun", tone: "accent", aside: pill(`${fmt.n(R.progress * 100)} % remboursé`, "accent"), body: h`
+    return card({ cls: "bi-roi", title: "Rentabilité solaire", ic: "sun", tone: "accent", aside: pill(h`${fmt.n(R.progress * 100)} %<span class="bi-rx"> remboursé</span>`, "accent"), body: h`
       <div class="bi-roi-v">${val([fmt.n(R.total), "€"], "bi-roi-big")}<span>économisés sur ${fmt.eur(R.inv, 0)} investis</span></div>
       <div class="bi-roi-m">${meter({ value: R.progress * 100, tone: "accent", size: "lg", label: "Part de l'installation remboursée" })}
         <div class="bi-roi-ax"><span>Depuis ${fmt.date(R.start, { month: "short", year: "numeric" })}</span><span>Amortie vers <b>${fmt.date(R.payback, { month: "long", year: "numeric" })}</b></span></div></div>

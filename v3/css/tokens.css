@@ -44,8 +44,8 @@
   --border: #eceef2;
   --border-2: #e2e5ea;
   --text: #1a1c22;
-  --text-2: #5f6573;
-  --text-3: #9298a5;
+  --text-2: #4f5562;
+  --text-3: #6b7180;
   --accent: #f0436b;          /* rose corail */
   --accent-2: #e02f59;        /* survol / texte d'accent */
   --accent-soft: #fdecf0;     /* fond d'élément actif */
@@ -85,7 +85,7 @@
   --border-2: rgba(255, 255, 255, .11);
   --text: #f2f3f5;
   --text-2: #a7acb7;
-  --text-3: #6e7380;
+  --text-3: #868b98;
   --accent: #ff5a80;
   --accent-2: #ff7896;
   --accent-soft: rgba(255, 90, 128, .14);

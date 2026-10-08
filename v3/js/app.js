@@ -7,8 +7,8 @@
   /* ─── État d'interface (pas d'état métier ici) ─────────────────────── */
   const saved = (() => { try { return JSON.parse(localStorage.getItem("bz3") || "{}"); } catch { return {}; } })();
   BZ.ui = { period: "semaine", carPeriod: "mois", homeFilter: "all", devFilter: "all", dayOffset: 0, armed: null, sheet: null, pop: null, theme: saved.theme || "light", ...saved.ui };
-  BZ.ui.dayOffset = 0; BZ.ui.pop = null;
-  const persist = () => { try { localStorage.setItem("bz3", JSON.stringify({ theme: BZ.ui.theme, ui: { period: BZ.ui.period, carPeriod: BZ.ui.carPeriod, homeFilter: BZ.ui.homeFilter, devFilter: BZ.ui.devFilter } })); } catch {} };
+  BZ.ui.dayOffset = 0; BZ.ui.pop = null; BZ.ui.homeFilter = "all";
+  const persist = () => { try { localStorage.setItem("bz3", JSON.stringify({ theme: BZ.ui.theme, ui: { period: BZ.ui.period, carPeriod: BZ.ui.carPeriod, devFilter: BZ.ui.devFilter } })); } catch {} };
   BZ.user = C.utilisateur_nom || "Breezy";
 
   const ROUTES = [
@@ -160,11 +160,13 @@
   let lastFocus = null;
   function renderSheet() {
     const s = BZ.ui.sheet;
-    if (!s) { if (sheetEl.classList.contains("is-open")) { sheetEl.classList.remove("is-open"); sheetEl.setAttribute("aria-hidden", "true"); lastFocus && lastFocus.focus(); } return; }
+    const bg = [document.querySelector(".frame"), document.getElementById("tabs"), document.querySelector(".skip")];
+    if (!s) { if (sheetEl.classList.contains("is-open")) { sheetEl.classList.remove("is-open"); sheetEl.setAttribute("aria-hidden", "true"); bg.forEach((el) => el && (el.inert = false)); lastFocus && lastFocus.focus(); } return; }
+    bg.forEach((el) => el && (el.inert = true));   // le focus reste dans le panneau
     const [kind, i] = s.split(":"), d = BZ.sheets[kind](i != null ? +i : undefined);
     const html = h`<div class="sheet-p" role="dialog" aria-modal="true" aria-labelledby="sheet-t">
       <header class="sheet-h"><span class="chip" data-tone="${d.tone}">${icon(d.ic)}</span><div><h2 id="sheet-t">${d.title}</h2><p>${d.sub}</p></div>
-        <button type="button" class="icon-btn" data-act="close-sheet" aria-label="Fermer">${icon("x")}</button></header>
+        <button type="button" class="icon-btn" data-act="close-sheet" aria-label="Fermer le panneau">${icon("x")}</button></header>
       <div class="sheet-b">${d.body}</div></div><div class="sheet-bg" data-act="close-sheet"></div>`;
     if (!sheetEl.classList.contains("is-open")) {
       sheetEl.innerHTML = html; sheetEl.classList.add("is-open"); sheetEl.removeAttribute("aria-hidden");
@@ -259,7 +261,7 @@
     v = BZ.clamp(Math.round(v / s) * s, min, max); v = +v.toFixed(2);
     el.style.setProperty("--v", `${((v - min) / (max - min)) * 100}%`);
     el.dataset.value = v; el.setAttribute("aria-valuenow", v);
-    const k = el.dataset.vs, txt = k === "cover" ? `${v} %` : k === "volume" ? `${v}` : `${fmt.n(v, 1)}°`;
+    const k = el.dataset.vs, txt = k === "cover" || k === "volume" ? `${v} %` : `${fmt.n(v, 1)}°`;
     el.querySelector("output").textContent = txt; el.setAttribute("aria-valuetext", txt);
     return v;
   };
@@ -269,7 +271,7 @@
     e.preventDefault(); el.setPointerCapture(e.pointerId); el.classList.add("is-drag");
     drag = { el, start: +el.dataset.value }; move(e);
   });
-  const move = (e) => { if (!drag) return; const r = drag.el.getBoundingClientRect(), k = 1 - (e.clientY - r.top) / r.height; vsSet(drag.el, +drag.el.dataset.min + BZ.clamp(k, 0, 1) * (drag.el.dataset.max - drag.el.dataset.min)); };
+  const move = (e) => { if (!drag) return; const el = drag.el, r = el.getBoundingClientRect(), k = el.dataset.orient === "h" ? (e.clientX - r.left) / r.width : 1 - (e.clientY - r.top) / r.height; vsSet(el, +el.dataset.min + BZ.clamp(k, 0, 1) * (el.dataset.max - el.dataset.min)); };
   document.addEventListener("pointermove", move);
   document.addEventListener("pointerup", () => { if (!drag) return; const { el, start } = drag; drag = null; el.classList.remove("is-drag"); if (+el.dataset.value !== start) VS[el.dataset.vs](+el.dataset.i, +el.dataset.value); });
   document.addEventListener("keydown", (e) => {
