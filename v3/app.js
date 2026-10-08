@@ -172,19 +172,28 @@
         <div class="row1"><div><div class="date">${date[0].toUpperCase() + date.slice(1)}</div><div class="hello">Bonjour 👋</div></div>
           <div class="btns"><button class="round" data-go="analyse" aria-label="Analyse">${SV('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>')}</button><button class="round" data-go="maison" aria-label="Maison">${SV('<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>')}</button></div></div>
         <div class="status"><i></i><span>Système en ligne · ${e.solar > 3000 ? "Forte production" : e.solar > 200 ? "Production" : "Nuit"}</span><span>MAJ ${hhmm(now)}</span></div>
-        <div class="big"><b>${kw(e.solar)}<small>kW</small></b>
+        <div class="big"><b><span data-count="${e.solar / 1000}" data-dec="2">${kw(e.solar)}</span><small>kW</small></b>
           <div class="side">Production en cours<br>Pic ${fr(PROD_H[peakI], 2)} kW à ${HOURS[peakI]}h</div></div>
-        <svg class="spark" viewBox="0 0 ${W} ${Hs}" preserveAspectRatio="none" aria-hidden="true">
-          <defs><radialGradient id="glow"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
-          <path d="${smooth(pts)}" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".95"/>
-        </svg>
-        <div style="position:relative;height:0"><span style="position:absolute;left:${(hi / (PROD_H.length - 1)) * 100}%;top:${-Hs + pts[hi][1] - 9}px;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:#fff;box-shadow:0 0 0 6px rgba(255,255,255,.35),0 0 18px #fff"></span></div>
+        <div class="spark-wrap">
+          <svg class="spark" viewBox="0 0 ${W} ${Hs}" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="sparkFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".38"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+              <clipPath id="past"><rect x="0" y="-10" width="${pts[hi][0]}" height="${Hs + 20}"/></clipPath>
+              <clipPath id="future"><rect x="${pts[hi][0]}" y="-10" width="${W}" height="${Hs + 20}"/></clipPath>
+            </defs>
+            <path d="${smooth(pts)} L${W} ${Hs} L0 ${Hs} Z" fill="url(#sparkFill)" clip-path="url(#past)"/>
+            <path d="${smooth(pts)}" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" clip-path="url(#past)" vector-effect="non-scaling-stroke"/>
+            <path d="${smooth(pts)}" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2" stroke-dasharray="2 6" stroke-linecap="round" clip-path="url(#future)" vector-effect="non-scaling-stroke"/>
+          </svg>
+          <span class="now-dot" style="left:${(hi / (PROD_H.length - 1)) * 100}%;top:${pts[hi][1]}px"></span>
+          <span class="now-lbl" style="left:clamp(44px, ${(hi / (PROD_H.length - 1)) * 100}%, calc(100% - 44px));top:${pts[hi][1]}px">maintenant</span>
+        </div>
       </div>
-      <div class="wrap" style="margin-top:-6px">
+      <div class="wrap lift">
         <div class="card glass stats">
-          <div><b>${fr(j.prod, 1)}<small>kWh</small></b><div class="l">Produit</div></div>
-          <div><b>${fr(j.conso, 1)}<small>kWh</small></b><div class="l">Consommé</div></div>
-          <div><b>${fr(n(C.economies_jour_eur), 2)}<small>€</small></b><div class="l">Économisé</div></div>
+          <div><b><span data-count="${j.prod}" data-dec="1">${fr(j.prod, 1)}</span><small>kWh</small></b><div class="l">Produit</div></div>
+          <div><b><span data-count="${j.conso}" data-dec="1">${fr(j.conso, 1)}</span><small>kWh</small></b><div class="l">Consommé</div></div>
+          <div><b><span data-count="${n(C.economies_jour_eur)}" data-dec="2">${fr(n(C.economies_jour_eur), 2)}</span><small>€</small></b><div class="l">Économisé</div></div>
         </div>
         <h2>Répartition du jour</h2>
         <div class="card">
@@ -513,6 +522,7 @@
     try { localStorage.setItem("voltia-v3-page", name); } catch (e) {}
     document.querySelectorAll(".tabbar [data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === name));
     followIndicator();
+    entering = true;
     render();
     window.scrollTo({ top: 0 });
   }
@@ -544,10 +554,26 @@
     lastY = y;
   }, { passive: true });
 
+  let entering = false;
   function render() {
     const el = document.getElementById("page");
     el.innerHTML = PAGES[current]();
-    el.className = "page on";
+    el.className = `page on${entering ? " enter" : ""}`;
+    if (entering) countUp(el);
+    entering = false;
+  }
+  // Les chiffres clés montent de 0 à leur valeur à l'ouverture d'une page
+  function countUp(root) {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    root.querySelectorAll("[data-count]").forEach((node) => {
+      const to = parseFloat(node.dataset.count), dec = +node.dataset.dec || 0, t0 = performance.now(), dur = 900;
+      const step = (t) => {
+        const k = Math.min(1, (t - t0) / dur), ease = 1 - Math.pow(1 - k, 4);
+        node.textContent = fr(to * ease, dec);
+        if (k < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
   }
   show(current);
 })();
