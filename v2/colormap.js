@@ -1,0 +1,2 @@
+// Généré par scripts/build-v2.py
+window.BREEZY_COLORMAP = {"#1b1712": "#141619", "#1f9d55": "#be7911", "#3a7bec": "#3a58ec", "#4ade80": "#f1ab41", "#7c4dff": "#ff4da6", "#7fd3a4": "#d7a55b", "#8a5cf6": "#f65ca9", "#8fb8ff": "#8fa2ff", "#9b8f84": "#848f9b", "#b7791f": "#299c90", "#b8336a": "#b83345", "#b9a2ff": "#ffa2d1", "#d9d4ce": "#ced3d9", "#e5484d": "#e5484d", "#e8711a": "#27c6b6", "#f4c27a": "#6ce5d9", "#f5b400": "#f5b400", "#f6b27a": "#6ce7da", "#f87171": "#f87171"};

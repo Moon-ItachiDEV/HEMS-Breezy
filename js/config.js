@@ -51,6 +51,8 @@ window.VOLTIA_CONFIG = {
   voiture_maj: "sensor.e_niro_e_niro_e_niro_last_updated_at",
   voiture_rafraichir: "button.e_niro_e_niro_force_refresh",
   voiture_capacite_kwh: 64,
+  voiture_conso_kwh_100km: 16.5,                       // conso moyenne de la e-Niro (pour le coût au 100 km)
+  essence_l_100km: 6.5, essence_prix_l: 1.85,           // voiture essence de comparaison
   voiture_12v_pct: "sensor.e_niro_e_niro_e_niro_car_battery_level",
   ve_solaire_kwh: "sensor.ve_energie_solaire_kwh",
   ve_reseau_kwh: "sensor.ve_energie_reseau_kwh",

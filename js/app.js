@@ -675,7 +675,7 @@ ${V.entretien}
       document.body.appendChild(el);
     }
     el.classList.toggle("open", !!sheet);
-    if (sheet) el.querySelector(".sh-body").innerHTML = sheetBody();
+    if (sheet) el.querySelector(".sh-body").innerHTML = recolor(sheetBody());
   }
   // Curseur vertical : glisser pour régler, la commande part au relâchement
   const VS_ACT = {
@@ -1040,7 +1040,7 @@ ${roiCard()}
     const nb = C.lumieres.filter(on).length;
     const item = (k, ic, label, badge = "") => `<button class="sd-it ${current === k ? "on" : ""}" data-go="${k}">${ICONS[ic]}<span>${label}</span>${badge}</button>`;
     const charging = on(C.voiture_branchee) && on(C.voiture_en_charge);
-    el.innerHTML = `
+    el.innerHTML = recolor(`
       <div class="sd-brand"><span class="sd-logo">${ICONS.bolt}</span><div><b>Breezy <em>HEMS</em></b><span>Énergie &amp; maison</span></div></div>
       ${gridLive()}
       <div class="sd-grp">Tableau de bord</div>
@@ -1056,7 +1056,7 @@ ${roiCard()}
           ${tarifLine(true)}
         </div>
         <div class="sd-note">Démo · valeurs d'exemple</div>
-      </div>`;
+      </div>`);
   }
 
   // Réseau en direct : le capteur L3 P du compteur dit si la maison achète (+) ou revend (−)
@@ -1260,10 +1260,163 @@ ${roiCard()}
   function deskWrap(name) {
     return `${topbar()}<div class="dk-legacy">${PAGES[name]()}</div>`;
   }
-  const DESK = { accueil: deskAccueil, analyse: deskAnalyse, voiture: deskVoiture, flux: deskFlux };
+  // ═══ Variante V2 (dossier /v2/) : autre thème de couleurs, pages Voiture et Analyse différentes ═══
+  const V2 = document.documentElement.dataset.variant === "v2";
+  const COLMAP = window.BREEZY_COLORMAP || null;
+  const recolor = (html) => (V2 && COLMAP ? html.replace(/#[0-9a-fA-F]{6}\b/g, (m) => COLMAP[m.toLowerCase()] || m) : html);
+
+  // Démo : 35 jours de recharge (kWh, part solaire) — plus tard l'historique des capteurs VE soleil / réseau
+  const VE_DAYS = Array.from({ length: 35 }, (_, k) => {
+    const d = new Date(Date.now() - (34 - k) * 864e5), wd = d.getDay();
+    const kwh = (k * 7) % 5 === 0 || wd === 3 ? 0 : +(4 + ((k * 37) % 11) * 0.9).toFixed(1);
+    const sun = kwh ? clamp(0.35 + (((k * 53) % 10) / 10) * 0.7, 0, 1) : 0;
+    return { d, kwh, sun };
+  });
+  const SESSIONS = [
+    { d: "Aujourd'hui", h: "09:12", kwh: 8.9, sun: 0.76, live: true },
+    { d: "Hier", h: "02:05", kwh: 11.4, sun: 0, src: "Super creuses" },
+    { d: "Lundi", h: "10:40", kwh: 12.5, sun: 1 },
+    { d: "Samedi", h: "11:15", kwh: 9.8, sun: 0.88 },
+    { d: "Jeudi", h: "23:30", kwh: 7.4, sun: 0, src: "Heures creuses" },
+  ];
+
+  function voiture2() {
+    const soc = n(C.voiture_soc), lim = n(C.voiture_limite_pct), km = n(C.voiture_autonomie_km);
+    const plugged = on(C.voiture_branchee), charging = plugged && on(C.voiture_en_charge), locked = st(C.voiture_verrou) === "locked";
+    const fin = new Date(Date.now() + n(C.voiture_minutes_restantes) * 60e3);
+    const kmMax = soc > 0 ? km / (soc / 100) : 0;
+    const cells = Array.from({ length: 20 }, (_, k) => { const lo = k * 5; return `<i class="${lo < soc ? (lo + 5 > soc ? "on edge" : "on") : lo < lim ? "goal" : ""}"></i>`; }).join("");
+    const act = (icon, label, a, cls = "", dis = false) => `<button class="v2-act ${cls}" data-act="${a}" ${dis ? "disabled" : ""}>${ICONS[icon]}<span>${label}</span></button>`;
+    // Coût au 100 km sur le mois (mix soleil / HC / HSC / HP)
+    const M = CHARGES.mois(), sum2 = (a) => a.reduce((x, y) => x + y, 0);
+    const kwhM = SOURCES.reduce((t, s) => t + sum2(M[s.k]), 0), costM = SOURCES.reduce((t, s) => t + sum2(M[s.k]) * s.tarif(), 0);
+    const conso = C.voiture_conso_kwh_100km || 16.5, eurKwh = kwhM ? costM / kwhM : 0;
+    const c100 = conso * eurKwh, ess100 = (C.essence_l_100km || 6.5) * (C.essence_prix_l || 1.85), hp100 = conso * n(C.tarif_hp);
+    const kmM = (kwhM / conso) * 100, gain = (ess100 - c100) * kmM / 100;
+    const maxDay = Math.max(...VE_DAYS.map((x) => x.kwh)) || 1;
+    const solMonth = sum2(M.sol) / (kwhM || 1) * 100;
+    const parts = {
+      hero: `<div class="card v2-car">
+        <div class="v2-car-top">
+          <div><div class="eyebrow">${charging ? "En charge" : plugged ? "Branchée" : "Débranchée"} · MAJ ${ago(st(C.voiture_maj))}</div>
+            <div class="v2-soc"><b>${fr(soc)}</b><small>%</small><span>${fr(km)} km</span></div></div>
+          ${charging ? `<div class="v2-live"><span class="dot"></span><b>${Wt(n(C.voiture_charge_w))}</b><em>fin ${hhmm(fin)}</em></div>` : ""}
+        </div>
+        <div class="v2-pack" role="img" aria-label="Batterie ${fr(soc)} %, limite ${fr(lim)} %">${cells}<em style="left:${lim}%"><span>${fr(lim)} %</span></em></div>
+        <div class="v2-scale"><span>0 km</span><span>${fr(kmMax * lim / 100)} km à ${fr(lim)} %</span><span>${fr(kmMax)} km</span></div>
+        <div class="v2-acts">
+          ${act("bolt", charging ? "Arrêter" : "Charger", "car-charge", charging ? "on" : "", !plugged)}
+          ${act(locked ? "lock" : "unlock", armed.unlock ? "Confirmer" : locked ? "Fermée" : "Ouverte", "car-lock", armed.unlock ? "danger" : "")}
+          ${act("snow", "Clim", "car-clim", on(C.voiture_clim) ? "on" : "")}
+          ${act("refresh", "Relevé", "car-refresh")}
+        </div>
+      </div>`,
+      cost: `<div class="card v2-cost">
+        ${ch("euro", "#1f9d55", "Coût au 100 km", `ce mois-ci · ${fr(conso, 1)} kWh/100 km`)}
+        <div class="v2-c3">
+          <div class="me"><span>e-Niro</span><b>${fr(c100, 2)} €</b><em>${fr(solMonth)} % soleil</em></div>
+          <div><span>Tout en HP</span><b>${fr(hp100, 2)} €</b></div>
+          <div><span>Essence</span><b>${fr(ess100, 2)} €</b><em>${fr(C.essence_l_100km || 6.5, 1)} L/100</em></div>
+        </div>
+        <div class="v2-gain">≈ <b>${fr(gain)} €</b> économisés ce mois-ci par rapport à une voiture essence (${fr(kmM)} km)</div>
+      </div>`,
+      cal: `<div class="card v2-cal">
+        ${ch("clock", "#8a5cf6", "Calendrier des recharges", "5 dernières semaines")}
+        <div class="v2-wd">${["L", "M", "M", "J", "V", "S", "D"].map((x) => `<span>${x}</span>`).join("")}</div>
+        <div class="v2-grid">${Array.from({ length: (VE_DAYS[0].d.getDay() + 6) % 7 }, () => `<i class="pad"></i>`).join("")}${VE_DAYS.map((x) => `<i class="${x.kwh ? "" : "none"}" style="--a:${x.kwh / maxDay};--s:${Math.round(x.sun * 100)}%" title="${x.d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} : ${x.kwh ? `${fr(x.kwh, 1)} kWh · ${fr(x.sun * 100)} % soleil` : "pas de recharge"}">${x.d.getDate()}</i>`).join("")}</div>
+        <div class="v2-leg"><span><i class="lsw sun"></i>soleil</span><span><i class="lsw grid"></i>réseau</span><span>plus foncé = plus de kWh</span></div>
+      </div>`,
+      sessions: `<div class="card v2-sess">
+        ${ch("bolt", "#8a5cf6", "Dernières recharges")}
+        ${SESSIONS.map((x) => `<div class="v2-s ${x.live ? "now" : ""}"><div class="v2-s-d"><b>${x.d}</b><span>${x.h}${x.live ? " · en cours" : ""}</span></div>
+          <div class="v2-s-bar"><i style="width:${x.sun * 100}%"></i></div>
+          <div class="v2-s-v"><b>${fr(x.kwh, 1)} kWh</b><span>${x.sun ? `${fr(x.sun * 100)} % soleil` : x.src}</span></div></div>`).join("")}
+      </div>`,
+    };
+    return parts;
+  }
+  function pageVoiture2() {
+    const V = voitureParts(), P = voiture2();
+    return `${V.head}<div class="wrap">${P.hero}${P.cost}${P.cal}${P.sessions}
+      <section class="blk">${sec("Réglages", "recharge")}<div class="card list">${V.rows}</div></section>${V.entretien}</div>`;
+  }
+  function deskVoiture2() {
+    const V = voitureParts(), P = voiture2();
+    return `${topbar()}<div class="v2-vgrid">
+      <div class="g-hero">${P.hero}</div><div class="g-cost">${P.cost}</div>
+      <div class="g-cal">${P.cal}</div><div class="g-sess">${P.sessions}</div>
+      <div class="g-set"><div class="card dk-card">${ch("gauge", "#1f9d55", "Réglages", "recharge")}<div class="list">${V.rows}</div></div></div>
+      <div class="g-ent">${V.entretien.replace('<div class="card">', '<div class="card dk-card">')}</div>
+    </div>`;
+  }
+
+  // ─── Analyse V2 : bilan en miroir, flux de la période, comparaison, records
+  function analyse2() {
+    const D = periodData(periode), sum2 = (a) => a.reduce((x, y) => x + y, 0);
+    const prod = D.past(D.prod), cons = D.past(D.conso), lab = D.past(D.long || D.labels);
+    const P = sum2(prod), Cn = sum2(cons), self = D.sumPast("direct"), bat = D.sumPast("bat"), inj = D.sumPast("inj"), grid = D.sumPast("grid");
+    const hp = D.sumPast("hp"), hc = D.sumPast("hc"), hsc = D.sumPast("hsc"), eco = sum2(D.past(D.eco));
+    const auto = Cn ? ((Cn - grid) / Cn) * 100 : 0, dec = periode === "annee" ? 0 : 1;
+    const max = Math.max(...prod, ...cons) || 1;
+    const W = 720, H = 240, mid = H / 2, bw = Math.min(28, (W / prod.length) * 0.6);
+    const xs = (i) => (i + 0.5) * (W / prod.length);
+    const mirror = `<div class="v2-mwrap"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="v2-mirror" role="img" aria-label="Production et consommation ${D.nom}">
+      <line x1="0" x2="${W}" y1="${mid}" y2="${mid}" stroke="#d9d4ce"/>
+      ${prod.map((v, i) => `<rect x="${xs(i) - bw / 2}" y="${mid - 2 - (v / max) * (mid - 10)}" width="${bw}" height="${(v / max) * (mid - 10)}" rx="4" fill="#e8711a"><title>${lab[i]} · produit ${fr(v, 1)} kWh</title></rect>`).join("")}
+      ${cons.map((v, i) => `<rect x="${xs(i) - bw / 2}" y="${mid + 2}" width="${bw}" height="${(v / max) * (mid - 10)}" rx="4" fill="#3a7bec" opacity=".85"><title>${lab[i]} · consommé ${fr(v, 1)} kWh</title></rect>`).join("")}
+    </svg><div class="v2-mlab">${lab.map((l, i) => `<span>${!D.dense || i % 5 === 0 ? l : ""}</span>`).join("")}</div></div>`;
+    const flow = (rows, total) => `<div class="v2-flow">${rows.map(([l, v, c]) => `<div class="v2-fr"><span>${l}</span><div class="v2-fb"><i style="width:${total ? (v / total) * 100 : 0}%;background:${c}"></i></div><b>${fr(v, dec)} kWh</b><em>${fr(total ? (v / total) * 100 : 0)} %</em></div>`).join("")}</div>`;
+    const ev = (x) => 1 + x / 100;
+    const cmp = [
+      ["Production", P, P / ev(D.evP), "kWh"], ["Consommation", Cn, Cn * 1.04, "kWh"], ["Achat réseau", grid, grid * 1.18, "kWh", true],
+      ["Revente", inj, inj / 1.07, "kWh"], ["Autosuffisance", auto, auto - 3, "%"], ["Économies", eco, eco / ev(D.evE), "€"],
+    ];
+    const best = prod.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).slice(0, 3);
+    return {
+      D,
+      seg: `<div class="seg">${[["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["annee", "Année"]].map(([k, l]) => `<button class="${periode === k ? "on" : ""}" data-per="${k}">${l}</button>`).join("")}</div>`,
+      head: `<div class="card v2-hl">
+        <div><span>Produit</span><b>${fr(P, dec)}<small> kWh</small></b></div>
+        <div><span>Consommé</span><b>${fr(Cn, dec)}<small> kWh</small></b></div>
+        <div><span>Autosuffisance</span><b>${fr(auto)}<small> %</small></b></div>
+        <div><span>Économisé</span><b>${fr(eco, eco < 100 ? 2 : 0)}<small> €</small></b></div></div>`,
+      mirror: `<div class="card v2-mir">${ch("chart", "#e8711a", "Bilan", `${D.nom} · production en haut, consommation en bas`)}
+        <div class="v2-mleg"><span style="--c:#e8711a">Produit</span><span style="--c:#3a7bec">Consommé</span></div>${mirror}</div>`,
+      flows: `<div class="card v2-flows">${ch("leaf", "#1f9d55", "Où va l'énergie", D.nom)}
+        <div class="eyebrow">Ta production · ${fr(P, dec)} kWh</div>
+        ${flow([["Utilisée à la maison", self, "#e8711a"], ["Stockée en batterie", Math.max(0, P - self - inj), "#3a7bec"], ["Revendue", inj, "#1f9d55"]], P)}
+        <div class="eyebrow" style="margin-top:14px">Ta consommation · ${fr(Cn, dec)} kWh</div>
+        ${flow([["Soleil direct", self, "#e8711a"], ["Batterie", bat, "#3a7bec"], [`Réseau HP <i>${plagesTxt("hp")}</i>`, hp, "#b8336a"], [`Réseau HC <i>${plagesTxt("hc")}</i>`, hc, "#8a5cf6"], [`Super creuses <i>${plagesTxt("hsc")}</i>`, hsc, "#1f9d55"]], Cn)}
+      </div>`,
+      cmp: `<div class="card v2-cmp">${ch("refresh", "#3a7bec", "Comparaison", D.cmp.replace(/^vs /, "par rapport à "))}
+        <table><thead><tr><th></th><th>Maintenant</th><th>Avant</th><th>Écart</th></tr></thead><tbody>
+        ${cmp.map(([l, a, b, u, inv]) => { const d = u === "%" ? a - b : b ? ((a - b) / b) * 100 : 0, good = inv ? d < 0 : d >= 0, dd = u === "€" ? 2 : u === "%" ? 0 : dec;
+          return `<tr><td>${l}</td><td><b>${fr(a, dd)}</b> ${u}</td><td>${fr(b, dd)} ${u}</td><td class="${good ? "up" : "down"}">${d >= 0 ? "▲" : "▼"} ${fr(Math.abs(d))} ${u === "%" ? "pts" : "%"}</td></tr>`; }).join("")}
+        </tbody></table></div>`,
+      best: `<div class="card v2-best">${ch("sun", "#e8711a", "Records", D.nom)}
+        ${best.map(([v, i], r) => `<div class="v2-rk"><span class="r">${r + 1}</span><b>${D.long ? D.long[i] : periode === "mois" ? `${lab[i]} ${MOIS_LONG[new Date().getMonth()]}` : lab[i]}</b><em>${fr(v, dec)} kWh</em></div>`).join("")}
+      </div>`,
+    };
+  }
+  function pageAnalyse2() {
+    const A = analyse2();
+    return `${head("Bilan · flux · comparaison", "Analyse")}<div class="per-bar">${A.seg}</div>
+      <div class="wrap">${A.head}${A.mirror}${A.flows}${A.cmp}${A.best}${roiCard()}</div>`;
+  }
+  function deskAnalyse2() {
+    const A = analyse2();
+    return `${topbar(A.seg)}${A.head}<div class="v2-agrid">
+      <div class="g-mir">${A.mirror}</div><div class="g-flows">${A.flows}</div>
+      <div class="g-cmp">${A.cmp}</div><div class="g-best">${A.best}</div><div class="g-roi">${roiCard()}</div>
+    </div>`;
+  }
+
+  const DESK = V2 ? { accueil: deskAccueil, analyse: deskAnalyse2, voiture: deskVoiture2, flux: deskFlux }
+    : { accueil: deskAccueil, analyse: deskAnalyse, voiture: deskVoiture, flux: deskFlux };
 
   // ─── Navigation et rendu
-  const PAGES = { accueil: pageAccueil, flux: pageFlux, voiture: pageVoiture, maison: pageMaison, analyse: pageAnalyse };
+  const PAGES = V2 ? { accueil: pageAccueil, flux: pageFlux, voiture: pageVoiture2, maison: pageMaison, analyse: pageAnalyse2 }
+    : { accueil: pageAccueil, flux: pageFlux, voiture: pageVoiture, maison: pageMaison, analyse: pageAnalyse };
   let current = "accueil";
   try { const s = localStorage.getItem("breezy-page"); if (PAGES[s]) current = s; } catch (e) {}
   function show(name) {
@@ -1281,7 +1434,7 @@ ${roiCard()}
   function render() {
     const el = document.getElementById("page");
     const desk = isDesk();
-    el.innerHTML = desk ? (DESK[current] ? DESK[current]() : deskWrap(current)) : PAGES[current]();
+    el.innerHTML = recolor(desk ? (DESK[current] ? DESK[current]() : deskWrap(current)) : PAGES[current]());
     document.body.classList.toggle("desk", desk);
     renderSide();
     el.className = `page on${entering ? " enter" : ""}`;
