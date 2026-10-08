@@ -65,7 +65,7 @@
   /* ─── Barre du haut : construite une fois (le champ de recherche garde son état) ─ */
   function topInit() {
     document.getElementById("top").innerHTML = h`
-      <a class="top-brand" href="#/overview" aria-label="Breezy HEMS"><span class="brand-m">${icon("energy")}</span></a>
+      <a class="top-brand" href="#/overview" aria-label="Breezy HEMS, aperçu"><span class="brand-m">${icon("energy")}</span><span class="brand-t">Breezy <em>HEMS</em></span></a>
       <div class="search" role="search">
         <label class="search-f">${icon("search")}<span class="sr">Rechercher</span>
           <input id="q" type="search" placeholder="Rechercher un appareil, une page…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="q-pop" aria-autocomplete="list"><kbd>/</kbd></label>
@@ -122,9 +122,14 @@
         <div class="pop ${BZ.ui.pop === "me" ? "is-open" : ""}" role="menu">${profileMenu()}</div>
       </div>`;
   }
+  // Dock mobile : l'onglet actif s'élargit en pastille corail (icône + libellé), les autres restent des icônes.
+  // Une pastille glisse d'un onglet à l'autre ; les états en direct (recharge, lumières) se lisent sur l'icône.
   function tabbar() {
-    const cur = route();
-    return ROUTES.map((r) => h`<a href="#/${r.id}" ${r.id === cur ? 'aria-current="page"' : ""}>${icon(r.ic)}<span>${r.label}</span></a>`).join("");
+    const cur = route(), L = BZ.live(), lights = C.lumieres.filter(isOn).length, idx = ROUTES.findIndex((r) => r.id === cur);
+    const mark = { vehicle: L.charging ? h`<i class="tab-live" data-tone="ev" aria-hidden="true"></i>` : "", home: lights ? h`<em class="tab-n" aria-hidden="true">${lights}</em>` : "" };
+    return h`<span class="tabs-ind" style="--i:${idx}" aria-hidden="true"></span>${ROUTES.map((r) => h`
+      <a href="#/${r.id}" ${r.id === cur ? 'aria-current="page"' : ""} aria-label="${r.label}${r.id === "home" && lights ? `, ${lights} lumière${lights > 1 ? "s" : ""} allumée${lights > 1 ? "s" : ""}` : ""}${r.id === "vehicle" && L.charging ? ", en charge" : ""}">
+        <span class="tab-ic">${icon(r.ic)}${mark[r.id] || ""}</span><span class="tab-l">${r.label}</span></a>`)}`;
   }
 
   /* ─── Rendu ────────────────────────────────────────────────────────── */
@@ -178,7 +183,9 @@
     BZ.ui.armed = key; BZ.toast(msg); clearTimeout(armTimer);
     armTimer = setTimeout(() => { BZ.ui.armed = null; render(); }, 4000); render();
   };
-  const done = (msg) => () => BZ.toast(msg, "good");
+  // Message affiché une fois la commande appliquée (msg peut être une fonction : lue après coup)
+  const done = (msg) => () => BZ.toast(typeof msg === "function" ? msg() : msg, "good");
+  const nameOf = (id) => { const i = C.lumieres.indexOf(id); if (i >= 0) return `Lumière ${C.lumieres_noms[i]}`; const k = C.multiprise.indexOf(id); if (k >= 0) return C.multiprise_noms[k]; return id === C.prise_chambre ? "Prise chambre" : ""; };
   const A = {
     nav: (d) => go(d.to),
     set: (d) => { BZ.ui[d.k] = d.value; persist(); if (d.k === "stovePower") return call("number.set_value", C.poele_puissance, { value: d.value }).then(done(`Poêle réglé sur P${d.value}`)); render(); },
@@ -188,7 +195,7 @@
     "theme-set": (d) => { BZ.ui.theme = d.value; applyTheme(); persist(); render(); },
     "open-sheet": (d) => openSheet(d.i != null && d.i !== "" ? `${d.sheet}:${d.i}` : d.sheet),
     "close-sheet": closeSheet,
-    toggle: (d) => call("switch.toggle", d.entity).then(done(isOn(d.entity) ? "Allumé" : "Éteint")),
+    toggle: (d) => call("switch.toggle", d.entity).then(done(() => `${nameOf(d.entity) || "Appareil"} ${isOn(d.entity) ? "allumé" : "éteint"}`.replace(/^(Lumière .*) (allumé|éteint)$/, "$1 $2e"))),
     // Maison
     "lights-off": () => call("light.turn_off", C.lumieres.filter(isOn)).then(done("Toutes les lumières sont éteintes")),
     "covers-all": (d) => call("cover.set_cover_position", C.volets, { position: +d.pos }).then(done(+d.pos ? "Volets ouverts" : "Volets fermés")),
@@ -205,11 +212,11 @@
     "bat-min": (d) => call("number.set_value", C.batterie_min_pct, { value: step(C.batterie_min_pct, +d.d, 5, 0, 50) }),
     "bat-max": (d) => call("number.set_value", C.batterie_max_pct, { value: step(C.batterie_max_pct, +d.d, 5, 70, 100) }),
     // Voiture
-    "car-charge": () => call(`switch.turn_${isOn(C.voiture_en_charge) ? "off" : "on"}`, C.voiture_en_charge).then(done(isOn(C.voiture_en_charge) ? "Recharge démarrée" : "Recharge arrêtée")),
+    "car-charge": () => call(`switch.turn_${isOn(C.voiture_en_charge) ? "off" : "on"}`, C.voiture_en_charge).then(done(() => (isOn(C.voiture_en_charge) ? "Recharge démarrée" : "Recharge arrêtée"))),
     "car-lock": () => (st(C.voiture_verrou) === "locked"
       ? confirm2("unlock", () => call("lock.unlock", C.voiture_verrou).then(done("Voiture déverrouillée")), "Appuie encore pour déverrouiller la voiture")
       : call("lock.lock", C.voiture_verrou).then(done("Voiture verrouillée"))),
-    "car-clim": () => call("switch.toggle", C.voiture_clim).then(done(isOn(C.voiture_clim) ? "Climatisation lancée" : "Climatisation arrêtée")),
+    "car-clim": () => call("switch.toggle", C.voiture_clim).then(done(() => (isOn(C.voiture_clim) ? "Climatisation lancée" : "Climatisation arrêtée"))),
     "car-refresh": () => call("button.press", C.voiture_rafraichir).then(done("Relevé demandé à la voiture")),
     "car-lim": (d) => call("number.set_value", C.voiture_limite_pct, { value: step(C.voiture_limite_pct, +d.d, 10, 50, 100) }),
     "car-limdc": (d) => call("number.set_value", C.voiture_limite_dc_pct, { value: step(C.voiture_limite_dc_pct, +d.d, 10, 50, 100) }),

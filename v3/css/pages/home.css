@@ -1,1 +1,161 @@
-/* home */
+/* Maison (V3) — préfixe ma-.
+   Tuiles façon Apple Maison : éteinte = surface grise discrète, allumée = blanche, icône pleine de la couleur
+   de la famille. Toutes les tuiles ont la même hauteur pour que les rangées s'alignent d'une carte à l'autre. */
+
+/* ─── En-tête : lecteur sans carte ─────────────────────────────────────── */
+.ma-ph .ph-a { flex: 0 1 440px; min-width: 0; }
+.ma-np { position: relative; display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; gap: 6px var(--s-3); width: 100%; }
+.ma-np-art { grid-row: 1 / 3; position: relative; width: 56px; height: 56px; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 18px -10px rgba(20, 24, 36, .45); transition: transform var(--t-2) var(--ease); }
+.ma-np-art:hover { transform: scale(1.04); }
+.ma-np-art img { width: 100%; height: 100%; object-fit: cover; }
+.ma-np-gen { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center; gap: 3px; padding-bottom: 14px;
+  background: radial-gradient(120% 90% at 20% 10%, #ffb36b, transparent 60%), linear-gradient(145deg, #7b5cff, var(--accent) 60%, #ff8a5c); }
+.ma-np-gen i { width: 4px; height: 8px; border-radius: 2px; background: rgba(255, 255, 255, .92); }
+.ma-np.is-playing .ma-np-gen i { animation: ma-eq 1s ease-in-out infinite; }
+.ma-np-gen i:nth-child(2) { animation-delay: .15s; } .ma-np-gen i:nth-child(3) { animation-delay: .3s; } .ma-np-gen i:nth-child(4) { animation-delay: .45s; }
+@keyframes ma-eq { 50% { height: 20px; } }
+.ma-np-t { grid-column: 2; grid-row: 1; min-width: 0; text-align: left; border-radius: var(--r-sm); }
+.ma-np-src { display: flex; align-items: center; gap: 6px; font-size: var(--fs-12); font-weight: 600; color: var(--accent); }
+.ma-eq { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 10px; }
+.ma-eq i { width: 2px; height: 4px; border-radius: 1px; background: currentColor; animation: ma-eq2 1s ease-in-out infinite; }
+.ma-eq i:nth-child(2) { animation-delay: .15s; } .ma-eq i:nth-child(3) { animation-delay: .3s; }
+@keyframes ma-eq2 { 50% { height: 10px; } }
+.ma-np-t strong { display: block; font-size: var(--fs-15); font-weight: 600; letter-spacing: var(--tr-title); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ma-np-t > span:last-child { display: block; font-size: var(--fs-13); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ma-np-c { grid-column: 3; grid-row: 1; display: flex; align-items: center; gap: 2px; }
+.ma-np-c button { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; color: var(--text-2); transition: background var(--t-1), transform var(--t-1), color var(--t-1); }
+.ma-np-c button:hover { background: var(--hover); color: var(--text); }
+.ma-np-c button:active { transform: scale(.9); }
+.ma-np-c button .ic { width: 16px; height: 16px; }
+.ma-np-c .ma-np-play { width: 42px; height: 42px; background: var(--text); color: var(--surface); box-shadow: 0 8px 16px -8px rgba(20, 24, 36, .5); }
+.ma-np-c .ma-np-play:hover { background: var(--accent); color: var(--on-accent); }
+.ma-np-c .ma-np-play .ic { width: 18px; height: 18px; }
+.ma-np-p { grid-column: 2 / 4; grid-row: 2; display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-11); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.ma-np-p i { position: relative; flex: 1; height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
+.ma-np-p b { position: absolute; inset: 0 auto 0 0; width: var(--v); border-radius: inherit; background: linear-gradient(90deg, #7b5cff, var(--accent)); }
+
+/* ─── Indicateurs cliquables (filtrent la page) ────────────────────────── */
+.ma-kpi { cursor: pointer; }
+.ma-kpi.is-sel { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: 0 0 0 3px var(--accent-soft); }
+.ma-kpi .kpi-d { min-width: 0; }
+.ma-kpi .kpi-vs { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ma-kpi .kpi-v .val-u { font-size: .6em; }
+.ma-viz { display: flex; align-items: flex-end; justify-content: flex-end; }
+.ma-dots { display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 5px; }
+.ma-dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--surface-3); }
+.ma-dots i.is-on { background: var(--c); box-shadow: 0 0 0 3px var(--c-s); }
+.ma-bars { display: flex; align-items: flex-end; gap: 4px; height: 36px; }
+.ma-bars i { width: 7px; height: var(--v); min-height: 3px; border-radius: 3px; background: color-mix(in srgb, var(--c) 75%, transparent); }
+.ma-bars.is-temp i { width: 9px; }
+
+/* ─── Barre de filtres ─────────────────────────────────────────────────── */
+.ma-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--gap); min-width: 0; }
+.ma-bar .pills { overflow-x: auto; scrollbar-width: none; min-width: 0; }
+.ma-bar .pills::-webkit-scrollbar { display: none; }
+.ma-lock { display: inline-flex; align-items: center; gap: var(--s-2); height: 36px; padding: 0 var(--s-4); border-radius: var(--r-pill); flex: none;
+  font-size: var(--fs-13); font-weight: 500; color: var(--good-t); background: var(--good-s); transition: filter var(--t-1); }
+.ma-lock:hover { filter: brightness(.97); }
+.ma-lock .ic { width: 16px; height: 16px; stroke-width: 2; }
+.ma-lock.is-open { color: var(--warn-t); background: var(--warn-s); }
+
+/* ─── Grille des sections ──────────────────────────────────────────────── */
+.ma-grid { --cols-l: 2; --cols-r: 2; }
+.ma-sec .card-h { flex-wrap: wrap; row-gap: var(--s-2); }
+.ma-sec .card-a .btn-ghost { color: var(--text-2); }
+.ma-tiles { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 10px; }
+.ma-lights .ma-tiles, .ma-covers .ma-tiles { --cols: var(--cols-l); }
+.ma-heat .ma-tiles, .ma-dev .ma-tiles { --cols: var(--cols-r); }
+.ma-grid.is-one .ma-tiles { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+@media (min-width: 600px) { .ma-grid { --cols-l: 3; --cols-r: 3; } }
+@media (min-width: 1200px) {
+  .ma-grid.is-all { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: stretch; }
+  .ma-grid { --cols-l: 4; --cols-r: 2; }
+}
+
+/* ─── Tuile ────────────────────────────────────────────────────────────── */
+.ma-tile { position: relative; display: flex; align-items: center; gap: 4px; min-height: 66px; padding: 8px; border-radius: 14px; min-width: 0;
+  background: var(--surface-2); border: 1px solid transparent; transition: background var(--t-2), border-color var(--t-2), box-shadow var(--t-2), transform var(--t-1); }
+.ma-tile:active { transform: scale(.98); }
+.ma-tile:hover { background: var(--surface-3); }
+.ma-tile-i { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; flex: none; color: var(--text-3); background: var(--surface);
+  box-shadow: 0 1px 2px rgba(20, 24, 36, .06); transition: background var(--t-2), color var(--t-2), transform var(--t-2) var(--ease); }
+.ma-tile-i:hover { transform: scale(1.06); }
+.ma-tile-i .ic { width: 20px; height: 20px; }
+.ma-tile-t { flex: 1; min-width: 0; min-height: 44px; padding: 2px var(--s-2); text-align: left; border-radius: var(--r-sm); }
+.ma-tile-t strong { display: block; font-size: var(--fs-14); font-weight: 600; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ma-tile-t span { display: block; font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ma-tile.is-on { background: var(--surface); border-color: var(--border); box-shadow: 0 1px 2px rgba(20, 24, 36, .05), 0 6px 16px -10px color-mix(in srgb, var(--c) 60%, transparent); }
+.ma-tile.is-on:hover { border-color: color-mix(in srgb, var(--c) 35%, var(--border)); }
+.ma-tile.is-on .ma-tile-i { background: var(--c); color: #fff; box-shadow: 0 6px 14px -6px var(--c); }
+.ma-tile.is-on[data-tone="light"] .ma-tile-i { color: #3a2a00; }
+.ma-tile.is-on .ma-tile-t strong { color: var(--text); }
+.ma-tile.is-on .ma-tile-t span { color: var(--c-t); }
+.ma-tile .ma-tile-i[aria-busy="true"]::after { color: inherit; }
+:root[data-theme="dark"] .ma-tile { background: var(--surface-2); }
+:root[data-theme="dark"] .ma-tile.is-on { background: color-mix(in srgb, var(--c) 10%, var(--surface-2)); border-color: color-mix(in srgb, var(--c) 28%, transparent); }
+:root[data-theme="dark"] .ma-tile-i { background: var(--surface-3); box-shadow: none; }
+:root[data-theme="dark"] .ma-tile.is-on .ma-tile-i { background: var(--c); box-shadow: 0 6px 14px -6px var(--c); }
+/* Position du volet : trait en bas de la tuile */
+.ma-covers .ma-tile { padding-bottom: 12px; }
+.ma-pos { position: absolute; left: 14px; right: 14px; bottom: 6px; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--text-3) 22%, transparent); overflow: hidden; }
+.ma-pos::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--v); border-radius: inherit; background: var(--c); opacity: .85; }
+
+/* ─── Mobile ───────────────────────────────────────────────────────────── */
+@media (max-width: 999px) {
+  .ma-ph .ph-a { flex: 1 1 100%; }
+  .ma-bar { flex-direction: column; align-items: stretch; }
+  .ma-bar .pills { margin: 0 calc(-1 * var(--page-x)); padding: 0 var(--page-x); }
+  .ma-lock { align-self: flex-start; }
+}
+@media (max-width: 767px) {
+  .ma-kpis .kpi-s { display: flex; }
+  .ma-kpis .ma-viz { grid-column: 1 / -1; grid-row: auto; justify-content: flex-start; margin: var(--s-2) 0 0; width: auto; height: auto; }
+  .ma-kpis .kpi-d { display: none; }
+  .ma-kpis .ma-bars { height: 24px; }
+  /* Tuiles verticales comme Maison sur iPhone : l'icône en haut, le texte a toute la largeur */
+  .ma-tile { flex-direction: column; align-items: flex-start; gap: 6px; min-height: 104px; padding: 10px; }
+  .ma-tile-i { width: 40px; height: 40px; }
+  .ma-tile-t { width: 100%; min-height: 0; padding: 0 2px; }
+  .ma-tile-t strong, .ma-tile-t span { white-space: normal; overflow-wrap: anywhere; }
+  .ma-covers .ma-tile { padding-bottom: 14px; }
+  .ma-kpi .kpi-l { white-space: normal; line-height: 1.3; }
+  .ma-sec .card-t p { white-space: normal; }
+}
+
+/* ─── Bureau « une page » ──────────────────────────────────────────────── */
+@media (min-width: 1200px) and (min-height: 820px) {
+  .fit .ma-grid { overflow-y: auto; scrollbar-width: thin; align-content: start; margin-right: -6px; padding-right: 6px; }
+  .fit .ma-grid .card { overflow: visible; }
+}
+@media (min-width: 1200px) and (max-height: 1000px) {
+  .ma-bar { margin-bottom: var(--s-4); }
+  .ma-np-art { width: 50px; height: 50px; }
+  .ma-sec { gap: var(--s-3); padding-block: 16px; }
+  .ma-tiles { gap: 8px; }
+  .ma-tile { min-height: 58px; padding: 6px; }
+  .ma-tile-i { width: 40px; height: 40px; }
+  .ma-tile-i .ic { width: 18px; height: 18px; }
+}
+@media (min-width: 2200px) {
+  .ma-tile { min-height: 76px; padding: 10px; }
+  .ma-tile-i { width: 50px; height: 50px; }
+  .ma-tile-i .ic { width: 22px; height: 22px; }
+  .ma-np-art { width: 64px; height: 64px; }
+  .ma-ph .ph-a { flex-basis: 520px; }
+}
+
+/* Portable 1200–1599 px : colonnes plus étroites, on resserre icônes et texte pour éviter les coupures */
+@media (min-width: 1200px) and (max-width: 1599px) {
+  .ma-tile { gap: 2px; padding-inline: 6px; }
+  .ma-tile-i { width: 36px; height: 36px; }
+  .ma-tile-i .ic { width: 17px; height: 17px; }
+  .ma-tile-t { padding: 2px 6px; }
+  .ma-tile-t strong { font-size: var(--fs-13); }
+  .ma-tile-t span { font-size: 11.5px; }
+  .ma-dots { gap: 4px; }
+  .ma-dots i { width: 7px; height: 7px; }
+  .ma-bars { gap: 3px; }
+  .ma-bars i { width: 5px; }
+  .ma-bars.is-temp i { width: 7px; }
+  .ma-kpi .kpi-s { width: auto; margin-left: var(--s-2); }
+}

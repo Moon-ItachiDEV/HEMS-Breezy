@@ -94,14 +94,14 @@
     BZ.ui.armed = key; BZ.toast(msg); clearTimeout(armTimer);
     armTimer = setTimeout(() => { BZ.ui.armed = null; render(); }, 4000); render();
   };
-  const done = (msg) => () => BZ.toast(msg, "good");
+  const done = (msg) => () => BZ.toast(typeof msg === "function" ? msg() : msg, "good");
   const A = {
     nav: (d) => (location.hash = `#/${d.to}`),
     set: (d) => { BZ.ui[d.k] = d.value; persist(); if (d.k === "stovePower") return call("number.set_value", C.poele_puissance, { value: d.value }).then(done(`Poêle réglé sur P${d.value}`)); render(); },
     theme: () => { BZ.ui.theme = { auto: "light", light: "dark", dark: "auto" }[BZ.ui.theme]; applyTheme(); persist(); render(); },
     "open-sheet": (d) => openSheet(d.i != null && d.i !== "" ? `${d.sheet}:${d.i}` : d.sheet),
     "close-sheet": closeSheet,
-    toggle: (d) => call("switch.toggle", d.entity).then(done(isOn(d.entity) ? "Allumé" : "Éteint")),
+    toggle: (d) => call("switch.toggle", d.entity).then(done(() => (isOn(d.entity) ? "Allumé" : "Éteint"))),
     // Maison
     "lights-off": () => call("light.turn_off", C.lumieres.filter(isOn)).then(done("Toutes les lumières sont éteintes")),
     "covers-all": (d) => call("cover.set_cover_position", C.volets, { position: +d.pos }).then(done(+d.pos ? "Volets ouverts" : "Volets fermés")),
@@ -118,11 +118,11 @@
     "bat-min": (d) => call("number.set_value", C.batterie_min_pct, { value: step(C.batterie_min_pct, +d.d, 5, 0, 50) }),
     "bat-max": (d) => call("number.set_value", C.batterie_max_pct, { value: step(C.batterie_max_pct, +d.d, 5, 70, 100) }),
     // Voiture
-    "car-charge": () => call(`switch.turn_${isOn(C.voiture_en_charge) ? "off" : "on"}`, C.voiture_en_charge).then(done(isOn(C.voiture_en_charge) ? "Recharge démarrée" : "Recharge arrêtée")),
+    "car-charge": () => call(`switch.turn_${isOn(C.voiture_en_charge) ? "off" : "on"}`, C.voiture_en_charge).then(done(() => (isOn(C.voiture_en_charge) ? "Recharge démarrée" : "Recharge arrêtée"))),
     "car-lock": () => (st(C.voiture_verrou) === "locked"
       ? confirm2("unlock", () => call("lock.unlock", C.voiture_verrou).then(done("Voiture déverrouillée")), "Appuie encore pour déverrouiller la voiture")
       : call("lock.lock", C.voiture_verrou).then(done("Voiture verrouillée"))),
-    "car-clim": () => call("switch.toggle", C.voiture_clim).then(done(isOn(C.voiture_clim) ? "Climatisation lancée" : "Climatisation arrêtée")),
+    "car-clim": () => call("switch.toggle", C.voiture_clim).then(done(() => (isOn(C.voiture_clim) ? "Climatisation lancée" : "Climatisation arrêtée"))),
     "car-refresh": () => call("button.press", C.voiture_rafraichir).then(done("Relevé demandé à la voiture")),
     "car-lim": (d) => call("number.set_value", C.voiture_limite_pct, { value: step(C.voiture_limite_pct, +d.d, 10, 50, 100) }),
     "car-limdc": (d) => call("number.set_value", C.voiture_limite_dc_pct, { value: step(C.voiture_limite_dc_pct, +d.d, 10, 50, 100) }),
