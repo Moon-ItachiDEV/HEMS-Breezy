@@ -74,8 +74,8 @@ a.kpi:active, button.kpi:active { transform: scale(.995); }
 .kpi-l { grid-column: 1 / -1; margin-top: var(--s-3); font-size: var(--fs-14); font-weight: 500; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi-v { grid-column: 1; margin-top: 2px; font-size: var(--fs-28); line-height: 1.15; font-weight: 600; letter-spacing: var(--tr-display); white-space: nowrap; }
 .kpi-v .val-n { font-weight: 600; letter-spacing: var(--tr-display); }
-.kpi-d { grid-column: 1; display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-2); min-height: 20px; white-space: nowrap; }
-.kpi-vs { font-size: var(--fs-13); color: var(--text-3); }
+.kpi-d { grid-column: 1; display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-2); min-height: 20px; min-width: 0; white-space: nowrap; }
+.kpi-vs { font-size: var(--fs-13); color: var(--text-3); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .kpi-s { grid-column: 2; grid-row: 3 / 5; align-self: end; width: clamp(72px, 7vw, 120px); height: 40px; margin-left: var(--s-3); }
 .kpi-s .spark { height: 40px; }
 

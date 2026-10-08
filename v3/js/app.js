@@ -222,7 +222,7 @@
     "car-refresh": () => call("button.press", C.voiture_rafraichir).then(done("Relevé demandé à la voiture")),
     "car-lim": (d) => call("number.set_value", C.voiture_limite_pct, { value: step(C.voiture_limite_pct, +d.d, 10, 50, 100) }),
     "car-limdc": (d) => call("number.set_value", C.voiture_limite_dc_pct, { value: step(C.voiture_limite_dc_pct, +d.d, 10, 50, 100) }),
-    "car-service": () => call("input_number.set_value", C.entretien_dernier_km, { value: num(C.voiture_odometre) }).then(done("Révision enregistrée")),
+    "car-service": () => confirm2("service", () => call("input_number.set_value", C.entretien_dernier_km, { value: num(C.voiture_odometre) }).then(done("Révision enregistrée au compteur actuel")), "Appuie encore pour remettre le compteur de révision à zéro"),
     "car-service-km": () => { const v = parseInt(prompt("Kilométrage de la révision :", num(C.entretien_dernier_km)), 10); if (Number.isFinite(v)) call("input_number.set_value", C.entretien_dernier_km, { value: v }).then(done("Révision enregistrée")); },
   };
   BZ.actions = A;

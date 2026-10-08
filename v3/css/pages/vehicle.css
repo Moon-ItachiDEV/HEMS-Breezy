@@ -1,12 +1,12 @@
 /* Voiture (V3) — préfixe ve-.
-   Hero : texte à gauche (état, % géant, autonomie, fin de charge, 4 actions rondes),
-   voiture SVG à droite posée sur l'unique barre de batterie. */
+   Hero : à gauche l'état, le % géant, l'autonomie et 4 actions rondes ; à droite la voiture posée sur
+   l'unique barre de batterie, le déroulé de la charge et deux infos secondaires. */
 
 /* ─── Grille ───────────────────────────────────────────────────────────── */
 .ve-pair { display: grid; gap: var(--gap); grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 900px) { .ve-pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 @media (min-width: 1200px) { .ve-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); } }
-@media (min-width: 640px) and (max-width: 1199px) { .ve-r { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+@media (min-width: 640px) and (max-width: 1199px) { .ve-r { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; } }
 .ve-total { font-size: var(--fs-13); color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ─── Hero ─────────────────────────────────────────────────────────────── */
@@ -14,35 +14,35 @@
   background: radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--ev) 7%, transparent), transparent 55%), var(--surface); }
 .ve-hero-l { display: flex; flex-direction: column; min-width: 0; }
 .ve-status { display: flex; flex-wrap: wrap; gap: var(--s-2); }
-.ve-status .pill .ic { width: 13px; height: 13px; stroke-width: 2; }
 .ve-soc { margin-top: var(--s-4); font-size: 72px; line-height: .95; }
+.ve-soc .val { gap: 6px; }
 .ve-soc .val-n { font-weight: 600; letter-spacing: -0.035em; }
-.ve-soc .val-u { font-size: 28px; font-weight: 500; color: var(--text-3); margin-left: 2px; }
+.ve-soc .val-u { font-size: 30px; font-weight: 500; color: var(--text-3); }
+.ve-soc.is-low .val-n { color: var(--bad-t); }
 .ve-range { margin-top: var(--s-3); font-size: var(--fs-15); color: var(--text-2); }
 .ve-range b { font-size: var(--fs-24); font-weight: 600; color: var(--text); letter-spacing: var(--tr-title); font-variant-numeric: tabular-nums; margin-right: 4px; }
 .ve-meta { margin-top: var(--s-2); font-size: var(--fs-14); color: var(--text-2); }
 .ve-meta b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
-.ve-acts { display: flex; gap: var(--s-4); margin-top: auto; padding-top: var(--s-5); }
-.ve-act { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 56px; border-radius: var(--r-md); }
+.ve-acts { display: flex; gap: var(--s-3); margin-top: auto; padding-top: var(--s-5); }
+.ve-act { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 58px; border-radius: var(--r-md); }
 .ve-act-i { position: relative; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; color: var(--text-2);
   background: var(--surface); border: 1px solid var(--border-2); box-shadow: 0 1px 2px rgba(20, 24, 36, .06);
   transition: background var(--t-2), color var(--t-2), border-color var(--t-2), transform var(--t-1) var(--ease); }
 .ve-act-i .ic { width: 20px; height: 20px; }
 .ve-act-l { font-size: var(--fs-12); font-weight: 500; color: var(--text-2); white-space: nowrap; }
-.ve-act:hover:not(:disabled) .ve-act-i { border-color: color-mix(in srgb, var(--accent) 40%, var(--border-2)); color: var(--text); }
+.ve-act:hover:not(:disabled) .ve-act-i { border-color: color-mix(in srgb, var(--c) 45%, var(--border-2)); color: var(--text); }
 .ve-act:active:not(:disabled) .ve-act-i { transform: scale(.94); }
-.ve-act.is-on .ve-act-i { background: var(--accent-soft); color: var(--accent-2); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
-.ve-act.is-on .ve-act-l { color: var(--text); }
-.ve-act.is-danger .ve-act-i { background: var(--bad); color: #fff; border-color: transparent; animation: nudge .35s var(--ease); }
+/* État par la couleur : verrouillée = vert, déverrouillée = orange, climat = bleu, recharge = violet */
+.ve-act[aria-pressed="true"] .ve-act-i, .ve-act[data-tone="warn"] .ve-act-i, .ve-act[data-tone="bad"] .ve-act-i { background: var(--c-s); color: var(--c-t); border-color: color-mix(in srgb, var(--c) 35%, transparent); }
+.ve-act[aria-pressed="true"] .ve-act-l { color: var(--text); }
+.ve-act[data-tone="bad"] .ve-act-i { background: var(--bad); color: #fff; animation: nudge .35s var(--ease); }
 .ve-act:disabled { opacity: .45; cursor: not-allowed; }
-/* La voiture se réveille : anneau qui tourne autour du bouton */
 .ve-act[aria-busy="true"] > * { opacity: 1; }
 .ve-act[aria-busy="true"]::after { content: none; }
-.ve-act[aria-busy="true"] .ve-act-i::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent); border-right-color: transparent; animation: spin .8s linear infinite; }
+.ve-act[aria-busy="true"] .ve-act-i::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--c, var(--accent)); border-right-color: transparent; animation: spin .8s linear infinite; }
 
 .ve-hero-r { display: flex; flex-direction: column; justify-content: flex-end; gap: var(--s-3); min-width: 0; }
-.ve-car { display: block; width: 100%; height: auto; overflow: visible; }
-
+.ve-car { display: block; width: 100%; height: auto; max-height: 150px; overflow: visible; margin-bottom: -6px; }
 /* Dessin de la voiture (couleurs par jetons, clair et sombre) */
 .ve-b1 { stop-color: #ffffff; } .ve-b2 { stop-color: #e8ebf0; }
 .ve-g1 { stop-color: #3a4352; } .ve-g2 { stop-color: #1d232d; }
@@ -72,123 +72,115 @@
 :root[data-theme="dark"] .ve-shadow { fill: rgba(0, 0, 0, .6); }
 :root[data-theme="dark"] .ve-cable { stroke: #0b0d11; }
 :root[data-theme="dark"] .ve-rim { fill: #8a909c; stroke: #5d636e; } :root[data-theme="dark"] .ve-spoke { stroke: #4b515c; }
+:root[data-theme="dark"] .ve-tyre { fill: #0b0c0f; stroke: #3a3f49; stroke-width: 1.5; }
+:root[data-theme="dark"] .ve-cable { stroke: #5a6170; }
+:root[data-theme="dark"] .ve-clad { fill: #0e1014; opacity: .9; }
 
-/* ─── Barre de batterie ────────────────────────────────────────────────── */
-.ve-bat { position: relative; padding-top: 22px; }
+/* ─── Barre de batterie : un seul remplissage violet ───────────────────── */
+.ve-bat { position: relative; padding: 4px 0 22px; }
 .ve-bat-t { position: relative; height: 12px; border-radius: var(--r-pill); background: var(--surface-3); overflow: hidden; }
 .ve-seg { position: absolute; top: 0; bottom: 0; left: var(--a); width: calc(var(--b) - var(--a)); }
-.ve-seg.is-base { background: color-mix(in srgb, var(--text) 78%, var(--surface)); border-radius: var(--r-pill) 0 0 var(--r-pill); }
+.ve-seg.is-base { background: color-mix(in srgb, var(--ev) 62%, #2a1440); border-radius: var(--r-pill) 0 0 var(--r-pill); }
 .ve-seg.is-add { background: var(--ev); overflow: hidden; }
-.ve-seg.is-room { background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ev) 30%, transparent) 0 3px, transparent 3px 7px); }
-.ve-bat.is-charging .ve-seg.is-add::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .55), transparent);
-  background-size: 50% 100%; background-repeat: no-repeat; animation: ve-sheen 2.4s linear infinite; }
-@keyframes ve-sheen { from { background-position: -100% 0; } to { background-position: 250% 0; } }
-.ve-bat.is-low .ve-seg.is-base { background: var(--warn); }
-.ve-tick { position: absolute; top: 3px; bottom: 3px; left: var(--x); width: 1px; background: color-mix(in srgb, var(--surface) 55%, transparent); }
-.ve-lim { position: absolute; top: 6px; bottom: 16px; left: var(--x); width: 2px; margin-left: -1px; border-radius: 2px; background: var(--text); }
-.ve-lim span { position: absolute; bottom: calc(100% + 2px); left: 50%; transform: translateX(-50%); font-size: var(--fs-11); font-weight: 600; color: var(--text); white-space: nowrap; }
-.ve-bat-ax { position: relative; display: flex; justify-content: space-between; margin-top: 6px; height: 16px; font-size: var(--fs-11); color: var(--text-3); font-variant-numeric: tabular-nums; }
-.ve-ax-lim { position: absolute; left: var(--x); transform: translateX(-50%); color: var(--text-2); font-weight: 500; white-space: nowrap; }
+.ve-seg.is-room { background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ev) 28%, transparent) 0 3px, transparent 3px 7px); }
+.ve-bat.is-charging .ve-seg.is-add::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .28), transparent);
+  background-size: 45% 100%; background-repeat: no-repeat; animation: ve-sheen 2.6s linear infinite; }
+@keyframes ve-sheen { from { background-position: -100% 0; } to { background-position: 160% 0; } }
+.ve-bat.is-low .ve-seg { background: var(--bad); }
+:root[data-theme="dark"] .ve-seg.is-base { background: color-mix(in srgb, var(--ev) 55%, #120a1c); }
+/* Drapeau de limite et repère du niveau actuel */
+.ve-lim { position: absolute; top: 0; height: 20px; left: var(--x); width: 2px; margin-left: -1px; border-radius: 2px; background: var(--text); }
+.ve-lim span { position: absolute; top: calc(100% + 2px); left: 50%; transform: translateX(-50%); font-size: var(--fs-11); font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.ve-knob { position: absolute; top: 1px; left: var(--x); width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: var(--surface); border: 3px solid var(--ev); box-shadow: 0 2px 6px rgba(20, 24, 36, .25); }
+.ve-knob span { position: absolute; top: calc(100% + 4px); left: 50%; transform: translateX(-50%); font-size: var(--fs-12); font-weight: 600; color: var(--ev-t); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ve-bat.is-low .ve-knob { border-color: var(--bad); } .ve-bat.is-low .ve-knob span { color: var(--bad-t); }
 
-/* Puces secondaires sous la barre */
+/* Déroulé de la charge */
+.ve-steps { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: 2px; }
+.ve-steps::before { content: ""; position: absolute; left: 6px; right: 6px; top: 7px; height: 2px; border-radius: 1px; background: linear-gradient(90deg, var(--ev) 0 50%, var(--surface-3) 50% 100%); }
+.ve-steps li { position: relative; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ve-steps li:nth-child(2) { align-items: center; text-align: center; } .ve-steps li:last-child { align-items: flex-end; text-align: right; }
+.ve-steps i { position: relative; z-index: 1; width: 12px; height: 12px; margin: 2px 0 6px; border-radius: 50%; background: var(--surface); border: 2px solid var(--surface-3); }
+.ve-steps li.is-done i { background: var(--ev); border-color: var(--ev); }
+.ve-steps li.is-now i { border-color: var(--ev); box-shadow: 0 0 0 4px var(--ev-s); }
+.ve-steps strong { font-size: var(--fs-13); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ve-steps small { font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ve-steps small [data-tone] { color: var(--c-t); font-weight: 600; }
+.ve-last { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-13); color: var(--text-2); }
+.ve-last .ic { width: 16px; height: 16px; color: var(--text-3); }
+.ve-last b { color: var(--text); }
+
+/* Infos secondaires */
 .ve-chips { display: flex; flex-wrap: wrap; gap: var(--s-2); }
-.ve-chips li { display: flex; align-items: baseline; gap: 6px; padding: 6px 10px; border-radius: 9px; background: var(--surface-2); font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; }
+.ve-chips li { display: flex; align-items: baseline; gap: 6px; padding: 5px 10px; border-radius: 9px; background: var(--surface-2); font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; }
 .ve-chips b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
 
-@media (min-width: 900px) {
-  .ve-hero { grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr); gap: var(--s-6); }
-}
+@media (min-width: 900px) { .ve-hero { grid-template-columns: minmax(200px, 0.7fr) minmax(0, 1.3fr); gap: var(--s-6); } }
 
-/* ─── Origine des recharges ────────────────────────────────────────────── */
+/* ─── Par source ───────────────────────────────────────────────────────── */
 .ve-src { display: flex; flex-direction: column; }
-.ve-src li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto 64px; align-items: center; gap: var(--s-3); padding: 7px 0; }
+.ve-src li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto auto; align-items: center; gap: var(--s-3); padding: 7px 0; }
 .ve-src li + li { border-top: 1px solid var(--border); }
+.ve-src li.is-zero { opacity: .5; }
 .ve-src i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
 .ve-src strong { display: block; font-size: var(--fs-13); font-weight: 600; }
 .ve-src small { display: block; font-size: var(--fs-11); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ve-src em { font-style: normal; font-size: var(--fs-12); color: var(--text-2); font-variant-numeric: tabular-nums; }
-.ve-src b { text-align: right; font-size: var(--fs-13); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ve-src b { text-align: right; font-size: var(--fs-13); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ve-src em { min-width: 52px; text-align: right; font-style: normal; font-size: var(--fs-12); color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-/* ─── Calendrier ───────────────────────────────────────────────────────── */
+/* ─── Jours de recharge : intensité violette = kWh, trait ambré = part solaire ── */
 .ve-cal-g { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; flex: 1; min-height: 0; grid-auto-rows: minmax(22px, 1fr); }
 .ve-wd { display: grid; place-items: end center; font-size: var(--fs-11); font-weight: 600; color: var(--text-3); min-height: 14px; }
-.ve-day { display: grid; place-items: center; border-radius: 7px; font-size: var(--fs-11); font-weight: 600; color: #fff; font-variant-numeric: tabular-nums; cursor: default;
-  background: color-mix(in srgb, color-mix(in srgb, var(--solar) var(--s), var(--grid)) calc(var(--a) * 100%), var(--surface-2)); transition: transform var(--t-1); }
+.ve-day { position: relative; display: grid; place-items: center; border-radius: 7px; overflow: hidden; font-size: var(--fs-11); font-weight: 600; font-variant-numeric: tabular-nums;
+  color: #fff; background: color-mix(in srgb, var(--ev) calc(var(--a) * 100%), var(--surface-2)); transition: transform var(--t-1), box-shadow var(--t-1); }
+.ve-day::after { content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: var(--s); background: var(--solar); }
 .ve-day:hover { transform: scale(1.06); }
 .ve-day.is-none { background: var(--surface-2); color: var(--text-3); font-weight: 500; }
-.ve-day.is-today { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent); }
-.ve-cal-k { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-11); color: var(--text-3); }
-.ve-cal-k .ve-grad { width: 48px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--grid), var(--solar)); }
+.ve-day.is-none::after { content: none; }
+.ve-day.is-sel { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--text); }
+.ve-day.is-today:not(.is-sel) { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent); }
+.ve-cal-d { font-size: var(--fs-12); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ve-cal-d b { color: var(--text); font-weight: 600; }
+.ve-cal-d [data-tone] { color: var(--c-t); font-weight: 600; }
 
-/* ─── Cette charge ─────────────────────────────────────────────────────── */
-.ve-sess-v { display: flex; align-items: baseline; gap: var(--s-3); font-size: var(--fs-32); }
-.ve-sess-v .val-n { color: var(--ev-t); font-weight: 600; }
-.ve-sess-v > span:last-child { font-size: var(--fs-13); color: var(--text-2); }
-.ve-sess-v b { font-weight: 600; color: var(--c-t); }
-.ve-sess .split, .ve-sess .ve-steps, .ve-sess-v { flex: none; }
-/* Déroulé horizontal : branchée → maintenant → fin */
-.ve-steps { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: auto; padding-top: var(--s-2); }
-.ve-steps::before { content: ""; position: absolute; left: 6px; right: 6px; top: calc(var(--s-2) + 5px); height: 2px; border-radius: 1px;
-  background: linear-gradient(90deg, var(--ev) 0 50%, var(--surface-3) 50% 100%); }
-.ve-steps li { position: relative; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.ve-steps li:nth-child(2) { align-items: center; text-align: center; } .ve-steps li:last-child { align-items: flex-end; text-align: right; }
-.ve-steps i { position: relative; z-index: 1; width: 12px; height: 12px; border-radius: 50%; margin-bottom: var(--s-2); background: var(--surface); border: 2px solid var(--surface-3); }
-.ve-steps li.is-done i { background: var(--ev); border-color: var(--ev); }
-.ve-steps li.is-now i { background: var(--surface); border-color: var(--ev); box-shadow: 0 0 0 4px var(--ev-s); }
-.ve-steps time { font-size: var(--fs-12); color: var(--text-3); font-variant-numeric: tabular-nums; }
-.ve-steps strong { font-size: var(--fs-13); font-weight: 600; white-space: nowrap; }
-.ve-steps small { font-size: var(--fs-12); color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* ─── Dernières recharges ──────────────────────────────────────────────── */
+.ve-recent .plist-r { grid-template-columns: auto minmax(0, 1fr) minmax(86px, 110px); cursor: default; }
+.ve-recent .plist-r:hover { background: none; box-shadow: none; }
+.ve-avg { margin-top: auto; padding-top: var(--s-2); border-top: 1px solid var(--border); font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ve-avg b { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.ve-recent strong .pill { height: 20px; padding: 0 7px; font-size: 10.5px; margin-left: 6px; vertical-align: 1px; }
 
 /* ─── Réglages et entretien ────────────────────────────────────────────── */
 .ve-care > div:first-child .meter { margin-top: 6px; max-width: 220px; }
 .ve-care .btn { flex: none; }
+.ve-lims { flex-wrap: wrap; row-gap: var(--s-2); }
+.ve-lims > div:first-child { flex: 1 1 100%; }
+.ve-lim2 { display: flex; align-items: center; gap: var(--s-2); flex: 1; min-width: 0; }
+.ve-lim2 > span { font-size: var(--fs-12); color: var(--text-3); }
+.ve-lim2 .stepper { margin-left: auto; }
+.ve-lim2 > span { font-weight: 600; letter-spacing: .04em; }
+.ve-lims .stepper button { width: 28px; height: 28px; }
+.ve-lims .stepper output { min-width: 46px; font-size: var(--fs-13); }
+@media (min-width: 1200px) { .ve-lims > div:first-child { flex: 1 1 auto; } .ve-lims > div:first-child span { display: none; } .ve-lim2 { flex: 0 0 auto; } }
 
-/* ─── Mobile ───────────────────────────────────────────────────────────── */
+/* ─── Mobile : voiture → batterie → état et % → actions → infos secondaires ── */
 @media (max-width: 899px) {
-  .ve-hero-r { order: -1; }
-  .ve-hero-l { order: 0; }
-  .ve-soc { margin-top: var(--s-2); font-size: 56px; }
-  .ve-acts { justify-content: space-between; gap: var(--s-2); }
+  .ve-hero { display: flex; flex-direction: column; gap: 0; }
+  .ve-hero-l, .ve-hero-r { display: contents; }
+  .ve-car { order: 1; }
+  .ve-bat { order: 2; margin-top: var(--s-2); }
+  .ve-steps, .ve-last { order: 3; margin-top: var(--s-2); }
+  .ve-status { order: 4; margin-top: var(--s-5); }
+  .ve-soc { order: 5; margin-top: var(--s-2); font-size: 56px; }
+  .ve-range { order: 6; }
+  .ve-meta { order: 7; }
+  .ve-acts { order: 8; margin-top: 0; justify-content: space-around; }
+  .ve-chips { order: 9; margin-top: var(--s-4); padding-top: var(--s-4); border-top: 1px solid var(--border); }
   .ve-act-i { width: 50px; height: 50px; }
-}
-@media (max-width: 899px) {
-  .ve-hero { gap: var(--s-4); }
-  .ve-ax-max { visibility: hidden; }
+  .ve-steps strong { font-size: var(--fs-12); }
+  .ve-steps small { font-size: 11px; }
   .ve-pair .card-h, .ve-r .card-h { flex-wrap: wrap; row-gap: var(--s-2); }
 }
-
-/* ─── Bureau « une page » ──────────────────────────────────────────────── */
-@media (min-width: 1200px) and (min-height: 820px) {
-  .fit .ve-grid { grid-template-rows: minmax(0, 1fr); }
-  .fit .ve-l > .ve-hero { flex: 1 0 auto; }
-  .fit .ve-l > .ve-pair { flex: 0 1 auto; min-height: 0; }
-  .fit .ve-pair > .card { min-height: 0; }
-  .fit .ve-r > .ve-sess { flex: 1 1 auto; }
-  .fit .ve-r > .ve-set { flex: 0 0 auto; }
-}
-@media (min-width: 1200px) and (max-height: 1000px) {
-  .ve-hero { padding-block: 18px; }
-  .ve-soc { font-size: 60px; margin-top: var(--s-3); }
-  .ve-soc .val-u { font-size: 24px; }
-  .ve-range b { font-size: var(--fs-20); }
-  .ve-acts { padding-top: var(--s-4); }
-  .ve-act-i { width: 42px; height: 42px; }
-  .ve-pair .card, .ve-r .card { gap: var(--s-3); padding-block: 16px; }
-  .ve-src li { padding: 3px 0; }
-  .ve-src small { display: none; }
-  .ve-r .ve-set { gap: var(--s-2); }
-  .ve-set .row { min-height: 0; padding: 5px 0; }
-  .ve-set .row span { line-height: 1.3; }
-  .ve-sess-v { font-size: var(--fs-28); }
-  .ve-sess .split { display: none; }
-}
-/* Colonne droite étroite (portable) : le détail soleil / réseau reste dans la barre et la pastille */
-@media (min-width: 1200px) and (max-width: 1599px) { .ve-sess-v span b, .ve-sess-v .ve-colon { display: none; } }
-@media (min-width: 2200px) {
-  .ve-soc { font-size: 88px; } .ve-soc .val-u { font-size: 34px; }
-  .ve-act-i { width: 52px; height: 52px; }
-}
-
 /* Mobile et tablette : le hero passe juste sous le titre, avant les indicateurs */
 @media (max-width: 1199px) {
   .view:has(.ve-grid) { display: flex; flex-direction: column; }
@@ -199,17 +191,47 @@
   .ve-pair { order: 3; margin-bottom: var(--gap); }
   .ve-r { order: 4; }
 }
-/* Mobile : voiture → batterie → état et % → actions → infos secondaires */
-@media (max-width: 899px) {
-  .ve-hero { display: flex; flex-direction: column; gap: 0; }
-  .ve-hero-l, .ve-hero-r { display: contents; }
-  .ve-car { order: 1; }
-  .ve-bat { order: 2; margin-top: var(--s-2); }
-  .ve-status { order: 3; margin-top: var(--s-4); }
-  .ve-soc { order: 4; }
-  .ve-range { order: 5; }
-  .ve-meta { order: 6; }
-  .ve-acts { order: 7; margin-top: 0; }
-  .ve-chips { order: 8; margin-top: var(--s-4); padding-top: var(--s-4); border-top: 1px solid var(--border); }
-  .ve-chips li { padding: 5px 9px; }
+
+/* ─── Bureau « une page » ──────────────────────────────────────────────── */
+@media (min-width: 1200px) and (min-height: 820px) {
+  .fit .ve-grid { grid-template-rows: minmax(0, 1fr); }
+  .fit .ve-l > .ve-hero { flex: 1 0 auto; }
+  .fit .ve-l > .ve-pair { flex: 0 1 auto; min-height: 0; }
+  .fit .ve-pair > .card { min-height: 0; }
+  .fit .ve-r > .ve-recent { flex: 1 1 auto; }
+  .fit .ve-r > .ve-set { flex: 0 0 auto; }
+  .fit .ve-recent .plist li:nth-child(n+4) { display: none; }
 }
+@media (min-width: 1200px) and (max-height: 1000px) {
+  .ve-hero { padding-block: 18px; }
+  .ve-soc { font-size: 60px; margin-top: var(--s-3); }
+  .ve-soc .val-u { font-size: 24px; }
+  .ve-range b { font-size: var(--fs-20); }
+  .ve-acts { padding-top: var(--s-4); }
+  .ve-act-i { width: 42px; height: 42px; }
+  .ve-hero-r { gap: var(--s-2); }
+  .ve-pair .card, .ve-r .card { gap: var(--s-3); padding-block: 16px; }
+  .ve-src li { padding: 3px 0; }
+  .ve-src small { display: none; }
+  .ve-r .ve-set { gap: var(--s-2); }
+  .ve-set .row { min-height: 0; padding: 5px 0; }
+  .ve-set .row span { line-height: 1.3; }
+  .ve-recent .plist-r { padding: 6px 0; }
+  .ve-recent .plist li:nth-child(n+4) { display: none; }
+  .ve-car { max-height: 122px; }
+}
+@media (min-width: 1200px) and (max-width: 1599px) {
+  .ve-steps small { font-size: 11px; }
+  .ve-steps strong { font-size: var(--fs-12); }
+  .ve-act { min-width: 50px; }
+  .ve-acts { gap: var(--s-2); }
+}
+@media (min-width: 2200px) {
+  .ve-car { max-height: 170px; }
+  .ve-soc { font-size: 88px; } .ve-soc .val-u { font-size: 34px; }
+  .ve-act-i { width: 52px; height: 52px; }
+}
+@media (min-width: 1200px) and (max-width: 1599px) and (max-height: 1000px) {
+  .ve-set .row:not(.ve-care) > div:first-child > span { display: none; }
+}
+@media (min-width: 1200px) and (max-width: 1599px) and (max-height: 1000px) { .ve-avg { display: none; } }

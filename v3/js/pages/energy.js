@@ -37,8 +37,8 @@
     const hrs = ((pct / 100) * C.packs_soc.length * PACK_KWH) / (Math.abs(L.bat) / 1000);
     if (hrs > 20) return up ? "pleine dans plus de 20 h" : "réserve dans plus de 20 h";
     const at = new Date(Date.now() + hrs * 36e5); at.setMinutes(Math.round(at.getMinutes() / 5) * 5, 0, 0);
-    const tom = at.getDate() !== new Date().getDate() ? "demain " : "";
-    return lbl(`${up ? "pleine" : "réserve"} ${tom}vers ${fmt.time(at)}`, `${up ? "pleine" : "réserve"} ${tom}${fmt.time(at)}`);
+    const what = up ? "pleine" : "réserve", tom = at.getDate() !== new Date().getDate();
+    return lbl(`${what} ${tom ? "demain" : "vers"} ${fmt.time(at)}`, `${what} à ${fmt.time(at)}`);
   }
 
   /* ─── En-tête ─────────────────────────────────────────────────────── */

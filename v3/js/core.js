@@ -203,7 +203,10 @@
   function chargeMix(kind) {
     const p = period(kind === "jour" ? "semaine" : kind), t = kind === "jour" ? sumDays([day(new Date())]) : p.total;
     const grid = Math.max(0, t.ev - t.evSun);
-    const mix = { sol: t.evSun, hsc: grid * 0.62, hc: grid * 0.23, hp: grid * 0.15 };
+    // Démo : répartition du réseau par plage ; « heures creuses seulement » exclut les heures pleines.
+    // Avec Home Assistant, ces kWh viendront des compteurs de la borne par tarif.
+    const offPeak = isOn(C.voiture_heures_creuses);
+    const mix = offPeak ? { sol: t.evSun, hsc: grid * 0.72, hc: grid * 0.28, hp: 0 } : { sol: t.evSun, hsc: grid * 0.62, hc: grid * 0.23, hp: grid * 0.15 };
     const price = { sol: 0, hsc: num(C.tarif_hsc), hc: num(C.tarif_hc), hp: num(C.tarif_hp) };
     const kwh = t.ev, cost = Object.keys(mix).reduce((a, k) => a + mix[k] * price[k], 0);
     return { kwh, cost, mix, price, sunShare: kwh ? t.evSun / kwh : 0, hpCost: kwh * price.hp };
@@ -233,6 +236,7 @@
     ago: (iso) => {
       const m = Math.round((Date.now() - new Date(iso)) / 60e3);
       if (m < 1) return "à l'instant"; if (m < 60) return `il y a ${m} min`; if (m < 1440) return `il y a ${Math.round(m / 60)} h`;
+      if (m < 2880 && new Date(iso).getDate() === new Date(Date.now() - 864e5).getDate()) return "hier";
       if (m < 60 * 1440) return `il y a ${Math.round(m / 1440)} j`; return `il y a ${Math.round(m / 43800)} mois`;
     },
     inDays: (date) => Math.round((date - Date.now()) / 864e5),

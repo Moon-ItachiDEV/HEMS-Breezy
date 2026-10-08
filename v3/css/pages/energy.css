@@ -221,7 +221,7 @@
   .en-tk small { display: none; }
 }
 /* Production solaire, carte étroite : l'avancement du jour passe sous le titre */
-@media (max-width: 767px), (min-width: 1000px) and (max-width: 1399px) {
+@media (max-width: 767px), (min-width: 1000px) and (max-width: 1499px) {
   .en-sun .card-h { flex-wrap: wrap; row-gap: var(--s-2); }
   .en-sun .card-a { width: 100%; }
   .en-sun .en-fc { width: 100%; flex-direction: row-reverse; justify-content: space-between; }
@@ -235,6 +235,8 @@
   .en-inv .plist-r { grid-template-columns: auto minmax(0, 1fr) minmax(64px, 84px); }
 }
 @media (min-width: 1200px) and (max-width: 1499px) {
+  .en-kpis .kpi-s { width: 84px; }
+  .en-kpis .en-bw { display: none; }
   .en-dial { --ds: 112px; }
   .en-tk li { gap: var(--s-2); padding-inline: 8px; margin-inline: -8px; }
   .en-bat-top { gap: var(--s-4); }
@@ -246,7 +248,6 @@
 @media (min-width: 1200px) and (max-width: 1399px) {
   .en-kpis .kpi-s { width: 48px; }
   .en-kpis .kpi-d { gap: 5px; }
-  .en-kpis .en-bw { display: none; }
   .en-set .stepper button { width: 28px; }
   .en-kpis .kpi-d, .en-kpis .kpi-vs { font-size: var(--fs-12); }
   .en-tar .card-a { display: none; }
