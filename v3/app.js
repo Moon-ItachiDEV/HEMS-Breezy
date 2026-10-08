@@ -84,6 +84,15 @@
       ${lim != null ? `<circle cx="50" cy="50" r="${R}" fill="none" stroke="var(--txt)" stroke-opacity=".35" stroke-width="${cls ? 12 : 8}" stroke-dasharray="1.5 ${P}" stroke-dashoffset="${-P * lim / 100}"/>` : ""}
       <circle class="f" cx="50" cy="50" r="${R}" stroke-dasharray="${P}" stroke-dashoffset="${P * (1 - clamp(v, 0, 100) / 100)}"/></svg><div class="c">${label}</div></div>`;
   };
+  const splitW = (w) => (Math.abs(w) >= 1000 ? [fr(w / 1000, 2), "kW"] : [fr(w), "W"]);
+  const SV = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  const ICONS = {
+    car: SV('<path d="M19 17h2a1 1 0 0 0 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4a1 1 0 0 0 1 1h2"/><path d="M9 17h6"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>'),
+    bat: SV('<rect x="2" y="7" width="17" height="10" rx="2.5"/><path d="M22 11v2M6 10.5v3M9.5 10.5v3M13 10.5v3"/>'),
+    home: SV('<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'),
+    plug: SV('<path d="M9 2v5M15 2v5M6 7h12v4a6 6 0 0 1-12 0zM12 17v5"/>'),
+    flame: SV('<path d="M12 22c4 0 7-3 7-7 0-5-5-7-5-12-3 2-4 5-4 7-1-1-2-2-2-4-2 2-3 5-3 9 0 4 3 7 7 7z"/>'),
+  };
   const splitbar = (parts) => { const t = parts.reduce((a, p) => a + p.v, 0) || 1; return `<div class="splitbar">${parts.map((p) => `<i style="flex:${p.v / t};background:${p.c}"></i>`).join("")}</div>`; };
 
   // Courbe lisse (Catmull-Rom → Bézier)
@@ -142,17 +151,26 @@
     const W = 360, Hs = 86;
     const pts = PROD_H.map((v, i) => [(i * W) / (PROD_H.length - 1), 8 + (1 - v / 5.6) * (Hs - 16)]);
     const date = now.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+    const flux = Math.max(1, e.solar + Math.max(0, e.grid) + Math.max(0, -e.bat));
+    const share = (w) => (w / flux) * 100;
+    const carOn = on(C.voiture_en_charge);
     const devices = [
-      on(C.voiture_branchee) && { ic: "🚗", bg: "#efe9fe", t: "Recharge e-Niro", s: on(C.voiture_en_charge) ? `En charge · ${fr(n(C.voiture_soc))} % → ${fr(n(C.voiture_limite_pct))} %` : "Branchée", w: e.car },
-      { ic: "🔋", bg: "#e7effd", t: "Batterie SolarFlow", s: `${e.bat >= 0 ? "Charge" : "Décharge"} · ${fr(n(C.batterie_soc))} %`, w: Math.abs(e.bat) },
-      { ic: "🏠", bg: "#fdf0e4", t: "Maison", s: "Consommation hors voiture", w: e.house },
-      on(C.prise_chambre) && { ic: "🔌", bg: "#e6f5ec", t: "Prise chambre", s: "Eve Energy", w: n(C.prise_chambre_w) },
-      st(C.poele) !== "off" && { ic: "🔥", bg: "#fde8e0", t: "Poêle à granulés", s: `${st(C.poele_statut)} · P${st(C.poele_puissance)}`, txt: `${fr(at(C.poele, "current_temperature"), 1)} °C` },
+      on(C.voiture_branchee) && { ic: "car", c: "#8a5cf6", t: "Kia e-Niro", go: "voiture",
+        tag: carOn ? "En charge" : "Branchée", live: carOn, s: `${fr(n(C.voiture_soc))} % → ${fr(n(C.voiture_limite_pct))} %`,
+        w: e.car, bar: n(C.voiture_soc), mk: n(C.voiture_limite_pct), foot: `${fr(n(C.voiture_autonomie_km))} km d'autonomie` },
+      { ic: "bat", c: "#3a7bec", t: "Batterie SolarFlow", go: "flux", tag: e.bat > 15 ? "Charge" : e.bat < -15 ? "Décharge" : "Veille", live: Math.abs(e.bat) > 15,
+        s: `${fr(n(C.batterie_dispo_kwh), 1)} kWh dispo`, w: Math.abs(e.bat), bar: n(C.batterie_soc), foot: `${fr(n(C.batterie_soc))} % chargée` },
+      { ic: "home", c: "#e8711a", t: "Maison", go: "maison", tag: "Conso", s: "hors voiture", w: e.house, bar: share(e.house), foot: `${fr(share(e.house))} % du flux` },
+      on(C.prise_chambre) && { ic: "plug", c: "#1f9d55", t: "Prise chambre", go: "maison", sub: "appareils", tag: "Allumée", s: `${fr(n(C.prise_chambre_kwh), 2)} kWh au total`,
+        w: n(C.prise_chambre_w), bar: share(n(C.prise_chambre_w)), foot: `${fr(share(n(C.prise_chambre_w)), 1)} % du flux` },
+      st(C.poele) !== "off" && { ic: "flame", c: "#e5484d", t: "Poêle à granulés", go: "maison", sub: "chauffage", tag: st(C.poele_statut), live: true,
+        s: `P${st(C.poele_puissance)} · consigne ${fr(at(C.poele, "temperature"), 1)} °C`, val: fr(at(C.poele, "current_temperature"), 1), unit: "°C",
+        bar: ((at(C.poele, "current_temperature") - 15) / 10) * 100, mk: ((at(C.poele, "temperature") - 15) / 10) * 100, foot: `trémie ${fr(n(C.tremie_kg), 1)} kg` },
     ].filter(Boolean);
     return `
       <div class="hero">
         <div class="row1"><div><div class="date">${date[0].toUpperCase() + date.slice(1)}</div><div class="hello">Bonjour 👋</div></div>
-          <div class="btns"><button class="round" data-go="analyse" aria-label="Analyse">📈</button><button class="round" data-go="maison" aria-label="Maison">▦</button></div></div>
+          <div class="btns"><button class="round" data-go="analyse" aria-label="Analyse">${SV('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>')}</button><button class="round" data-go="maison" aria-label="Maison">${SV('<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>')}</button></div></div>
         <div class="status"><i></i><span>Système en ligne · ${e.solar > 3000 ? "Forte production" : e.solar > 200 ? "Production" : "Nuit"}</span><span>MAJ ${hhmm(now)}</span></div>
         <div class="big"><b>${kw(e.solar)}<small>kW</small></b>
           <div class="side">Production en cours<br>Pic ${fr(PROD_H[peakI], 2)} kW à ${HOURS[peakI]}h</div></div>
@@ -172,14 +190,23 @@
         <div class="card">
           ${splitbar([{ v: j.autoUse, c: "var(--orange)" }, { v: j.chg, c: "var(--blue)" }, { v: j.exp, c: "var(--green)" }])}
           <div class="legend3">
-            <div><span style="--c:var(--orange)">Autoconso.&nbsp;${fr((j.autoUse / j.prod) * 100)}&nbsp;%</span><b>${fr(j.autoUse, 1)} kWh</b></div>
-            <div><span style="--c:var(--blue)">Batterie&nbsp;${fr((j.chg / j.prod) * 100)}&nbsp;%</span><b>${fr(j.chg, 1)} kWh</b></div>
-            <div><span style="--c:var(--green)">Revendu&nbsp;${fr((j.exp / j.prod) * 100)}&nbsp;%</span><b>${fr(j.exp, 1)} kWh</b></div>
+            <div><span style="--c:var(--orange)">Autoconso</span><b>${fr(j.autoUse, 1)} kWh</b><em>${fr((j.autoUse / j.prod) * 100)} %</em></div>
+            <div><span style="--c:var(--blue)">Batterie</span><b>${fr(j.chg, 1)} kWh</b><em>${fr((j.chg / j.prod) * 100)} %</em></div>
+            <div><span style="--c:var(--green)">Revendu</span><b>${fr(j.exp, 1)} kWh</b><em>${fr((j.exp / j.prod) * 100)} %</em></div>
           </div>
         </div>
-        <h2>Appareils actifs</h2>
-        ${devices.map((d) => `<div class="dev"><span class="ic" style="background:${d.bg}">${d.ic}</span><div class="t"><b>${d.t}</b><span>${d.s}</span></div>
-          <div class="v"><b>${d.txt || Wt(d.w)}</b>${d.txt ? "" : `<span>${fr((d.w / Math.max(1, e.solar + Math.max(0, e.grid))) * 100)} % du flux</span>`}</div></div>`).join("")}
+        <div class="sec-h"><h2>Appareils actifs</h2><span>${devices.length} en marche</span></div>
+        <div class="devs">${devices.map((d) => { const vu = d.val != null ? [d.val, d.unit] : splitW(d.w); return `
+          <button class="devx" data-go="${d.go}" ${d.sub ? `data-gosub="${d.sub}"` : ""} style="--c:${d.c}">
+            <span class="dico">${ICONS[d.ic]}</span>
+            <span class="dmain">
+              <span class="dtop"><b>${d.t}</b><span class="dval">${vu[0]}<small>${vu[1]}</small></span></span>
+              <span class="dsub"><span class="dtag ${d.live ? "live" : ""}">${d.tag}</span><span>${d.s}</span></span>
+              <span class="dbar"><i style="width:${pct(d.bar)}"></i>${d.mk != null ? `<em style="left:${pct(d.mk)}"></em>` : ""}</span>
+              <span class="dfoot">${d.foot}</span>
+            </span>
+            <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>`; }).join("")}</div>
       </div>`;
   }
 
@@ -462,7 +489,7 @@
   };
   document.addEventListener("click", (ev) => {
     const go = ev.target.closest("[data-go]");
-    if (go) return show(go.dataset.go);
+    if (go) { if (go.dataset.gosub) sousMaison = go.dataset.gosub; return show(go.dataset.go); }
     const sub = ev.target.closest("[data-sub]");
     if (sub) { sousMaison = sub.dataset.sub; return render(); }
     const per = ev.target.closest("[data-per]");
