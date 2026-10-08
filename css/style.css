@@ -1186,3 +1186,158 @@ body {
 @media (min-width: 760px) {
   .wrap.hk > .np { grid-column: 1 / -1; grid-template-columns: 92px minmax(0, 1fr) auto 220px; grid-template-areas: "art main ctl vol"; column-gap: 24px; margin-bottom: 30px; }
 }
+
+/* ═══ Bureau : l'application tient dans la fenêtre, sans défilement ═══
+   La page est une colonne : barre du haut + indicateurs (taille fixe),
+   puis la grille qui prend toute la hauteur restante. */
+@media (min-width: 1100px) {
+  body.desk { overflow: hidden; }
+  body.desk .shell { height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding-bottom: 18px; overflow: hidden; }
+  body.desk #page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  body.desk .dk-top { position: static; flex: none; padding: 20px 0 14px; margin: 0; background: none; backdrop-filter: none; }
+  body.desk .dk-kpis { flex: none; margin-bottom: 16px; }
+  body.desk .dk-kpi { min-height: 0; padding: 14px 16px; }
+  .dk-fill, .dk-fit, .dk-flux { flex: 1; height: auto !important; min-height: 0 !important; gap: 16px; }
+  .dk-col, .dk-stack { gap: 16px; }
+  /* Pages au contenu libre (Maison) : seule la zone de contenu défile, jamais la page */
+  body.desk .dk-legacy { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 0 8px 8px; scrollbar-width: thin; }
+
+  /* Analyse : 3 colonnes × 2 rangées */
+  .dk-an { flex: 1; min-height: 0; display: grid; gap: 16px;
+    grid-template-columns: minmax(0, 6fr) minmax(0, 3fr) minmax(0, 3fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "curve orig roi" "prod prod eco"; }
+  .n-curve { grid-area: curve; } .n-orig { grid-area: orig; } .n-roi { grid-area: roi; } .n-prod { grid-area: prod; } .n-eco { grid-area: eco; }
+  .dk-an .dk-wrap { min-height: 0; }
+  .dk-an .dk-wrap > .card { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+  .dk-an .chart { flex: 1; min-height: 0; display: flex; align-items: flex-end; }
+  .dk-an .chart svg { max-height: 100%; }
+  .dk-an .bars { flex: 1; height: auto; min-height: 90px; margin-top: 6px; }
+  .dk-an .legend-m { margin-top: 4px; }
+  .dk-an .sfoot { margin-top: 10px; }
+  .dk-an .sfoot > div { padding: 9px 12px; }
+  .dk-an .donut { width: 120px; height: 120px; margin-right: 0; }
+  .dk-an .donut-wrap .lst { gap: 8px; }
+  .dk-an .grid-split { margin-top: auto; padding-top: 10px; }
+  .dk-an .roi .roi-top { gap: 12px; }
+  .dk-an .roi .ring { width: 70px; height: 70px; }
+  .dk-an .roi .roi-amt b { font-size: 26px; }
+  .dk-an .roi .roi-line { margin: 12px 0 10px; }
+  .dk-an .roi .sfoot { grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .dk-an .roi > p { display: none; }
+
+  /* Maison compacte sur bureau */
+  body.desk .hk-tile { min-height: 54px; padding: 7px 10px 7px 8px; border-radius: 16px; }
+  body.desk .hk-ic { width: 36px; height: 36px; }
+  body.desk .hk-ic svg { width: 19px; height: 19px; }
+  body.desk .hk-grid { gap: 8px; }
+  body.desk .hk-room { margin-bottom: 14px; }
+  body.desk .hk-rh { margin-bottom: 8px; }
+  body.desk .hk-chips { padding-bottom: 12px; }
+  body.desk .wrap.hk > .np { margin-bottom: 16px; }
+  body.desk .np-art { width: 72px; height: 72px; }
+  body.desk .wrap.hk > .np { grid-template-columns: 72px minmax(0, 1fr) auto 220px; }
+}
+@media (min-width: 1100px) and (max-width: 1499px) {
+  .dk-fill { grid-template-columns: minmax(0, 5fr) minmax(0, 3fr) minmax(0, 3fr) !important; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) !important;
+    grid-template-areas: "flow bat side1" "curve dev side2" !important; }
+  .a-flow .flow-d { aspect-ratio: auto; flex: 1; }
+  .dk-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+  .dk-kpis.k4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  .dk-fit { grid-template-columns: minmax(0, 4fr) minmax(0, 5fr) minmax(0, 3.4fr) !important; }
+  .dk-fit .dk-col:last-child { display: flex !important; }
+  .dk-flux { grid-template-columns: minmax(0, 8fr) minmax(0, 4fr) !important; grid-template-rows: minmax(0, 1fr) auto !important; grid-template-areas: "curve side" "time side" !important; }
+  .f-side { display: flex !important; }
+  .fn { min-width: 128px; padding: 8px 10px 8px 8px; }
+}
+@media (min-width: 1100px) and (max-height: 860px) {
+  .dk-fill { grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) !important; }
+  .dk-flux { grid-template-rows: minmax(0, 1fr) auto !important; }
+  body.desk .dk-kpi .spk { height: 40px; }
+  body.desk .dk-kpi-v { margin: 6px 0 2px; }
+}
+
+/* ═══ Typographie : échelle en pixels, tailles minimales lisibles ═════
+   11 px  micro-libellés en capitales (+0,08 em)
+   12 px  textes secondaires, unités, axes
+   13 px  texte courant compact (listes, états)
+   14 px  texte courant
+   15 px  titres de carte
+   26 px  titre de page (bureau) · 30 px chiffres clés (bureau) */
+.eyebrow, .stats .l, .legend3 span, .sd-grp, .sec-h span, .dtag, .gbar span, .dk-kpi-h, .fn span, .sfoot span, .tl24-leg span.now::after {
+  font-size: 11px !important; letter-spacing: .08em;
+}
+.dk-kpi-h { font-size: 12px !important; letter-spacing: 0; text-transform: none; }
+.dk-kpi-s, .dfoot, .foot-row, .ch-t span, .li-t span, .hk-tx span, .tl span, .inv-t span, .fn em, .dk-crumb, .dk-legend, .legend-m, .gs-leg em, .tl24-ax, .np-a, .pk { font-size: 12px !important; }
+.chart .ax { font-size: 10px; }
+.hk-tx b, .li-t b, .tl b, .inv-t b, .dtop b, .sd-it { font-size: 13.5px !important; }
+.ch-t b { font-size: 15px !important; letter-spacing: -.02em; }
+.dk-chip, .live, .tag-g, .tag, .pill-n { font-size: 12px !important; }
+@media (min-width: 1100px) {
+  body.desk { font-size: 14px; }
+  .dk-top h1 { font-size: 26px; letter-spacing: -.035em; }
+  .dk-kpi-v b { font-size: 30px; letter-spacing: -.045em; }
+  .dk-kpi-v small { font-size: 13px; }
+  .sd-live-v b { font-size: 28px; }
+  .sd-brand b { font-size: 18px; letter-spacing: -.03em; }
+  .fn b { font-size: 17px; }
+  .hk-rh h2, .sec-h h2 { font-size: 17px; letter-spacing: -.025em; }
+  .np-t { font-size: 18px; }
+  .card .kpi b { font-size: 28px; }
+  .roi-amt b { font-size: 28px; }
+}
+@media (min-width: 2200px) {
+  body.desk { font-size: 15px; }
+  .dk-top h1 { font-size: 30px; }
+  .dk-kpi-v b { font-size: 36px; }
+  .ch-t b { font-size: 16px !important; }
+  .hk-tx b, .li-t b, .tl b, .inv-t b, .dtop b, .sd-it { font-size: 14.5px !important; }
+}
+@media (min-width: 1100px) {
+  .dk-fill .dk-card, .dk-an .dk-wrap > .card, .dk-fit .card, .dk-flux .card { padding: 16px 18px; }
+  .dk-fill .ch, .dk-an .ch, .dk-fit .ch, .dk-flux .ch { margin-bottom: 10px; }
+  .dk-fill .ch .chip-ic, .dk-an .ch .chip-ic, .dk-fit .ch .chip-ic, .dk-flux .ch .chip-ic { width: 34px; height: 34px; border-radius: 11px; }
+  .dk-fill .splitbar { margin-bottom: 10px; }
+  .dk-fill .legend3 em { display: inline; margin-left: 4px; }
+  .dk-fill .legend3 b { display: inline; }
+  .dk-fill .legend3 > div { display: flex; flex-direction: column; }
+  .dk-fill .dk-roi .roi-amt b { font-size: 24px; }
+  .dk-an .donut { width: 104px; height: 104px; }
+  .dk-an .donut-wrap .it .chip-ic { width: 30px; height: 30px; }
+  .dk-an .donut-wrap .it b { font-size: 14px; }
+  .dk-an .gs-leg { gap: 3px; font-size: 12px; }
+  .dk-an .gs-bar { margin: 6px 0 6px; }
+  .dk-an .grid-split .eyebrow { display: none; }
+  .sd-tarif .tl24-leg { font-size: 12px; }
+  .sd-tarif .tl24-leg b { white-space: nowrap; }
+  .sd-tarif .tl24-leg span.now::after { display: none; }
+}
+/* Fenêtres basses (portable) : on retire le superflu plutôt que de couper */
+@media (min-width: 1100px) and (max-height: 820px) {
+  body.desk .dk-kpi-s { display: none; }
+  body.desk .dk-kpi { padding: 12px 14px; }
+  body.desk .dk-kpi-v b { font-size: 26px; }
+  .dk-fill .legend3 em, .dk-fill .dk-roi .muted.small, .dk-fill .foot-row, .dk-an .sfoot, .dk-an .legend-m, .dk-an .roi .roi-dates small { display: none; }
+  .dk-an .roi .roi-top .ring { display: none; }
+  .sd-live .spk, .sd-live-r { display: none; }
+  .sd-live { margin-bottom: 10px; }
+}
+@media (min-width: 1100px) {
+  .dk-fill .dk-stack > .card:first-child { flex: 0 0 auto; }
+  .dk-fill .dk-stack > .card:last-child { flex: 1 1 0; }
+  .dk-fill .dk-car .foot-row { margin-top: 10px; padding-top: 8px; }
+  .dk-fill .fc { margin-bottom: 8px; }
+  .dk-fill .fc b { font-size: 22px; }
+}
+@media (min-width: 1100px) and (max-height: 860px) {
+  .dk-an .grid-split { display: none; }
+  .dk-fill .a-side1 .foot-row { display: none; }
+}
+@media (min-width: 1100px) and (min-height: 861px) {
+  .dk-fill { grid-template-rows: minmax(0, .92fr) minmax(0, 1.08fr) !important; }
+}
+@media (min-width: 1100px) and (max-height: 860px) {
+  .dk-fill .fc .eyebrow { font-size: 10px !important; }
+  .dk-fill .fc b { font-size: 19px; }
+  .dk-fill .a-side1 .prog { display: none; }
+  .a-flow .ch { margin-bottom: 4px; }
+}

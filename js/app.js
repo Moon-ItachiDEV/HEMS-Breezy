@@ -1185,7 +1185,7 @@ ${roiCard()}
             <div class="fc"><div><span class="eyebrow">Encore attendu</span><b>${fr(Math.max(0, prev - j.prod), 1)} <small>kWh</small></b></div>
               <div><span class="eyebrow">Prévu sur la journée</span><b>${fr(prev, 1)} <small>kWh</small></b></div></div>
             <div class="prog" style="--c:linear-gradient(90deg,#f6b27a,#e8711a)"><i style="width:${pct((j.prod / prev) * 100)}"></i></div>
-            <div class="foot-row"><span>Pic prévu vers 13h</span><span>Solcast</span></div></div>
+</div>
         </div>
         <div class="card dk-card a-curve">${ch("chart", "#e8711a", "Production et consommation", "aujourd'hui · kWh par tranche de 2 h")}
           <div class="dk-legend"><span style="--c:#e8711a">Production</span><span style="--c:#3a7bec">Consommation</span><span class="dash" style="--c:#1f9d55">Injection</span></div>
@@ -1201,8 +1201,8 @@ ${roiCard()}
           </div></div>
           <div class="card dk-card dk-roi" data-go="analyse" role="link">${ch("sun", "#1f9d55", "Retour sur investissement", "installation solaire")}
           <div class="roi-amt"><b>${fr(tot)} €</b><span>sur ${fr(inv)} € · ${fr(pr)} %</span></div>
-          <div class="roi-track" style="margin:14px 0 6px"><i style="width:${pr}%"></i><em style="left:${pr}%"></em></div>
-          <div class="muted small">Il reste ${fr(inv - tot)} € à amortir</div></div>
+          <div class="roi-track" style="margin:12px 0 8px"><i style="width:${pr}%"></i><em style="left:${pr}%"></em></div>
+          <div class="foot-row" style="margin-top:0;padding-top:0;border:0"><span>reste ${fr(inv - tot)} €</span><span>détail dans Analyse →</span></div></div>
         </div>
       </div>`;
   }
@@ -1217,12 +1217,12 @@ ${roiCard()}
         ${kpi({ ic: "leaf", c: "#1f9d55", label: "Autosuffisance", val: fr(A.couv), unit: "%", sub: "part sans achat au réseau", prog: A.couv })}
         ${kpi({ ic: "euro", c: "#1f9d55", label: "Économies", val: fr(A.ecoP, A.ecoP < 100 ? 2 : 0), unit: "€", sub: D.nom, tag: `<em class="dk-delta">+${D.evE} %</em>`, spk: spark(D.past(D.eco), "#1f9d55") })}
       </div>
-      <div class="dk-grid">
-        <div class="s8 dk-wrap">${A.curve}</div>
-        <div class="s4 dk-wrap">${A.orig}</div>
-        <div class="s6 dk-wrap">${A.prod}</div>
-        <div class="s6 dk-wrap">${A.eco}</div>
-        <div class="s12 dk-wrap">${roiCard()}</div>
+      <div class="dk-an">
+        <div class="dk-wrap n-curve">${A.curve}</div>
+        <div class="dk-wrap n-orig">${A.orig}</div>
+        <div class="dk-wrap n-roi">${roiCard()}</div>
+        <div class="dk-wrap n-prod">${A.prod}</div>
+        <div class="dk-wrap n-eco">${A.eco}</div>
       </div>`;
   }
 
