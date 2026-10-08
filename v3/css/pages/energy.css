@@ -82,6 +82,7 @@
   .en-flow .flow-wide .fn-bat, .en-flow .flow-wide .fn-grid, .en-flow .flow-wide .fn-car { left: min(calc(var(--x) - 7.8% + 6px), calc(100% - 150px)); }
 }
 @container (max-height: 190px) { .en-flow .flow-wide .fn-home .fn-n, .en-flow .flow-wide .fn-sun .fn-n { display: none; } }
+@container (max-height: 160px) { .en-flow .flow-wide .fn-n { display: none; } }
 
 /* En croix (carte étroite) : icône sur le point, texte autour */
 .en-flow .flow-cross .fn { --ir: 23px; transform: translate(-50%, -50%); }
@@ -140,7 +141,7 @@
 .en-set > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .en-set > div > span { font-size: var(--fs-12); font-weight: 500; color: var(--text-3); }
 .en-set .stepper { justify-content: space-between; }
-.en-set .stepper output { min-width: 0; flex: 1; }
+.en-set .stepper output { min-width: 0; flex: 1; white-space: nowrap; }
 .en-bat-f { padding-top: var(--s-3); }
 
 /* ─── Tarifs du jour : cadran 24 h + légende (style « Task Progress ») ─ */
@@ -149,7 +150,7 @@
 .en-dial svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .en-dial circle[data-tariff] { fill: none; stroke: var(--c); }
 .en-dial circle.is-past { opacity: .28; }
-.en-dial-ax text { font-size: 10px; font-weight: 500; fill: var(--text-3); text-anchor: middle; dominant-baseline: central; font-variant-numeric: tabular-nums; }
+.en-dial-ax text { font-size: 11.5px; font-weight: 500; fill: var(--text-3); text-anchor: middle; dominant-baseline: central; font-variant-numeric: tabular-nums; }
 .en-dial-now { fill: var(--surface); stroke: var(--text); stroke-width: 2.5; filter: drop-shadow(0 1px 2px rgba(20, 24, 36, .3)); }
 .en-dial-c { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; line-height: 1.15; }
 .en-dial-c b { font-size: var(--fs-20); font-weight: 700; color: var(--c-t); letter-spacing: var(--tr-title); }
@@ -206,6 +207,7 @@
 /* Bureau de hauteur moyenne (1080p sans barre, 1200 px) : on garde l'essentiel */
 @media (min-width: 1200px) and (min-height: 1001px) and (max-height: 1199px) {
   .en-bat-f { display: none; }
+  .en-tk li { padding-block: 5px; }
   .en-flow, .en-pair .card, .en-bat, .en-tar { gap: var(--s-3); }
 }
 /* Bureau peu haut (≈ 820–860 px) : le schéma garde sa place */
@@ -218,12 +220,23 @@
   .en-dial { --ds: 116px; }
   .en-tk small { display: none; }
 }
+/* Production solaire, carte étroite : l'avancement du jour passe sous le titre */
+@media (max-width: 767px), (min-width: 1000px) and (max-width: 1399px) {
+  .en-sun .card-h { flex-wrap: wrap; row-gap: var(--s-2); }
+  .en-sun .card-a { width: 100%; }
+  .en-sun .en-fc { width: 100%; flex-direction: row-reverse; justify-content: space-between; }
+  .en-sun .en-fc .meter { flex: 1; }
+}
+/* 1200–1279 : la phrase d'état dit déjà le surplus ; l'en-tête reste sur une ligne */
+@media (min-width: 1200px) and (max-width: 1279px) { .en-live { display: none; } .en-kpis > :first-child .kpi-vs { display: none; } }
 /* Largeur bureau étroite (1200–1499) : colonnes plus serrées */
 @media (min-width: 1200px) and (max-width: 1499px), (max-width: 767px) {
   .en-inv .plist-r > .pill { display: none; }
   .en-inv .plist-r { grid-template-columns: auto minmax(0, 1fr) minmax(64px, 84px); }
 }
 @media (min-width: 1200px) and (max-width: 1499px) {
+  .en-dial { --ds: 112px; }
+  .en-tk li { gap: var(--s-2); padding-inline: 8px; margin-inline: -8px; }
   .en-bat-top { gap: var(--s-4); }
   .en-packs li { grid-template-columns: auto minmax(30px, 1fr) 36px 26px; gap: var(--s-2); }
   .en-tar-b { gap: var(--s-4); }
@@ -232,8 +245,12 @@
 }
 @media (min-width: 1200px) and (max-width: 1399px) {
   .en-kpis .kpi-s { width: 48px; }
+  .en-kpis .kpi-d { gap: 5px; }
+  .en-kpis .en-bw { display: none; }
+  .en-set .stepper button { width: 28px; }
   .en-kpis .kpi-d, .en-kpis .kpi-vs { font-size: var(--fs-12); }
-  .en-sun .card-a { display: none; }
+  .en-tar .card-a { display: none; }
+  .en-kv > div { padding-inline: 10px; }
   .en-inv .plist-r { grid-template-columns: auto minmax(0, 1fr) 52px; gap: var(--s-2); }
   .en-inv .plist-r strong { font-size: var(--fs-13); }
   .en-gt .dt-ic { display: none; }
@@ -260,6 +277,7 @@
 @media (max-width: 767px) {
   .en-flow .card-a .more { display: none; }
   .en-kpis .kpi-vs { display: inline; font-size: var(--fs-12); }
+  .en-kpis .en-bw { display: none; }
   .en-bat-top { gap: var(--s-4); }
   .en-bat-top .ring { --s: 100px !important; }
   .en-kv b { font-size: var(--fs-15); }

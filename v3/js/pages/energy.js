@@ -37,7 +37,8 @@
     const hrs = ((pct / 100) * C.packs_soc.length * PACK_KWH) / (Math.abs(L.bat) / 1000);
     if (hrs > 20) return up ? "pleine dans plus de 20 h" : "réserve dans plus de 20 h";
     const at = new Date(Date.now() + hrs * 36e5); at.setMinutes(Math.round(at.getMinutes() / 5) * 5, 0, 0);
-    return `${up ? "pleine" : "réserve"} ${at.getDate() !== new Date().getDate() ? "demain " : ""}vers ${fmt.time(at)}`;
+    const tom = at.getDate() !== new Date().getDate() ? "demain " : "";
+    return lbl(`${up ? "pleine" : "réserve"} ${tom}vers ${fmt.time(at)}`, `${up ? "pleine" : "réserve"} ${tom}${fmt.time(at)}`);
   }
 
   /* ─── En-tête ─────────────────────────────────────────────────────── */
@@ -66,17 +67,17 @@
     const prodD = expected > 0.1 && L.solar > 30 ? BZ.delta(L.solar / 1000, expected) : "";
     // Batterie : état en direct et heure où elle sera pleine (ou à sa réserve) ; courbe = énergie stockée chaque jour (7 j)
     const soc = num(C.batterie_soc), week = BZ.dayView(0).week;
-    const batD = Math.abs(L.bat) < 15 ? tag("En veille", "neutral") : L.bat > 0 ? tag(fmt.powerText(L.bat), "battery", "up") : tag(fmt.powerText(-L.bat), "warn", "down");
+    const batD = Math.abs(L.bat) < 15 ? tag("En veille", "neutral") : tag(h`<span class="en-bw">${fmt.powerText(Math.abs(L.bat))}</span>`, L.bat > 0 ? "battery" : "warn", L.bat > 0 ? "up" : "down");
     // Réseau : même convention que le compteur (− revente, + achat) ; courbe = solde revente − achat sur 7 jours
     const g = L.grid, exp = g < -15, imp = g > 15, [gv, gu] = fmt.power(Math.abs(g));
     // Tarif : profil de prix de la journée
     const t = BZ.tariffNow(), prices = BZ.tariffHours().map((k) => BZ.TARIFS[k].price());
     return h`<div class="kpis en-kpis">
-      ${kpi({ label: "Production", ic: "sun", tone: "solar", value: val(fmt.power(L.solar)), delta: prodD, vs: prodD ? "vs prévision" : `${fmt.kwhText(T.prod)} aujourd'hui`, spark: BZ.spark(prodSpark, "solar"), to: "insights" })}
+      ${kpi({ label: "Production", ic: "sun", tone: "solar", value: val(fmt.power(L.solar)), delta: prodD, vs: prodD ? lbl("vs prévision", "vs prévu") : `${fmt.kwhText(T.prod)} aujourd'hui`, spark: BZ.spark(prodSpark, "solar"), to: "insights" })}
       ${kpi({ label: "Batterie SolarFlow", ic: "battery", tone: "battery", value: val([fmt.n(soc), "%"]), delta: batD, vs: batEta(L), spark: BZ.spark(week.map((d) => d.chg), "battery") })}
       ${kpi({ label: "Réseau", ic: "grid", tone: imp ? "bad" : "grid", value: h`<span class="en-gv ${exp ? "is-good" : imp ? "is-bad" : ""}">${val([`${exp ? "−" : imp ? "+" : ""}${gv}`, gu])}</span>`,
-        delta: tag(exp ? "Revente" : imp ? "Achat" : "Équilibre", exp ? "good" : imp ? "bad" : "neutral"), vs: "compteur L3", spark: BZ.spark(week.map((d) => d.exp - d.imp), imp ? "bad" : "grid"), to: "insights" })}
-      ${kpi({ label: "Prix du kWh", ic: "clock", tone: t.key, value: val([fmt.n(t.price, 4), "€"]), delta: tag(t.short, t.key), vs: `jusqu'à ${fmt.time(t.changeAt)}`, spark: stepSpark(prices, t.key, nowH()) })}
+        delta: tag(exp ? "Revente" : imp ? "Achat" : "Équilibre", exp ? "good" : imp ? "bad" : "neutral"), vs: lbl("compteur L3", "L3"), spark: BZ.spark(week.map((d) => d.exp - d.imp), imp ? "bad" : "grid"), to: "insights" })}
+      ${kpi({ label: "Prix du kWh", ic: "clock", tone: t.key, value: val([fmt.n(t.price, 4), "€"]), delta: tag(t.short, t.key), vs: lbl(`jusqu'à ${fmt.time(t.changeAt)}`, `→ ${fmt.time(t.changeAt)}`), spark: stepSpark(prices, t.key, nowH()) })}
     </div>`;
   }
 
@@ -164,9 +165,9 @@
   /* ─── Tarifs du jour : cadran 24 h + prix ─────────────────────────── */
   // Cadran : une case par heure (0 h en haut, sens horaire), heures passées estompées, repère « maintenant »
   function dial(hours, H, t, aria) {
-    const S = 120, M = 17, cx = S / 2, r = 48, sw = 13, c = 2 * Math.PI * r, seg = c / 24, gap = 1.3;
+    const S = 120, M = 20, cx = S / 2, r = 48, sw = 13, c = 2 * Math.PI * r, seg = c / 24, gap = 1.3;
     const a = (H / 24) * 2 * Math.PI, px = cx + r * Math.sin(a), py = cx - r * Math.cos(a);
-    const rl = r + sw / 2 + 9.5;
+    const rl = r + sw / 2 + 11.5;
     const lab = [[0, "0h"], [6, "6h"], [12, "12h"], [18, "18h"]].map(([k, l]) => { const b = (k / 24) * 2 * Math.PI; return h`<text x="${(cx + rl * Math.sin(b)).toFixed(1)}" y="${(cx - rl * Math.cos(b)).toFixed(1)}">${l}</text>`; });
     return h`<div class="en-dial" data-tone="${t.key}" role="img" aria-label="${aria}">
       <svg viewBox="${-M} ${-M} ${S + 2 * M} ${S + 2 * M}" aria-hidden="true">

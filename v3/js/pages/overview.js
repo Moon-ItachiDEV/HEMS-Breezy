@@ -21,7 +21,7 @@
         <div class="datep" role="group" aria-label="Journée affichée">${icon("calendar")}<span aria-live="polite">${dateLabel}</span>
           <button type="button" data-act="day" data-d="-1" aria-label="Jour précédent" ${V.offset <= -29 ? "disabled" : ""}>${icon("left")}</button>
           <button type="button" data-act="day" data-d="1" aria-label="Jour suivant" ${V.isToday ? "disabled" : ""}>${icon("chevron")}</button></div>
-        ${btn({ label: L.charging ? "Arrêter la charge" : "Charger l'e-Niro", ic: L.charging ? "x" : "bolt", act: "car-charge", kind: "primary", disabled: !L.plugged, pending: BZ.isPending(C.voiture_en_charge) })}
+        ${btn({ label: L.charging ? "Arrêter la charge" : "Charger l'e-Niro", ic: L.charging ? "pause" : "bolt", act: "car-charge", kind: "primary", disabled: !L.plugged, pending: BZ.isPending(C.voiture_en_charge) })}
       </div></header>`;
   }
 

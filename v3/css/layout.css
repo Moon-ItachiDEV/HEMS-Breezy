@@ -192,14 +192,27 @@
 .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); margin-bottom: var(--gap); }
 @media (min-width: 1000px) { .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 479px) { .kpis .kpi-s { display: none; } .kpis .kpi-vs { display: none; } .kpi-v { font-size: var(--fs-24); } }
+/* Mobile : indicateurs compacts (icône à côté du libellé), en-tête resserré */
 @media (max-width: 767px) {
-  .kpis { gap: 12px; }
-  .kpi { padding: 14px 16px; }
-  .kpi-i { width: 32px; height: 32px; }
-  .kpi-i .ic { width: 17px; height: 17px; }
-  .kpi-l { margin-top: var(--s-2); font-size: var(--fs-13); }
-  .kpi-d { margin-top: 4px; min-height: 0; }
+  .kpis { gap: 10px; margin-bottom: var(--s-4); }
+  .kpi { grid-template-columns: auto minmax(0, 1fr); column-gap: var(--s-2); padding: 12px 14px; border-radius: 14px; }
+  .kpi-i { grid-column: 1; grid-row: 1; width: 28px; height: 28px; }
+  .kpi-i .ic { width: 15px; height: 15px; }
+  .kpi-l { grid-column: 2; grid-row: 1; margin: 0; align-self: center; font-size: var(--fs-12); line-height: 1.25; white-space: normal; }
+  .kpi-v { grid-column: 1 / -1; grid-row: 2; margin-top: 8px; font-size: var(--fs-24); }
+  .kpi-d { grid-column: 1 / -1; grid-row: 3; margin-top: 2px; min-height: 0; }
   .kpi-d:empty { display: none; }
+  .kpi-s { display: none; }
+  .ph { gap: var(--s-3); margin-bottom: var(--s-4); }
+  .ph-sub { margin-top: 4px; font-size: var(--fs-14); }
+  .ph-a { flex-wrap: nowrap; gap: var(--s-2); }
+  .ph-a > .datep { flex: 1; min-width: 0; }
+  .ph-a > .datep > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  /* Action principale : bouton rond à côté du sélecteur (le libellé reste lu par les lecteurs d'écran) */
+  .ph-a > .datep + .btn { flex: none; width: 44px; padding: 0; border-radius: 50%; }
+  .ph-a > .datep + .btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .ph-a > .pills { flex: 1; }
+  .ph-a > .pills button { flex: 1; justify-content: center; }
 }
 .layout { display: grid; gap: var(--gap); grid-template-columns: minmax(0, 1fr); align-items: start; }
 .col { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; min-height: 0; }

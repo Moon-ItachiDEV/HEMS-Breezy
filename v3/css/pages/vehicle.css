@@ -188,3 +188,28 @@
   .ve-soc { font-size: 88px; } .ve-soc .val-u { font-size: 34px; }
   .ve-act-i { width: 52px; height: 52px; }
 }
+
+/* Mobile et tablette : le hero passe juste sous le titre, avant les indicateurs */
+@media (max-width: 1199px) {
+  .view:has(.ve-grid) { display: flex; flex-direction: column; }
+  .view:has(.ve-grid) > .ph { order: 0; }
+  .ve-grid, .ve-l { display: contents; }
+  .ve-hero { order: 1; margin-bottom: var(--gap); }
+  .view:has(.ve-grid) > .kpis { order: 2; }
+  .ve-pair { order: 3; margin-bottom: var(--gap); }
+  .ve-r { order: 4; }
+}
+/* Mobile : voiture → batterie → état et % → actions → infos secondaires */
+@media (max-width: 899px) {
+  .ve-hero { display: flex; flex-direction: column; gap: 0; }
+  .ve-hero-l, .ve-hero-r { display: contents; }
+  .ve-car { order: 1; }
+  .ve-bat { order: 2; margin-top: var(--s-2); }
+  .ve-status { order: 3; margin-top: var(--s-4); }
+  .ve-soc { order: 4; }
+  .ve-range { order: 5; }
+  .ve-meta { order: 6; }
+  .ve-acts { order: 7; margin-top: 0; }
+  .ve-chips { order: 8; margin-top: var(--s-4); padding-top: var(--s-4); border-top: 1px solid var(--border); }
+  .ve-chips li { padding: 5px 9px; }
+}
