@@ -432,24 +432,51 @@ body {
 }
 .dock button.on:not(.core)::after { transform: scaleX(1); }
 
-/* Bouton central surélevé */
+/* Bouton central « Flux » : une tuile intégrée à la barre, alignée avec les autres onglets */
 .dock .core i {
-  width: 56px; height: 56px; margin-top: -30px; border-radius: 50%; display: grid; place-items: center; color: #fff;
-  background: radial-gradient(120% 120% at 30% 20%, #ffb067 0%, #f08a3c 40%, #e2650f 100%);
-  box-shadow:
-    0 0 0 5px rgba(255, 253, 250, .95),
-    0 10px 22px -4px rgba(226, 101, 15, .55),
-    inset 0 1px 0 rgba(255, 255, 255, .45), inset 0 -2px 4px rgba(150, 50, 0, .2);
-  transition: transform .3s cubic-bezier(.3, 1.5, .5, 1);
+  width: 46px; height: 32px; border-radius: 12px; display: grid; place-items: center; color: #fff; position: relative; overflow: hidden;
+  background: linear-gradient(180deg, #f39a52, #e2650f);
+  box-shadow: 0 4px 10px -3px rgba(226, 101, 15, .55), inset 0 1px 0 rgba(255, 255, 255, .35);
+  transition: transform .25s cubic-bezier(.3, 1.5, .5, 1), box-shadow .25s;
 }
-.dock .core i svg { width: 26px; height: 26px; fill: rgba(255, 255, 255, .25); }
+.dock .core i svg { width: 19px; height: 19px; fill: #fff; stroke: #fff; stroke-width: 1.4; position: relative; z-index: 1; }
+/* Reflet qui balaie la tuile : l'énergie « circule » */
+.dock .core i::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .45), transparent);
+  animation: sweep 3.2s ease-in-out infinite;
+}
+@keyframes sweep { 0%, 55% { left: -60%; } 100% { left: 130%; } }
 .dock .core:active i { transform: scale(.92); }
-.dock .core.on i { animation: corePulse 2.4s ease-out infinite; }
-.dock .core.on span { color: var(--orange); }
-@keyframes corePulse {
-  0% { box-shadow: 0 0 0 5px rgba(255, 253, 250, .95), 0 0 0 5px rgba(232, 113, 26, .35), 0 10px 22px -4px rgba(226, 101, 15, .55), inset 0 1px 0 rgba(255, 255, 255, .45); }
-  70%, 100% { box-shadow: 0 0 0 5px rgba(255, 253, 250, .95), 0 0 0 16px rgba(232, 113, 26, 0), 0 10px 22px -4px rgba(226, 101, 15, .55), inset 0 1px 0 rgba(255, 255, 255, .45); }
-}
+.dock .core span { color: #a39a90; }
+.dock .core.on i { box-shadow: 0 0 0 3px rgba(232, 113, 26, .18), 0 6px 14px -3px rgba(226, 101, 15, .6), inset 0 1px 0 rgba(255, 255, 255, .35); }
+.dock .core.on span { color: var(--txt); }
+/* Plus de trait au-dessus des onglets : l'icône remplie et le nom en gras suffisent */
+.dock button:not(.core)::after { display: none; }
+.dock button svg { width: 23px; height: 23px; }
+.dock button { height: 52px; justify-content: flex-end; }
+.dock-in { padding: 6px 6px 6px; align-items: stretch; }
+
+/* ═══ Analyse : sélecteur de période collant ═════════════════════════ */
+.per-bar { position: sticky; top: 0; z-index: 15; padding: 8px 16px 12px; margin-top: -4px;
+  background: linear-gradient(180deg, rgba(246, 243, 239, .96) 70%, rgba(246, 243, 239, 0)); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.per-bar .seg { background: rgba(120, 100, 80, .1); }
+.ylegend { grid-template-columns: repeat(3, 1fr); }
+.bars.c-green .b i { background: #bfe6cf; }
+.bars.c-green .b.hi i { background: var(--green); box-shadow: 0 4px 10px -2px rgba(31, 157, 85, .45); }
+.bars.c-green .b.best:not(.hi) i { background: #7fd3a4; }
+.bars.c-green .b.fut i { background: repeating-linear-gradient(135deg, #cfeedd 0 3px, transparent 3px 6px); box-shadow: inset 0 0 0 1px #cfeedd; }
+.legend-m.c-green .lm-past::before { background: #bfe6cf; }
+.legend-m.c-green .lm-fut::before { background: repeating-linear-gradient(135deg, #cfeedd 0 2px, transparent 2px 4px); box-shadow: inset 0 0 0 1px #cfeedd; }
+.legend-m.c-green .lm-best::before { background: #7fd3a4; }
+.grid-split { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.gs-bar { display: flex; gap: 3px; height: 8px; margin: 8px 0 10px; }
+.gs-bar i { border-radius: 99px; min-width: 3px; }
+.gs-leg { display: flex; flex-direction: column; gap: 6px; font-size: .8rem; }
+.gs-leg span { display: flex; align-items: baseline; gap: 6px; }
+.gs-leg span::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); align-self: center; }
+.gs-leg b { font-family: var(--display); font-weight: 650; }
+.gs-leg em { font-style: normal; color: var(--muted); font-size: .72rem; margin-left: auto; }
 
 /* ═══ Statistiques de recharge ═══════════════════════════════════════ */
 .sbars { display: grid; gap: 6px; height: 150px; margin: 16px 0 6px; align-items: end; }
@@ -736,3 +763,5 @@ body {
 .bars .b i { background: #f9cfa8; }
 .bars .b.hi i { background: var(--orange); }
 .lm-past::before { background: #f9cfa8; }
+
+.demo-note { padding: 0 20px; line-height: 1.6; }

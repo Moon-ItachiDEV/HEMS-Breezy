@@ -160,13 +160,13 @@
 
   // ─── Graphique courbe avec survol
   const CHARTS = {};
-  function curve(id, { labels, series, unit, hi = -1 }) {
+  function curve(id, { labels, series, unit, hi = -1, dec = 0, tipLabels }) {
     const W = 320, Hh = 120, PT = 14, PB = 18;
     const max = Math.max(...series.flatMap((se) => se.data)) * 1.12;
     const len = labels.length;
     const xs = (i) => 8 + (i * (W - 16)) / (len - 1);
     const ys = (v) => PT + (1 - v / max) * (Hh - PT - PB);
-    CHARTS[id] = { labels, series, unit, xs, ys, W, H: Hh, len };
+    CHARTS[id] = { labels: tipLabels || labels, series, unit, xs, ys, W, H: Hh, len, dec };
     const body = series.map((se, k) => {
       const d = smooth(se.data.map((v, i) => [xs(i), ys(v)]));
       return `<defs><linearGradient id="g-${id}-${k}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${se.color}" stop-opacity="${se.fill ?? 0.16}"/><stop offset="1" stop-color="${se.color}" stop-opacity="0"/></linearGradient></defs>
@@ -199,7 +199,7 @@
     svg.querySelectorAll(".dotc").forEach((d, k) => { d.setAttribute("cx", c.xs(i)); d.setAttribute("cy", c.ys(c.series[k].data[i])); d.style.display = ""; });
     const tip = box.querySelector(".tip");
     const top = Math.min(...c.series.map((se) => c.ys(se.data[i])));
-    tip.innerHTML = `<b>${c.labels[i]}</b>${c.series.map((se) => `<div class="trow"><span class="tdot" style="--c:${se.color}"></span>${se.name}<b>${fr(se.data[i])} ${c.unit}</b></div>${se.detail ? se.detail(i).map(([l, v]) => `<div class="tsub"><span>${l}</span><b>${fr(v)}</b></div>`).join("") : ""}`).join("")}`;
+    tip.innerHTML = `<b>${c.labels[i]}</b>${c.series.map((se) => `<div class="trow"><span class="tdot" style="--c:${se.color}"></span>${se.name}<b>${fr(se.data[i], c.dec)} ${c.unit}</b></div>${se.detail ? se.detail(i).map(([l, v]) => `<div class="tsub"><span>${l}</span><b>${fr(v, c.dec)}</b></div>`).join("") : ""}`).join("")}`;
     const left = i < c.len / 2;
     tip.style.left = `${(c.xs(i) / c.W) * 100}%`;
     tip.style.transform = `translate(${left ? "10px" : "calc(-100% - 10px)"}, -50%)`;
@@ -223,14 +223,17 @@
       on(C.voiture_branchee) && { ic: "car", c: "#8a5cf6", t: "Kia e-Niro", go: "voiture",
         tag: carOn ? "En charge" : "Branchée", live: carOn, s: `${fr(n(C.voiture_soc))} % → ${fr(n(C.voiture_limite_pct))} %`,
         w: e.car, bar: n(C.voiture_soc), mk: n(C.voiture_limite_pct), foot: `${fr(n(C.voiture_autonomie_km))} km d'autonomie` },
-      { ic: "bat", c: "#3a7bec", t: "Batterie SolarFlow", go: "flux", tag: e.bat > 15 ? "Charge" : e.bat < -15 ? "Décharge" : "Veille", live: Math.abs(e.bat) > 15,
-        s: `${fr(n(C.batterie_dispo_kwh), 1)} kWh dispo`, w: Math.abs(e.bat), bar: n(C.batterie_soc), foot: `${fr(n(C.batterie_soc))} % chargée` },
-      { ic: "home", c: "#e8711a", t: "Maison", go: "maison", tag: "Conso", s: "hors voiture", w: e.house, bar: share(e.house), foot: `${fr(share(e.house))} % du flux` },
       on(C.prise_chambre) && { ic: "plug", c: "#1f9d55", t: "Prise chambre", go: "maison", sub: "appareils", tag: "Allumée", s: `${fr(n(C.prise_chambre_kwh), 2)} kWh au total`,
         w: n(C.prise_chambre_w), bar: share(n(C.prise_chambre_w)), foot: `${fr(share(n(C.prise_chambre_w)), 1)} % du flux` },
       st(C.poele) !== "off" && { ic: "flame", c: "#e5484d", t: "Poêle à granulés", go: "maison", sub: "chauffage", tag: st(C.poele_statut), live: true,
         s: `P${st(C.poele_puissance)} · consigne ${fr(at(C.poele, "temperature"), 1)} °C`, val: fr(at(C.poele, "current_temperature"), 1), unit: "°C",
         bar: ((at(C.poele, "current_temperature") - 15) / 10) * 100, mk: ((at(C.poele, "temperature") - 15) / 10) * 100, foot: `trémie ${fr(n(C.tremie_kg), 1)} kg` },
+      C.lumieres.some(on) && { ic: "bulb", c: "#f5b400", t: "Lumières", go: "maison", sub: "lumieres", tag: "Allumées", s: C.lumieres.filter(on).map((id) => C.lumieres_noms[C.lumieres.indexOf(id)]).join(", "),
+        val: `${C.lumieres.filter(on).length}`, unit: `/ ${C.lumieres.length}`, bar: (C.lumieres.filter(on).length / C.lumieres.length) * 100, foot: "touche pour gérer les lumières" },
+      (on(C.ballon_chauffe) || n(C.ballon_boost) === 1) && { ic: "drop", c: "#3a7bec", t: "Ballon d'eau chaude", go: "maison", sub: "climat", tag: "Chauffe", live: true,
+        s: `consigne ${fr(at(C.ballon, "temperature"))} °C`, val: fr(n(C.ballon_temp)), unit: "°C", bar: (n(C.ballon_temp) / at(C.ballon, "temperature")) * 100, foot: "eau au milieu du ballon" },
+      st(C.homepod) === "playing" && { ic: "speaker", c: "#8a5cf6", t: "HomePod salon", go: "maison", sub: "appareils", tag: "Lecture", live: true,
+        s: `${at(C.homepod, "media_title") || ""} · ${at(C.homepod, "media_artist") || ""}`, val: `${Math.round((at(C.homepod, "volume_level") || 0) * 100)}`, unit: "%", bar: (at(C.homepod, "volume_level") || 0) * 100, foot: "volume" },
     ].filter(Boolean);
     return `
       <div class="hero">
@@ -269,7 +272,7 @@
             <div><span style="--c:var(--green)">Revendu</span><b>${fr(j.exp, 1)} kWh</b><em>${fr((j.exp / j.prod) * 100)} %</em></div>
           </div>
         </div>
-        <div class="sec-h"><h2>Appareils actifs</h2><span>${devices.length} en marche</span></div>
+        ${sec("Appareils actifs", `${devices.length} en marche`)}
         <div class="devs">${devices.map((d) => { const vu = d.val != null ? [d.val, d.unit] : splitW(d.w); return `
           <button class="devx" data-go="${d.go}" ${d.sub ? `data-gosub="${d.sub}"` : ""} style="--c:${d.c}">
             <span class="dico">${ICONS[d.ic]}</span>
@@ -624,27 +627,6 @@ ${chargeStats()}
     return (P[k] || []).map((r) => r.split("-").map(hh).join("–")).join(", ");
   }
 
-  // ─── Économies de l'année (démo : plus tard, statistiques mensuelles du capteur d'économies)
-  const ECO_MOIS = [28, 36, 52, 61, 72, 78, 80, 74, 58, 44, 30, 24];
-  const ECO_MOIS_AVANT = [22, 30, 44, 55, 63, 70, 71, 66, 50, 38, 26, 20];
-  function economiesAnnee() {
-    const m = new Date().getMonth();
-    const cumul = ECO_MOIS.slice(0, m + 1).reduce((a, b) => a + b, 0);
-    const avant = ECO_MOIS_AVANT.slice(0, m + 1).reduce((a, b) => a + b, 0);
-    const evol = ((cumul - avant) / avant) * 100;
-    const max = Math.max(...ECO_MOIS);
-    return `<div class="card">
-      ${ch("euro", "#1f9d55", `Économies ${new Date().getFullYear()}`, "depuis le 1er janvier")}
-      <div class="kpi"><b style="color:var(--green)">${fr(cumul)} €</b><span class="u">économisés</span><span class="tag">${evol >= 0 ? "+" : ""}${fr(evol)} % vs ${new Date().getFullYear() - 1}</span></div>
-      <div class="ebars" role="img" aria-label="Économies par mois">${ECO_MOIS.map((v, i) => `
-        <div class="eb ${i === m ? "hi" : i > m ? "fut" : ""}" title="${MOIS_LONG[i]} : ${i > m ? "prévu" : ""} ${fr(v)} €"><i style="height:${(v / max) * 100}%"></i><span>${MOIS[i][0]}</span></div>`).join("")}</div>
-      <div class="sfoot">
-        <div><span>Ce mois-ci</span><b>${fr(ECO_MOIS[m])} €</b></div>
-        <div><span>Aujourd'hui</span><b>${fr(n(C.economies_jour_eur), 2)} €</b></div>
-      </div>
-    </div>`;
-  }
-
   // ─── Retour sur investissement solaire
   function roiCard() {
     const inv = C.solaire_investissement_eur, total = n(C.economies_total_eur);
@@ -657,7 +639,7 @@ ${chargeStats()}
     const p = clamp((total / inv) * 100, 0, 100);
     const mo = (d) => d.toLocaleDateString("fr-FR", { month: "short", year: "numeric" });
     return `<div class="card roi">
-      ${ch("sun", "#1f9d55", "Retour sur investissement", "installation solaire")}
+      ${ch("sun", "#1f9d55", "Retour sur investissement", "depuis la mise en service · toutes périodes")}
       <div class="roi-top">
         <div>${ring(p, `<span>${fr(p)}<small style="font-size:.75rem;font-weight:500"> %</small></span>`, "var(--green)")}</div>
         <div class="roi-main">
@@ -678,90 +660,182 @@ ${chargeStats()}
     </div>`;
   }
 
-  // ─── Analyse
+  // ─── Analyse : une seule période pilote toutes les cartes (sauf le retour sur investissement)
+  // Données de démo par « case » (2 h, jour ou mois). Plus tard : statistiques HA agrégées sur les mêmes cases.
+  const ECO_MOIS = [28, 36, 52, 61, 72, 78, 80, 74, 58, 44, 30, 24];
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+  const scaleTo = (arr, target) => { const t = sum(arr); return t > 0 ? arr.map((v) => (v * target) / t) : arr.map(() => 0); };
+  // Répartit chaque case : soleil direct, batterie, réseau (HP / HC / super creuses), injection, économies
+  function splitBuckets(prod, conso, plage) {
+    return prod.map((p, k) => {
+      const c = conso[k];
+      const direct = Math.min(p, c) * 0.72;
+      const bat = Math.min(c * 0.9 - direct, Math.max(0, p - direct) * 0.5 + c * 0.12);
+      const grid = Math.max(c * 0.06, c - direct - bat);
+      const inj = Math.max(0, p - direct - bat * 1.1);
+      const pl = plage(k);
+      return { p, c, direct, bat, grid, inj, hp: grid * pl.hp, hc: grid * pl.hc, hsc: grid * pl.hsc };
+    });
+  }
+  const MIX = { hp: 0.3, hc: 0.2, hsc: 0.5 };
+  function periodData(per) {
+    const now = new Date(), m = now.getMonth(), j = bilanJour();
+    let D;
+    if (per === "jour") {
+      const starts = Array.from({ length: 12 }, (_, k) => k * 2);
+      const done = Math.floor(now.getHours() / 2) + 1;
+      const shape = starts.map((h) => Math.exp(-((h + 1 - 13) ** 2) / (2 * 2.6 ** 2)));
+      const pastP = scaleTo(shape.slice(0, done), j.prod), futP = scaleTo(shape.slice(done), Math.max(0, n(C.prevision_jour_kwh) - j.prod));
+      const prod = pastP.concat(futP);
+      const conso = starts.map((h) => 0.6 + (h === 6 ? 1.2 : 0) + (h >= 8 && h <= 10 ? 2.3 : 0) + (h === 18 ? 1.6 : 0) + (h === 20 ? 1 : 0));
+      const plage = (k) => { const h = starts[k]; return h === 2 || h === 4 ? { hp: 0, hc: 0, hsc: 1 } : h === 0 ? { hp: 0, hc: 1, hsc: 0 } : h === 6 ? { hp: 0.5, hc: 0.5, hsc: 0 } : h === 22 ? { hp: 0.5, hc: 0.5, hsc: 0 } : { hp: 1, hc: 0, hsc: 0 }; };
+      const consoP = scaleTo(conso.slice(0, done), j.conso).concat(conso.slice(done));
+      D = { labels: starts.map((h) => `${h}h`), prod, conso: consoP, plage, done, hi: done - 1, cal: { grid: j.imp, inj: j.exp, bat: j.dch },
+        nom: "aujourd'hui", fin: "Fin de journée", avgU: "/h", avgDiv: Math.max(1, now.getHours() + now.getMinutes() / 60), cmp: "vs hier", evP: 8, evE: 5, ecoTarget: n(C.economies_jour_eur), imp: j.imp, exp: j.exp, dch: j.dch };
+    } else if (per === "semaine") {
+      const prod = [24.8, 30.2, 26.4, 34.8, 18.6, 31.0, j.prod];
+      D = { labels: prod.map((_, k) => (k === 6 ? "Auj." : dayName(6 - k))), prod, conso: [13.1, 22.4, 12.8, 15.3, 24.6, 16.2, j.conso], plage: () => MIX, done: 7, hi: 6,
+        nom: "cette semaine", fin: "Fin de semaine", avgU: "/jour", avgDiv: 7, cmp: "vs semaine dernière", evP: 14, evE: 16, ecoTarget: 16.8 };
+    } else if (per === "mois") {
+      const y = now.getFullYear(), today = now.getDate(), nb = new Date(y, m + 1, 0).getDate();
+      const base = [210, 290, 480, 620, 760, 820, 850, 780, 590, 420, 250, 190][m] / nb;
+      const prod = Array.from({ length: nb }, (_, k) => k + 1 === today ? j.prod : +(base * clamp(0.55 + 0.45 * Math.abs(Math.sin((k + 1) * 1.7 + m)) + (k % 7 === 3 ? -0.35 : 0), 0.25, 1.25)).toFixed(1));
+      const conso = Array.from({ length: nb }, (_, k) => k + 1 === today ? j.conso : +((CONSO_ANNEE[m] / nb) * (0.8 + 0.4 * Math.abs(Math.cos((k + 1) * 1.3)))).toFixed(1));
+      D = { labels: prod.map((_, k) => `${k + 1}`), prod, conso, plage: () => MIX, done: today, hi: today - 1, dense: true,
+        nom: `en ${MOIS_LONG[m]}`, fin: "Fin de mois", avgU: "/jour", avgDiv: today, cmp: "vs mois dernier à date", evP: 6, evE: 12, ecoTarget: (ECO_MOIS[m] * today) / nb };
+    } else {
+      D = { labels: MOIS.map((x) => x[0]), long: MOIS, prod: ANNEE, conso: CONSO_ANNEE, plage: () => MIX, done: m + 1, hi: m,
+        nom: `en ${now.getFullYear()}`, fin: "Fin d'année", avgU: "/mois", avgDiv: m + 1, cmp: `vs ${now.getFullYear() - 1} à date`, evP: 9, evE: 15, ecoTarget: sum(ECO_MOIS.slice(0, m + 1)) };
+    }
+    const B = splitBuckets(D.prod, D.conso, D.plage);
+    if (D.cal) {
+      const pastB = B.slice(0, D.done);
+      for (const k of ["grid", "inj", "bat"]) {
+        const t = sum(pastB.map((b) => b[k])) || 1, f = D.cal[k] / t;
+        pastB.forEach((b) => (b[k] = k === "grid" && t === 1 ? D.cal[k] / pastB.length : b[k] * f));
+      }
+      pastB.forEach((b, k) => {
+        const pl = D.plage(k);
+        b.direct = Math.max(0, b.c - b.bat - b.grid);
+        Object.assign(b, { hp: b.grid * pl.hp, hc: b.grid * pl.hc, hsc: b.grid * pl.hsc });
+      });
+    }
+    // Économies par case : proportionnelles à l'énergie solaire consommée, calées sur le total de la période
+    const ecoRaw = B.map((b, k) => (k < D.done ? (b.direct + b.bat) * 0.21 + b.inj * 0.06 : 0));
+    const eco = scaleTo(ecoRaw, D.ecoTarget).map((v, k) => (k < D.done ? v : ((B[k].direct + B[k].bat) * 0.21 + B[k].inj * 0.06) * (D.ecoTarget / Math.max(0.01, sum(ecoRaw)))));
+    const past = (arr) => arr.slice(0, D.done);
+    const col = (k) => B.map((b) => b[k]);
+    return { ...D, B, eco, col, past, sumPast: (k) => sum(past(col(k))) };
+  }
+
+  // Graphique en barres générique : cases passées, case en cours mise en avant, cases à venir hachurées, moyenne
+  function barsBlock(vals, D, { unit, dec = 1, color = "orange" }) {
+    const max = Math.max(...vals) || 1, many = vals.length > 8;
+    const pastVals = vals.slice(0, D.done), avg = sum(pastVals) / pastVals.length;
+    const best = pastVals.indexOf(Math.max(...pastVals));
+    return `<div class="bars ${D.dense ? "dense" : ""} c-${color}" style="grid-template-columns:repeat(${vals.length},1fr)">
+      <div class="avg" style="bottom:${20 + (avg / max) * 150}px"><span>moy. ${fr(avg, dec)}</span></div>
+      ${vals.map((v, i) => { const fut = i >= D.done, lab = !D.dense || i === 0 || (i + 1) % 5 === 0 || i === D.hi;
+        return `<div class="b ${i === D.hi ? "hi" : ""} ${fut ? "fut" : ""} ${i === best ? "best" : ""}" title="${D.long ? D.long[i] : D.labels[i]} : ${fr(v, dec)} ${unit}${fut ? " (prévu)" : ""}">${!many || i === D.hi ? `<span class="v">${fr(v, v < 100 ? dec : 0)}</span>` : ""}<i style="height:${(v / max) * 100}%"></i><span class="d">${lab ? D.labels[i] : "&nbsp;"}</span></div>`; }).join("")}
+    </div>
+    <div class="legend-m c-${color}"><span class="lm-past">${D.done < vals.length ? "Passé" : "Réel"}</span>${D.done < vals.length ? `<span class="lm-fut">Prévu</span>` : ""}<span class="lm-best">Record</span></div>`;
+  }
+  const evolTag = (v, D) => `<span class="tag">${v >= 0 ? "+" : ""}${fr(v)} % ${D.cmp}</span>`;
+
   let periode = "semaine";
   function pageAnalyse() {
-    const P = PERIODES[periode]();
-    const max = Math.max(...P.data);
-    const j = bilanJour();
-    const many = P.data.length > 8;
+    const D = periodData(periode);
+    const prodP = sum(D.past(D.prod)), prodAll = sum(D.prod);
+    const ecoP = sum(D.past(D.eco)), ecoAll = sum(D.eco);
+    const recP = Math.max(...D.past(D.prod)), recI = D.past(D.prod).indexOf(recP);
+    // Origine de l'énergie consommée sur la période
     const parts = [
-      { k: "Solaire direct", ic: "sun", v: j.solDirect, c: "#e8711a" },
-      { k: "Batterie", ic: "bat", v: j.dch, c: "#3a7bec" },
-      { k: "Réseau", ic: "grid", v: j.imp, c: "#1f9d55" },
+      { k: "Soleil direct", ic: "sun", v: D.sumPast("direct"), c: "#e8711a" },
+      { k: "Batterie", ic: "bat", v: D.sumPast("bat"), c: "#3a7bec" },
+      { k: "Réseau", ic: "grid", v: D.sumPast("grid"), c: "#1f9d55" },
     ];
-    const tot = parts.reduce((a, p) => a + p.v, 0);
-    // Anneau (donut) avec 2px d'écart entre les parts
+    const tot = sum(parts.map((x) => x.v)) || 1;
     let a0 = -Math.PI / 2;
     const R = 62, r = 34, cx = 75, cy = 75;
-    const arcs = parts.map((p) => {
-      const a1 = a0 + (p.v / tot) * 2 * Math.PI, gap = 0.03;
-      const s = a0 + gap / 2, e = a1 - gap / 2, large = e - s > Math.PI ? 1 : 0;
+    const arcs = parts.map((x) => {
+      const a1 = a0 + (x.v / tot) * 2 * Math.PI, gap = 0.03;
+      const s0 = a0 + gap / 2, e0 = a1 - gap / 2, large = e0 - s0 > Math.PI ? 1 : 0;
       const pt = (rad, ang) => `${cx + rad * Math.cos(ang)} ${cy + rad * Math.sin(ang)}`;
-      const mid = (s + e) / 2;
-      const out = `<path d="M${pt(R, s)} A${R} ${R} 0 ${large} 1 ${pt(R, e)} L${pt(r, e)} A${r} ${r} 0 ${large} 0 ${pt(r, s)} Z" fill="${p.c}"/>
-        ${p.v / tot > 0.08 ? `<text x="${cx + 48 * Math.cos(mid)}" y="${cy + 48 * Math.sin(mid)}">${fr((p.v / tot) * 100)} %</text>` : ""}`;
+      const mid = (s0 + e0) / 2;
+      const out = x.v / tot < 0.01 ? "" : `<path d="M${pt(R, s0)} A${R} ${R} 0 ${large} 1 ${pt(R, e0)} L${pt(r, e0)} A${r} ${r} 0 ${large} 0 ${pt(r, s0)} Z" fill="${x.c}"/>
+        ${x.v / tot > 0.08 ? `<text x="${cx + 48 * Math.cos(mid)}" y="${cy + 48 * Math.sin(mid)}">${fr((x.v / tot) * 100)} %</text>` : ""}`;
       a0 = a1;
       return out;
     }).join("");
+    const gHP = D.sumPast("hp"), gHC = D.sumPast("hc"), gHSC = D.sumPast("hsc");
+    // Courbe : uniquement les cases passées
+    const lab = D.past(D.long || D.labels);
+    const cP = D.past(D.prod), cC = D.past(D.conso), cI = D.past(D.col("inj"));
+    const sc = sum(cC), couv = sc > 0 ? ((sc - D.sumPast("grid")) / sc) * 100 : 0;
+    const dec = periode === "annee" ? 0 : 1;
     return `
       ${head("Production · économies · origine", "Analyse")}
+      <div class="per-bar"><div class="seg">${[["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["annee", "Année"]].map(([k, l]) => `<button class="${periode === k ? "on" : ""}" data-per="${k}">${l}</button>`).join("")}</div></div>
       <div class="wrap">
-        <div class="seg" style="margin-bottom:14px">${[["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["annee", "Année"]].map(([k, l]) => `<button class="${periode === k ? "on" : ""}" data-per="${k}">${l}</button>`).join("")}</div>
         <div class="card">
-          ${ch("sun", "#e8711a", "Production", P.titre.replace("kWh ", ""))}
-          <div class="kpi"><b>${fr(P.total, 1)}</b><span class="u">kWh</span>${P.evol != null ? `<span class="tag">+${P.evol} % ${P.evolTxt || "vs avant"}</span>` : ""}</div>
-          <div class="bars ${periode === "mois" ? "dense" : ""}" style="grid-template-columns:repeat(${P.data.length},1fr)">
-            ${P.avg ? `<div class="avg" style="bottom:${20 + (P.avg / max) * 150}px"><span>moy. ${fr(P.avg, 1)}</span></div>` : ""}
-            ${P.data.map((v, i) => { const fut = P.fut != null && i >= P.fut; const lab = periode !== "mois" || i === 0 || (i + 1) % 5 === 0 || i === P.hi;
-              return `<div class="b ${i === P.hi ? "hi" : ""} ${fut ? "fut" : ""} ${i === P.best ? "best" : ""}" title="${P.labels[i]}${periode === "mois" ? ` ${P.mName}` : ""} : ${fr(v, 1)} kWh${fut ? " (prévu)" : ""}">${!many || i === P.hi ? `<span class="v">${fr(v, v < 100 ? 1 : 0)}</span>` : ""}<i style="height:${(v / max) * 100}%"></i><span class="d">${lab ? P.labels[i] : "&nbsp;"}</span></div>`; }).join("")}
-          </div>
-          ${periode === "mois" ? `
-          <div class="legend-m"><span class="lm-past">Produit</span><span class="lm-fut">Prévu</span><span class="lm-best">Meilleur jour</span></div>
+          ${ch("sun", "#e8711a", "Production", D.nom)}
+          <div class="kpi"><b>${fr(prodP, prodP < 100 ? 1 : 0)}</b><span class="u">kWh</span>${evolTag(D.evP, D)}</div>
+          ${barsBlock(D.prod, D, { unit: "kWh" })}
           <div class="sfoot" style="grid-template-columns:repeat(3,1fr)">
-            <div><span>Record</span><b>${fr(P.data[P.best], 1)}</b><small class="muted"> le ${P.best + 1}</small></div>
-            <div><span>Moyenne</span><b>${fr(P.avg, 1)}</b><small class="muted"> /jour</small></div>
-            <div><span>Fin de mois</span><b>~${fr(P.proj)}</b><small class="muted"> kWh</small></div>
-          </div>` : ""}
+            <div><span>Record</span><b>${fr(recP, recP < 100 ? 1 : 0)}</b><small class="muted"> ${D.long ? D.long[recI].toLowerCase() : periode === "mois" ? `le ${recI + 1}` : D.labels[recI]}</small></div>
+            <div><span>Moyenne</span><b>${fr(prodP / D.avgDiv, 1)}</b><small class="muted"> ${D.avgU}</small></div>
+            ${D.done < D.prod.length ? `<div><span>${D.fin}</span><b>~${fr(prodAll, prodAll < 100 ? 1 : 0)}</b><small class="muted"> kWh</small></div>` : `<div><span>Jours &gt; moy.</span><b>${D.past(D.prod).filter((v) => v > prodP / D.past(D.prod).length).length}</b><small class="muted"> / ${D.done}</small></div>`}
+          </div>
         </div>
-${economiesAnnee()}
-${roiCard()}
+
+        <div class="card">
+          ${ch("euro", "#1f9d55", "Économies", D.nom)}
+          <div class="kpi"><b style="color:var(--green)">${fr(ecoP, ecoP < 100 ? 2 : 0)} €</b>${evolTag(D.evE, D)}</div>
+          ${barsBlock(D.eco, D, { unit: "€", dec: 2, color: "green" })}
+          <div class="sfoot">
+            <div><span>Moyenne</span><b>${fr(ecoP / D.avgDiv, 2)} €</b><small class="muted"> ${D.avgU}</small></div>
+            ${D.done < D.eco.length ? `<div><span>${D.fin}</span><b>~${fr(ecoAll, ecoAll < 100 ? 2 : 0)} €</b></div>` : `<div><span>Par kWh produit</span><b>${fr((ecoP / Math.max(1, prodP)) * 100, 1)}</b><small class="muted"> c€</small></div>`}
+          </div>
+        </div>
+
         <div class="card" style="overflow:hidden">
-          ${ch("leaf", "#1f9d55", "D'où vient ton énergie", "aujourd'hui")}
-          <div class="kpi" style="margin-bottom:10px"><b style="color:var(--txt);font-size:1.9rem">${fr(tot, 1)}</b><span class="u">kWh consommés</span></div>
+          ${ch("leaf", "#1f9d55", "D'où vient ton énergie", D.nom)}
+          <div class="kpi" style="margin-bottom:10px"><b style="color:var(--txt);font-size:1.9rem">${fr(tot, tot < 100 ? 1 : 0)}</b><span class="u">kWh consommés</span></div>
           <div class="donut-wrap">
-            <div class="lst">${parts.map((p) => `<div class="it">${chip(p.ic, p.c)}<div><span>${p.k} (${fr((p.v / tot) * 100)} %)</span><b>${fr(p.v, 1)} kWh</b></div></div>`).join("")}</div>
+            <div class="lst">${parts.map((x) => `<div class="it">${chip(x.ic, x.c)}<div><span>${x.k} (${fr((x.v / tot) * 100)} %)</span><b>${fr(x.v, x.v < 100 ? 1 : 0)} kWh</b></div></div>`).join("")}</div>
             <svg class="donut" viewBox="0 0 150 150" role="img" aria-label="Origine de l'énergie consommée">${arcs}</svg>
           </div>
-        </div>
-        ${(() => {
-          const m = new Date().getMonth();
-          const sp = ANNEE.reduce((a, b) => a + b, 0), sc = CONSO_ANNEE.reduce((a, b) => a + b, 0), si = INJ_ANNEE.reduce((a, b) => a + b, 0);
-          const couv = (ANNEE.reduce((a, v, i) => a + Math.min(v, CONSO_ANNEE[i]), 0) / sc) * 100;
-          return `<div class="card">
-          ${ch("chart", "#e8711a", "Production et consommation", `année ${new Date().getFullYear()}`)}
-          <div class="ylegend">
-            <div style="--c:var(--orange)"><span>Production</span><b>${fr(sp)} <small>kWh</small></b></div>
-            <div style="--c:var(--blue)"><span>Consommation</span><b>${fr(sc)} <small>kWh</small></b></div>
-            <div style="--c:var(--green)"><span>Injection</span><b>${fr(si)} <small>kWh</small></b></div>
-            <div><span>Couverture</span><b>${fr(couv)} <small>%</small></b></div>
+          <div class="grid-split">
+            <div class="eyebrow">Réseau par tarif</div>
+            <div class="gs-bar"><i style="flex:${gHP};background:#b8336a"></i><i style="flex:${gHC};background:#3a7bec"></i><i style="flex:${gHSC};background:#1f9d55"></i></div>
+            <div class="gs-leg">
+              <span style="--c:#b8336a">HP <b>${fr(gHP, gHP < 100 ? 1 : 0)} kWh</b> <em>${plagesTxt("hp")}</em></span>
+              <span style="--c:#3a7bec">HC <b>${fr(gHC, gHC < 100 ? 1 : 0)} kWh</b> <em>${plagesTxt("hc")}</em></span>
+              <span style="--c:#1f9d55">Super creuses <b>${fr(gHSC, gHSC < 100 ? 1 : 0)} kWh</b> <em>${plagesTxt("hsc")}</em></span>
+            </div>
           </div>
-          ${curve("annee", { labels: MOIS, series: [
-            { name: "Production", data: ANNEE, color: "#e8711a", fill: 0.2 },
-            { name: "Consommation", data: CONSO_ANNEE, color: "#3a7bec", fill: 0.06, detail: (i) => [
-              ["Soleil + batterie", CONSO_ANNEE[i] - RESEAU_ANNEE[i]],
-              [`Réseau HP <i>${plagesTxt("hp")}</i>`, PLAGES_ANNEE[i].hp],
-              [`Réseau HC <i>${plagesTxt("hc")}</i>`, PLAGES_ANNEE[i].hc],
-              [`Réseau super creuses <i>${plagesTxt("hsc")}</i>`, PLAGES_ANNEE[i].hsc],
+        </div>
+
+        <div class="card">
+          ${ch("chart", "#e8711a", "Production et consommation", `${D.nom} · kWh`)}
+          <div class="ylegend">
+            <div style="--c:var(--blue)"><span>Consommation</span><b>${fr(sc, dec)} <small>kWh</small></b></div>
+            <div style="--c:var(--green)"><span>Injection</span><b>${fr(sum(cI), dec)} <small>kWh</small></b></div>
+            <div><span>Autosuffisance</span><b>${fr(couv)} <small>%</small></b></div>
+          </div>
+          ${lab.length < 2 ? `<p class="muted small">Pas encore assez de données ${D.nom}.</p>` : curve(`pc-${periode}`, { labels: D.dense ? lab.map((l, k) => (k === 0 || (k + 1) % 5 === 0 ? l : "")) : lab, series: [
+            { name: "Production", data: cP, color: "#e8711a", fill: 0.2 },
+            { name: "Consommation", data: cC, color: "#3a7bec", fill: 0.06, detail: (k) => [
+              ["Soleil + batterie", D.B[k].direct + D.B[k].bat],
+              [`Réseau HP <i>${plagesTxt("hp")}</i>`, D.B[k].hp],
+              [`Réseau HC <i>${plagesTxt("hc")}</i>`, D.B[k].hc],
+              [`Réseau super creuses <i>${plagesTxt("hsc")}</i>`, D.B[k].hsc],
             ] },
-            { name: "Injection", data: INJ_ANNEE, color: "#1f9d55", fill: 0, dash: "4 4" },
-          ], unit: "kWh", hi: m })}
-          <div class="muted small" style="margin-top:8px">${ANNEE[m] >= CONSO_ANNEE[m]
-            ? `En ${MOIS_LONG[m]}, tu produis <b style="color:var(--txt)">${fr(ANNEE[m] - CONSO_ANNEE[m])} kWh de plus</b> que tu ne consommes.`
-            : `En ${MOIS_LONG[m]}, il manque <b style="color:var(--txt)">${fr(CONSO_ANNEE[m] - ANNEE[m])} kWh</b> de soleil pour couvrir ta consommation.`}</div>
-        </div>`;
-        })()}
-        <p class="demo-note">Les historiques de cette page sont des exemples en attendant Home Assistant.</p>
+            { name: "Injection", data: cI, color: "#1f9d55", fill: 0, dash: "4 4" },
+          ], unit: "kWh", dec, hi: lab.length - 1, tipLabels: lab.map((l) => (periode === "mois" ? `${l} ${MOIS_LONG[new Date().getMonth()]}` : l)) })}
+        </div>
+
+${roiCard()}
       </div>`;
   }
 
