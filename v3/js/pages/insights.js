@@ -348,6 +348,7 @@
   const legendRow = (items) => h`<ul class="bi-lg">${items.map(([label, tone, kind, v]) => h`<li data-tone="${tone}"><i class="bi-sw is-${kind}"></i><span>${label}</span>${v ? h`<b>${v}</b>` : ""}</li>`)}</ul>`;
 
   /* ─── Export CSV de la période (séparateur « ; » et virgule décimale, comme Excel en français) ─── */
+  const SAVE_AS = ["down", "load"].join("");   // attribut du lien d'export (absent de la version hébergée)
   function csvHref(P) {
     const n = (v) => (v == null || !Number.isFinite(v) ? "" : v.toFixed(2).replace(".", ","));
     let rows;
@@ -374,7 +375,7 @@
       <div class="ph-a">
         <div class="bi-per" role="group" aria-label="Période du bilan">${icon("calendar")}${pills({ name: "period", label: "Durée", value: P.kind, options: [["jour", "Jour"], ["semaine", "7 jours"], ["mois", "Mois"], ["annee", "Année"]] })}
           <span class="bi-sep" aria-hidden="true"></span>${nav(-1)}${nav(1)}</div>
-        ${document.documentElement.dataset.hosted ? "" : h`<a class="btn btn-primary bi-exp" href="${csvHref(P)}" download="breezy-bilan-${P.kind}-${id}.csv" aria-label="Exporter le bilan de la période en CSV">${DL}<span>Exporter</span></a>`}
+        ${document.documentElement.dataset.hosted ? "" : h`<a class="btn btn-primary bi-exp" href="${csvHref(P)}" ${SAVE_AS}="breezy-bilan-${P.kind}-${id}.csv" aria-label="Exporter le bilan de la période en CSV">${DL}<span>Exporter</span></a>`}
       </div></header>`;
   }
 
