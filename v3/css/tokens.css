@@ -1,0 +1,141 @@
+/* Breezy HEMS V3 — design tokens.
+   Direction : tableau de bord SaaS clair et aéré. Une application « posée » sur un fond gris,
+   barre latérale blanche, cartes blanches très douces, un seul accent (rose corail).
+   Les couleurs de données (soleil, batterie, réseau, VE…) restent sémantiques et ne servent
+   jamais de décoration. Aucun composant n'écrit de couleur en dur. */
+
+:root {
+  --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Typographie (px). Bumpée en 2K plus bas. */
+  --fs-11: 11px; --fs-12: 12px; --fs-13: 13px; --fs-14: 14px; --fs-15: 15px; --fs-16: 16px;
+  --fs-17: 17px; --fs-20: 20px; --fs-24: 24px; --fs-28: 28px; --fs-32: 32px; --fs-44: 44px;
+  --lh: 1.45; --lh-tight: 1.15;
+  --tr-display: -0.025em; --tr-title: -0.012em;
+
+  /* Espacements (grille de 4) */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-7: 28px; --s-8: 32px; --s-10: 40px;
+  --gap: 20px;          /* entre cartes */
+  --pad: 22px;          /* intérieur des cartes */
+  --page-x: 32px;       /* marges de page */
+
+  /* Rayons */
+  --r-xs: 6px; --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 24px; --r-pill: 999px;
+
+  /* Mouvement */
+  --ease: cubic-bezier(.22, .8, .24, 1);
+  --t-1: 120ms; --t-2: 200ms; --t-3: 320ms;
+
+  /* Coquille */
+  --side-w: 264px; --top-h: 76px; --frame: 16px;
+  --tap: 44px;
+}
+
+/* ─── Clair (par défaut, comme la maquette) ──────────────────────────── */
+:root, :root[data-theme="light"] {
+  color-scheme: light;
+  --canvas: #e9ebef;          /* fond derrière l'application */
+  --app: #ffffff;             /* cadre de l'application */
+  --bg: #f8f9fb;              /* zone de contenu */
+  --surface: #ffffff;         /* cartes */
+  --surface-2: #f4f5f7;       /* champs, pastilles inactives, en-têtes de tableau */
+  --surface-3: #eceef1;
+  --hover: #f6f7f9;
+  --border: #eceef2;
+  --border-2: #e2e5ea;
+  --text: #1a1c22;
+  --text-2: #5f6573;
+  --text-3: #9298a5;
+  --accent: #f0436b;          /* rose corail */
+  --accent-2: #e02f59;        /* survol / texte d'accent */
+  --accent-soft: #fdecf0;     /* fond d'élément actif */
+  --accent-wash: #fff5f7;     /* grandes surfaces teintées */
+  --on-accent: #ffffff;
+  --focus: #f0436b;
+  --shadow-card: 0 1px 2px rgba(20, 24, 36, .04), 0 2px 6px -2px rgba(20, 24, 36, .04);
+  --shadow-pop: 0 18px 48px -12px rgba(20, 24, 36, .22), 0 0 0 1px var(--border);
+  --shadow-app: 0 30px 80px -30px rgba(20, 24, 36, .28), 0 0 0 1px rgba(20, 24, 36, .04);
+  --shadow-accent: 0 8px 20px -8px rgba(240, 67, 107, .55);
+
+  /* Couleurs de données (validées : contraste ≥ 3:1 sur blanc, séparables en daltonisme) */
+  --solar: #d9861c;   --solar-t: #a86010;   --solar-s: #fdf3e4;
+  --battery: #3b82f6; --battery-t: #2563c9; --battery-s: #e9f1fe;
+  --grid: #18a06a;    --grid-t: #13804f;    --grid-s: #e6f6ee;
+  --ev: #a855c7;      --ev-t: #8a3aa8;      --ev-s: #f5ebfa;
+  --heat: #e0663a;    --heat-t: #b8471e;    --heat-s: #fdeee7;
+  --light: #e3a512;   --light-t: #946a00;   --light-s: #fdf6de;
+  --good: #16a061;    --good-t: #128050;    --good-s: #e7f6ee;
+  --warn: #e29a14;    --warn-t: #a86d00;    --warn-s: #fdf3df;
+  --bad: #e5484d;     --bad-t: #c9343a;     --bad-s: #fdecec;
+  --hp: #e5566f; --hc: #6f7cf0; --hsc: #14a597;
+  --neutral-s: #f1f2f5;
+}
+
+/* ─── Sombre ─────────────────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #060708;
+  --app: #0e0f12;
+  --bg: #121317;
+  --surface: #17191d;
+  --surface-2: #1e2025;
+  --surface-3: #272a30;
+  --hover: #1c1e23;
+  --border: rgba(255, 255, 255, .07);
+  --border-2: rgba(255, 255, 255, .11);
+  --text: #f2f3f5;
+  --text-2: #a7acb7;
+  --text-3: #6e7380;
+  --accent: #ff5a80;
+  --accent-2: #ff7896;
+  --accent-soft: rgba(255, 90, 128, .14);
+  --accent-wash: rgba(255, 90, 128, .07);
+  --on-accent: #ffffff;
+  --focus: #ff7896;
+  --shadow-card: 0 0 0 1px var(--border);
+  --shadow-pop: 0 24px 60px -16px rgba(0, 0, 0, .7), 0 0 0 1px var(--border-2);
+  --shadow-app: 0 0 0 1px rgba(255, 255, 255, .05), 0 40px 90px -30px rgba(0, 0, 0, .8);
+  --shadow-accent: 0 8px 22px -10px rgba(255, 90, 128, .6);
+  --solar: #e39a3b;   --solar-t: #f0b45f;   --solar-s: rgba(227, 154, 59, .14);
+  --battery: #5b9bf8; --battery-t: #8ab8fb; --battery-s: rgba(91, 155, 248, .14);
+  --grid: #2dbb7f;    --grid-t: #5fd3a0;    --grid-s: rgba(45, 187, 127, .14);
+  --ev: #c07ae0;      --ev-t: #d7a3ee;      --ev-s: rgba(192, 122, 224, .15);
+  --heat: #ef8257;    --heat-t: #f5a585;    --heat-s: rgba(239, 130, 87, .15);
+  --light: #edbb3a;   --light-t: #f4cf6c;   --light-s: rgba(237, 187, 58, .14);
+  --good: #32c483;    --good-t: #5fd6a1;    --good-s: rgba(50, 196, 131, .14);
+  --warn: #efb13b;    --warn-t: #f4c76c;    --warn-s: rgba(239, 177, 59, .14);
+  --bad: #f2676b;     --bad-t: #f68f92;     --bad-s: rgba(242, 103, 107, .14);
+  --hp: #ef6f86; --hc: #8d97f5; --hsc: #2fbfb0;
+  --neutral-s: rgba(255, 255, 255, .06);
+}
+
+/* Une teinte de données par composant : data-tone fixe --c (trait), --c-t (texte), --c-s (fond doux) */
+[data-tone="accent"] { --c: var(--accent); --c-t: var(--accent-2); --c-s: var(--accent-soft); }
+[data-tone="solar"] { --c: var(--solar); --c-t: var(--solar-t); --c-s: var(--solar-s); }
+[data-tone="battery"] { --c: var(--battery); --c-t: var(--battery-t); --c-s: var(--battery-s); }
+[data-tone="grid"] { --c: var(--grid); --c-t: var(--grid-t); --c-s: var(--grid-s); }
+[data-tone="ev"] { --c: var(--ev); --c-t: var(--ev-t); --c-s: var(--ev-s); }
+[data-tone="heat"] { --c: var(--heat); --c-t: var(--heat-t); --c-s: var(--heat-s); }
+[data-tone="light"] { --c: var(--light); --c-t: var(--light-t); --c-s: var(--light-s); }
+[data-tone="good"] { --c: var(--good); --c-t: var(--good-t); --c-s: var(--good-s); }
+[data-tone="warn"] { --c: var(--warn); --c-t: var(--warn-t); --c-s: var(--warn-s); }
+[data-tone="bad"] { --c: var(--bad); --c-t: var(--bad-t); --c-s: var(--bad-s); }
+[data-tone="hp"] { --c: var(--hp); --c-t: var(--hp); --c-s: color-mix(in srgb, var(--hp) 13%, transparent); }
+[data-tone="hc"] { --c: var(--hc); --c-t: var(--hc); --c-s: color-mix(in srgb, var(--hc) 13%, transparent); }
+[data-tone="hsc"] { --c: var(--hsc); --c-t: var(--hsc); --c-s: color-mix(in srgb, var(--hsc) 13%, transparent); }
+[data-tone="neutral"] { --c: var(--text-3); --c-t: var(--text-2); --c-s: var(--neutral-s); }
+[data-tariff="hp"] { --c: var(--hp); } [data-tariff="hc"] { --c: var(--hc); } [data-tariff="hsc"] { --c: var(--hsc); }
+
+/* ─── Échelle par écran ──────────────────────────────────────────────── */
+@media (max-width: 767px) { :root { --gap: 14px; --pad: 18px; --page-x: 16px; --frame: 0px; } }
+@media (min-width: 768px) and (max-width: 1199px) { :root { --gap: 16px; --page-x: 24px; --frame: 0px; } }
+@media (min-width: 1200px) and (max-height: 900px) { :root { --gap: 16px; --pad: 18px; --page-x: 28px; --top-h: 68px; --frame: 12px; } }
+/* 2K et plus : tout grandit d'environ 12 % pour garder la même densité visuelle */
+@media (min-width: 2200px) {
+  :root {
+    --fs-11: 12px; --fs-12: 13.5px; --fs-13: 14.5px; --fs-14: 15.5px; --fs-15: 16.5px; --fs-16: 18px;
+    --fs-17: 19px; --fs-20: 22px; --fs-24: 27px; --fs-28: 31px; --fs-32: 36px; --fs-44: 50px;
+    --gap: 24px; --pad: 26px; --page-x: 40px; --side-w: 296px; --top-h: 84px; --frame: 20px;
+    --r-lg: 18px; --r-xl: 28px;
+  }
+}

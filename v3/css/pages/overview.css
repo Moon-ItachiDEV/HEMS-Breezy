@@ -1,0 +1,87 @@
+/* Aperçu (V3) — grille de la maquette : ⅔ (tableau, puis 2 cartes) | ⅓ (programme, répartition, rentabilité) */
+
+.o-grid { grid-template-columns: minmax(0, 1fr); }
+.o-pair { display: grid; gap: var(--gap); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1000px) { .o-pair { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); } }
+@media (min-width: 640px) and (max-width: 1199px) {
+  .o-r { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .o-r > .o-roi { grid-column: 1 / -1; }
+}
+@media (min-width: 1200px) { .o-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); } }
+
+/* Tableau des appareils : les filtres passent sous le titre quand la carte est étroite */
+.o-dev .card-h { flex-wrap: wrap; row-gap: var(--s-3); }
+.o-dev .card-a { gap: var(--s-5); }
+@media (max-width: 1399px) { .o-dev .card-a { width: 100%; justify-content: space-between; } }
+@media (max-width: 767px) {
+  .o-dev .pills { overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--pad)); padding: 0 var(--pad); }
+  .o-dev .card-a .more { display: none; }
+  .o-dev .dt th:nth-child(2), .o-dev .dt td:nth-child(2), .o-dev .dt th:nth-child(4), .o-dev .dt td:nth-child(4) { display: none; }
+  .o-dev .dt-main small { max-width: 22ch; }
+}
+@media (min-width: 768px) and (max-width: 1199px) { .o-dev .dt th:nth-child(2), .o-dev .dt td:nth-child(2) { display: none; } }
+.o-dev .dt td .icon-btn { width: 34px; height: 34px; margin-right: -8px; }
+
+/* Répartition : anneau + légende côte à côte */
+.mixr { display: flex; align-items: center; gap: var(--s-6); }
+@media (min-width: 1200px) and (max-width: 1499px) { .mixr { gap: var(--s-4); } .mixr .donut { --s: 112px !important; } }
+
+/* Raccourcis */
+.o-ql .qlinks { grid-auto-rows: minmax(64px, 1fr); }
+
+/* Carte rentabilité (emplacement « Stay on track » de la maquette) */
+.o-roi { overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) 120px; grid-template-rows: 1fr auto; gap: var(--s-3) var(--s-2);
+  background: linear-gradient(135deg, var(--accent-wash), color-mix(in srgb, var(--accent) 12%, var(--surface)) 120%); border-color: color-mix(in srgb, var(--accent) 14%, var(--border)); }
+.o-roi-t { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); min-width: 0; }
+.o-roi-t h3 { font-size: var(--fs-17); font-weight: 600; letter-spacing: var(--tr-title); line-height: 1.3; }
+.o-roi-t p { font-size: var(--fs-13); color: var(--text-2); line-height: 1.45; }
+.o-roi-t .btn { margin-top: var(--s-2); }
+.o-roi-art { width: 100%; height: auto; align-self: center; overflow: visible; }
+.o-roi-m { grid-column: 1 / -1; }
+.art-sun { fill: var(--solar); opacity: .9; }
+.art-rays { stroke: var(--solar); stroke-width: 2.4; stroke-linecap: round; opacity: .7; }
+.art-panel { fill: color-mix(in srgb, var(--battery) 22%, var(--surface)); stroke: var(--battery); stroke-width: 2; stroke-linejoin: round; }
+.art-grid { stroke: var(--battery); stroke-width: 1.4; opacity: .55; fill: none; }
+.art-leg { stroke: var(--text-3); stroke-width: 2.4; stroke-linecap: round; fill: none; }
+.art-badge { fill: var(--accent); filter: drop-shadow(0 6px 10px rgba(240, 67, 107, .45)); }
+.art-check { stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+
+/* ─── Bureau « une page » : les colonnes se partagent la hauteur ─────── */
+@media (min-width: 1200px) and (min-height: 820px) {
+  .fit .o-grid { grid-template-rows: minmax(0, 1fr); }
+  .fit .o-l > .o-dev { flex: 1 1 0; }
+  .fit .o-l > .o-pair { flex: 0 0 auto; }
+  .fit .o-r > .o-sch { flex: 1 1 0; }
+  .fit .o-r > .o-mix, .fit .o-r > .o-roi { flex: 0 0 auto; }
+  .fit .o-sch .sched { overflow-y: auto; min-height: 0; scrollbar-width: none; }
+}
+/* Écran peu haut (1080p avec la barre du navigateur ≈ 945 px) : on resserre les cartes basses */
+@media (min-width: 1200px) and (max-height: 1000px) {
+  .o-l, .o-r { gap: var(--s-4); }
+  .o-pair { gap: var(--s-4); }
+  .o-pair .card, .o-mix, .o-roi, .o-sch { gap: var(--s-3); }
+  .o-eq .plist-r { padding: 7px 0; grid-template-columns: auto minmax(0, 1fr) auto minmax(70px, 96px); }
+  .o-eq .plist-r small { display: none; }
+  .o-eq .dt-ic { width: 30px; height: 30px; border-radius: 9px; }
+  .o-ql .qlinks { grid-auto-rows: minmax(44px, 1fr); gap: var(--s-2); }
+  .qlink { min-height: 44px; padding: 6px var(--s-3); }
+  .qlink .dt-ic { width: 30px; height: 30px; border-radius: 9px; }
+  .qlink .dt-ic .ic { width: 16px; height: 16px; }
+  .o-roi-t p { display: none; }
+  .o-roi { grid-template-columns: minmax(0, 1fr) 88px; padding-block: var(--s-4); }
+  .mixr .donut { --s: 104px !important; }
+  .keys { gap: 6px; }
+  .keys li.keys-t { padding-top: 6px; }
+  .o-dev .dt th { height: 38px; }
+  .o-dev .dt td { height: 52px; }
+  .o-dev .dt-ic { width: 30px; height: 30px; border-radius: 9px; }
+  .sched li { padding: 5px 0; }
+}
+/* La liste défile dans sa carte : un fondu indique la suite */
+@media (min-width: 1200px) and (min-height: 820px) {
+  .fit .o-dev .dt-wrap { -webkit-mask-image: linear-gradient(#000 calc(100% - 28px), transparent); mask-image: linear-gradient(#000 calc(100% - 28px), transparent); padding-bottom: 12px; }
+}
+@media (max-width: 767px) {
+  .o-eq .plist-r { grid-template-columns: auto minmax(0, 1fr) 72px; }
+  .o-eq .plist-r > .pill { display: none; }
+}
