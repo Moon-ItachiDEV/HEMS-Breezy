@@ -49,7 +49,7 @@
 
 .bi-chart-w { flex: 1; min-height: 240px; display: flex; flex-direction: column; }
 .bi-chart { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 0; border-radius: var(--r-sm); outline-offset: 4px; }
-.bi-plot { position: relative; flex: 1; min-height: 0; }
+.bi-plot { position: relative; flex: 1; min-height: 0; margin-top: 12px; }
 .bi-plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; display: block; }
 .bi-ax { position: relative; flex: none; height: 24px; }
 .bi-ax .ax { line-height: 22px; }
@@ -175,6 +175,23 @@
   .fit .bi-org .bi-mixr { flex: 1; min-height: 0; }
   .fit .bi-best { overflow-y: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(#000 calc(100% - 22px), transparent); mask-image: linear-gradient(#000 calc(100% - 22px), transparent); padding-bottom: 10px; }
 }
+/* 1080p plein écran (indicateurs encore « hauts ») : on resserre le tableau et l'anneau */
+@media (min-width: 1200px) and (min-height: 1001px) and (max-height: 1199px) {
+  .bi-l, .bi-r, .bi-pair { gap: var(--s-4); }
+  .bi-main, .bi-pair .card, .bi-org, .bi-roi { gap: var(--s-3); }
+  .bi-cmp .dt th { height: 34px; }
+  .bi-cmp .dt td { height: 40px; }
+  .bi-best .plist-r { padding: 6px 0; }
+  .bi-mixr .donut { --s: 112px !important; }
+  .bi-keys { gap: 10px; }
+  .bi-tar { padding-top: var(--s-3); gap: 10px; }
+  .bi-tl { gap: 6px; }
+}
+/* 2K : il y a la place pour le classement complet, c'est lui qui fixe la hauteur de la paire */
+@media (min-width: 1200px) and (min-height: 1200px) {
+  .fit .bi-top { contain: none; }
+  .fit .bi-best { -webkit-mask-image: none; mask-image: none; padding-bottom: 0; }
+}
 /* Écran peu haut (1080p avec la barre du navigateur ≈ 945 px) : on resserre */
 @media (min-width: 1200px) and (max-height: 1000px) {
   .bi-l, .bi-r, .bi-pair { gap: var(--s-4); }
@@ -196,6 +213,7 @@
   .bi-roi-kv > div { padding: 6px var(--s-3); }
   .bi-roi-kv b { font-size: var(--fs-16); }
   .bi-chart-w { min-height: 0; }
+  .bi-plot { margin-top: 8px; }
 }
 /* Largeur bureau étroite (1200–1499) : colonnes plus serrées */
 @media (min-width: 1200px) and (max-width: 1499px) {
@@ -221,9 +239,28 @@
   .bi-pair { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
   .bi-kpis .kpi-vs { display: none; }
   .bi-cmp .dt th:nth-child(3), .bi-cmp .dt td:nth-child(3) { display: none; }
+  .bi-pair > .card { --pad: 14px; }
+  .bi-main .card-h { row-gap: var(--s-2); }
+  .bi-main .card-a { flex-basis: 100%; margin-left: 0; justify-content: flex-start; }
+  .bi-lg { justify-content: flex-start; }
+  .bi-lg b { display: none; }
+  .bi-cmp .dt th, .bi-cmp .dt td { padding: 0 5px; }
+  .bi-cmp .delta { padding: 0 5px; }
 }
+/* … et la mini-courbe des indicateurs passe à droite de la variation, sous la valeur */
+@media (min-width: 1200px) and (max-width: 1349px) and (max-height: 1000px) {
+  .bi-kpis .kpi-v { grid-column: 2 / -1; }
+  .bi-kpis .kpi-s { grid-column: 2 / -1; grid-row: 3; justify-self: end; align-self: end; width: 68px; height: 24px; margin-left: 0; }
+  .bi-kpis .kpi-s .spark { height: 24px; }
+}
+@container (max-width: 250px) { .bi-top .card-i { display: none; } }
+/* 2K : le tableau occupe toute la hauteur de sa carte (lignes un peu plus aérées) */
+@media (min-width: 1200px) and (min-height: 1200px) { .fit .bi-cmp .dt-wrap { display: flex; flex-direction: column; } .fit .bi-cmp .dt { flex: 1 0 auto; } }
+/* Dès 880 px de haut, la paire du bas garde sa hauteur : c'est le graphique qui cède */
+@media (min-width: 1200px) and (min-height: 880px) { .fit .bi-l > .bi-pair { flex-shrink: 0; } }
 /* Bureau très bas (≈ 820 px) : la légende des tarifs cède sa place au graphique (l'infobulle nomme le tarif) */
 @media (min-width: 1200px) and (min-height: 820px) and (max-height: 879px) {
+  .fit .bi-cmp .dt-wrap { -webkit-mask-image: linear-gradient(#000 calc(100% - 22px), transparent); mask-image: linear-gradient(#000 calc(100% - 22px), transparent); padding-bottom: 10px; }
   .fit .bi-main .bi-tk, .fit .bi-tl, .fit .bi-roi-ax { display: none; }
   .fit .bi-mixr .donut { --s: 92px !important; }
   .fit .bi-mixr .donut-c b { font-size: var(--fs-17); }
