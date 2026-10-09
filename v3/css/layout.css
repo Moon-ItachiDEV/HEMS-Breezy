@@ -69,6 +69,9 @@
 /* Barre du haut mobile : marque + actions, en verre */
 @media (max-width: 767px) {
   .top { height: calc(60px + env(safe-area-inset-top, 0px)); padding-top: env(safe-area-inset-top, 0px); top: 0; }
+  /* Focus clavier et défilements « jusqu'à » : l'élément s'arrête entre la barre collante du haut (60 px) et le dock
+     (12 + 64 px), avec 8 px d'air, même s'il était déjà à l'écran mais caché par l'une ou l'autre */
+  html { scroll-padding: calc(68px + env(safe-area-inset-top, 0px)) 0 calc(84px + env(safe-area-inset-bottom, 0px)); }
   .top-brand .brand-m { width: 32px; height: 32px; border-radius: 10px; }
   .top-brand .brand-m .ic { width: 18px; height: 18px; }
   .top-brand .brand-t { font-size: var(--fs-17); }

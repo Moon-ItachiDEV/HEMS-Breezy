@@ -266,7 +266,8 @@
   document.addEventListener("click", (e) => {
     // Liens internes « #/page » : navigation gérée ici
     const a = e.target.closest('a[href^="#/"]');
-    if (a && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); go(a.getAttribute("href").slice(2)); return; }
+    // data-spot : une fois sur la page, on va jusqu'à la carte visée (pastilles de la maison de l'Aperçu)
+    if (a && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); go(a.getAttribute("href").slice(2)); if (a.dataset.spot) A.spot({ spot: a.dataset.spot }); return; }
     const el = e.target.closest("[data-act]");
     // Clic hors d'un menu ouvert : on le ferme
     if (BZ.ui.pop && !e.target.closest(".pop, [data-act=pop]")) { BZ.ui.pop = null; render(); }

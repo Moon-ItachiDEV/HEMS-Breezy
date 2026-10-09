@@ -8,8 +8,9 @@
 @media (max-width: 767px) and (min-height: 501px), (max-width: 767px) and (orientation: portrait) {
   .hh { display: block; }
   .en-flow { display: none; }
-  /* La maison dit déjà ce que disait la phrase d'en-tête : on garde la place pour les indicateurs */
-  .ph:has(+ .hh) .ph-sub { display: none; }
+  /* La maison dit déjà ce que disait la phrase d'en-tête : on garde la place pour les indicateurs
+     (Énergie : la maison suit l'en-tête ; Aperçu : elle est dans l'en-tête, sous la salutation) */
+  .ph:has(+ .hh) .ph-sub, .ph:has(> .hh) .ph-sub { display: none; }
 }
 /* L'entrée en cascade de la page garde ses délais quand la maison est masquée (tablette, bureau) */
 .view.is-enter > .hh + * { animation-delay: 30ms; }
@@ -337,3 +338,73 @@
 @media (prefers-reduced-motion: reduce) { .hh-ping { animation: none; } }
 /* Hors de l'écran ou onglet caché : fumée et pastille figées (data-run, voir house.js) */
 .hh[data-run="0"] .hh-smoke ellipse, .hh[data-run="0"] .hh-ping { animation-play-state: paused; }
+
+/* ─── Version compacte : haut de l'Aperçu ──────────────────────────────
+   Même dessin vu d'un peu plus loin (cadrage FRAMES.compact de house.js : x −28 → 388, y 26 → 284), cinq
+   pastilles plus menues dans les coins, l'étiquette « En direct » posée sur le dessin : la maison vit au-dessus
+   du sélecteur de jour, elle ne suit pas la journée choisie, et les indicateurs restent visibles sous elle.
+   Toute la carte mène à la page Énergie. La carte coupe net ce qui dépasse, sans jamais défiler (clip). */
+.hh.is-compact { flex: 1 1 100%; margin: 0; overflow: clip; transition: scale var(--t-2) var(--ease); }
+/* Le dessin laisse passer les touchers jusqu'au lien de la carte (seules les pastilles les gardent) */
+.hh.is-compact .hh-stage { aspect-ratio: 416 / 258; max-width: 460px; pointer-events: none; }
+/* La ligne publique s'arrête 3 unités avant le bord gauche du dessin : avec la marge du cadrage, elle s'efface avant.
+   En bas, l'ombre floue de l'îlot dépasse le cadrage : elle s'évanouit sous le pied de l'îlot (y 262) au lieu d'être coupée. */
+.hh.is-compact .hh-scene {
+  -webkit-mask-image: linear-gradient(90deg, transparent 6.3%, #000 10.5%), linear-gradient(180deg, #000 91.5%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent 6.3%, #000 10.5%), linear-gradient(180deg, #000 91.5%, transparent);
+  mask-composite: intersect; }
+/* Soleil et lune : sous la rangée du haut quelle que soit la largeur (pastilles de 39 px à 8 px du bord, 8 px d'air,
+   puis le rayon), et à droite de la cime de l'arbre */
+.hh.is-compact .hh-sun, .hh.is-compact .hh-moon { left: 88%; top: max(28.5%, 70px); }
+/* Rangées en trois colonnes : la pastille Maison et l'étiquette « En direct » sur l'axe de la carte (comme la phrase) ;
+   l'axe ne se décale que si une pastille latérale est vraiment trop large pour sa moitié */
+.hh.is-compact .hh-row { left: 10px; right: 10px; display: grid; grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); }
+.hh.is-compact .hh-row > :first-child { justify-self: start; }
+.hh.is-compact .hh-row > :nth-child(2) { justify-self: center; }
+.hh.is-compact .hh-row > :last-child { justify-self: end; }
+.hh.is-compact .hh-row.is-top { top: 8px; }
+.hh.is-compact .hh-row.is-bot { top: auto; bottom: 8px; align-items: center; }
+.hh.is-compact .hh-chip { min-height: 0; padding: 4px 9px 5px 8px; border-radius: 12px; }
+.hh.is-compact .hh-cl { line-height: 1.25; }
+.hh.is-compact .hh-cv { font-size: var(--fs-13); line-height: 1.2; }
+/* Scène étroite (téléphones de 360 px et moins) : pastilles, écarts et étiquette resserrés, pour que « Débranchée »
+   ou « Équilibre » tiennent dans leur moitié de rangée sans décaler l'axe */
+@container hhs (max-width: 339px) {
+  .hh.is-compact .hh-chip { padding: 4px 8px 5px 7px; }
+  .hh.is-compact .hh-row { column-gap: 6px; }
+  .hh.is-compact .hh-live { gap: 5px; padding: 0 8px 0 7px; }
+}
+/* Lien de la carte : exactement la carte (dessin et phrase), sous les pastilles (atteint au clavier depuis le bas,
+   il s'arrête sous la barre du haut : scroll-padding de layout.css) */
+.hh-go { position: absolute; inset: 0; border-radius: inherit; outline: none; -webkit-tap-highlight-color: transparent; }
+.hh.is-compact:has(.hh-go:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+.hh.is-compact:has(.hh-go:active) { scale: .985; }
+/* « En direct » : verre dépoli comme les pastilles, point corail qui pulse */
+.hh-live { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 9px; border-radius: var(--r-pill);
+  font-size: var(--fs-11); font-weight: 650; letter-spacing: .01em; line-height: 1; white-space: nowrap; color: #b81c45;
+  background: var(--hh-chip); -webkit-backdrop-filter: blur(14px) saturate(1.7); backdrop-filter: blur(14px) saturate(1.7);
+  box-shadow: inset 0 0 0 1px var(--hh-chip-b), var(--hh-chip-sh); }
+.hh-live .hh-ping { --c: var(--accent); width: 6px; height: 6px; margin: 0; }
+.hh.is-compact .hh-bush-f { display: none; }   /* pas de buisson qui dépasse au bord de l'étiquette */
+:root[data-theme="dark"] .hh-live { color: #ffa3b8; }
+/* Aucune mesure en direct (« Mesures en attente ») : l'étiquette se met en veille, point gris immobile */
+.hh.is-compact .hh-live.is-idle { color: var(--text-3); }
+.hh.is-compact .hh-live.is-idle .hh-ping { --c: var(--text-3); animation: none; }
+/* Phrase sous le dessin : d'où vient l'énergie en ce moment, centrée sous l'étiquette */
+.hh.is-compact .hh-sum { max-width: none; padding: 2px 14px 12px; }
+.hh.is-compact .hh-now { justify-content: center; text-align: center; }
+/* Carte de 320 px : la phrase la plus longue (« Tout vient de la batterie · 100 % autonome ») tient sur une ligne */
+@container hh (max-width: 300px) { .hh.is-compact .hh-sum { padding-inline: 10px; } .hh.is-compact .hh-now { font-size: var(--fs-12); } }
+/* Espacements de l'en-tête : le sélecteur de jour se range avec les indicateurs qu'il pilote (12 px), loin de la
+   maison en direct (20 px) ; téléphone court tenu droit (SE, 360 × 640) : même partage dans le budget serré (14 / 10),
+   pour que la première rangée d'indicateurs passe au-dessus du dock */
+@media (max-width: 767px) and (min-height: 501px), (max-width: 767px) and (orientation: portrait) {
+  .ph > .hh.is-compact { margin-bottom: 8px; }
+  .ph:has(> .hh) { margin-bottom: 12px; }
+}
+@media (max-width: 767px) and (max-height: 700px) and (orientation: portrait) {
+  .hh.is-compact .hh-sum { padding-bottom: 9px; }
+  .ph > .hh.is-compact { margin-bottom: 2px; }
+  .ph:has(> .hh) { margin-bottom: 10px; }
+}

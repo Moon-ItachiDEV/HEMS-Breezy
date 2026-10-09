@@ -7,7 +7,7 @@
   const BZ = window.BZ;
   const { h, esc, fmt, icon, val, card, pill, kpi, btn, meter, ring, stepper, C, num } = BZ;
 
-  const PACK_KWH = 2.88;   // capacité nominale d'un pack Zendure AB3000
+  const PACK_KWH = 2.88;   // capacité nominale d'un pack de la batterie
   // Puissance maximale de chaque onduleur, lue dans son nom (« Izy 2 000 W »)
   const caps = () => C.onduleurs_noms.map((n, i) => parseInt(String(n).replace(/\D/g, ""), 10) || [2000, 2000, 1000][i] || 1000);
   const nowH = () => { const d = new Date(); return d.getHours() + d.getMinutes() / 60; };

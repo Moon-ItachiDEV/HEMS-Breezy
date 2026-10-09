@@ -1,4 +1,5 @@
-// Breezy HEMS V3 — « Ta maison en direct » : le héros mobile de la page Énergie.
+// Breezy HEMS V3 — « Ta maison en direct » : le héros mobile de la page Énergie, et sa version compacte en haut
+// de l'Aperçu (BZ.house({ compact: true }) : même dessin et mêmes flux, cadrés plus serré, cinq pastilles).
 // Une maquette isométrique façon argile : panneaux sur le toit, batterie dans le jardin, e-Niro sous l'abri
 // vitré avec sa borne, poteau et ligne du réseau, ballon d'eau chaude derrière la fenêtre, poêle qui fume.
 // Comme le schéma « Flux en direct », tout passe par un nœud central : le coffret électrique (onduleurs et
@@ -364,8 +365,8 @@
     o.push(box("hh-ins", [1.33, INS[1] - 0.07, 7.58], [1.47, INS[1] + 0.07, 7.84]), box("hh-ins", [1.33, INS2[1] - 0.07, 7.58], [1.47, INS2[1] + 0.07, 7.84]), "</g>");
     o.push(`<path class="hh-wire" d="${poly([...wireIn, ...drop.slice(1)])}"/>`);
 
-    /* Buissons du premier plan */
-    o.push([[5.2, 13.4, 0.5], [5.85, 13.95, 0.36], [20.55, 12.6, 0.42], [20.3, 13.45, 0.3]].map(([x, y, rr]) => { const c = P(x, y, rr * 0.9); return `<circle class="hh-bush" cx="${r1(c[0])}" cy="${r1(c[1])}" r="${r1(rr * K)}"/>`; }).join(""));
+    /* Buissons du premier plan (ceux du coin avant, hh-bush-f, cèdent la place à l'étiquette « En direct » de l'Aperçu) */
+    o.push([[5.2, 13.4, 0.5], [5.85, 13.95, 0.36], [20.55, 12.6, 0.42], [20.3, 13.45, 0.3]].map(([x, y, rr]) => { const c = P(x, y, rr * 0.9); return `<circle class="hh-bush${x > 20 ? " hh-bush-f" : ""}" cx="${r1(c[0])}" cy="${r1(c[1])}" r="${r1(rr * K)}"/>`; }).join(""));
 
     ART = {
       // Contenu du SVG du décor : injecté une fois après le rendu (voir after()), jamais recomparé par BZ.morph
@@ -463,18 +464,21 @@
     const who = !known ? "Mesures en attente" : rest ? "Consommation au repos" : `${fed[main] / tot > 0.95 ? "Tout vient" : "Surtout"} ${FROM[main]}`;
     const tone = !has(S.auto) ? "neutral" : S.auto > 0.95 ? "good" : S.auto > 0.5 ? "warn" : "bad";
     const grid = !has(L.grid) ? "réseau sans mesure" : L.grid < -IDLE ? `tu revends ${pw(-L.grid)}` : L.grid > IDLE ? `tu achètes ${pw(L.grid)}` : "réseau à l'équilibre";
-    return { who, tone, a: has(S.auto) && known && !rest ? `${fmt.n(S.auto * 100)} % autonome` : "", grid };
+    // wait : aucune mesure en direct (l'étiquette « En direct » de l'Aperçu se met alors en veille)
+    return { who, tone, a: has(S.auto) && known && !rest ? `${fmt.n(S.auto * 100)} % autonome` : "", grid, wait: !known };
   }
   // Ce que dit chaque élément, en toutes lettres (description du dessin, détail des pastilles)
   function words(S) {
     const { L } = S, b = L.bat, g = L.grid;
     const soc = (v) => (has(v) ? `à ${fmt.n(v)} %` : "(charge inconnue)");
+    // Part du soleil dans la recharge : seulement si les deux mesures (soleil, réseau) de la borne existent
+    const evS = Math.max(0, num(C.ve_solaire_w)), evG = Math.max(0, num(C.ve_reseau_w)), share = evS + evG > 0 ? `, ${fmt.n((evS / (evS + evG)) * 100)} % au soleil` : "";
     return {
       sun: !has(L.solar) ? "production inconnue" : S.night ? "pas de production, il fait nuit" : S.sunOn ? `${pw(L.solar)} produits` : "pas de production pour l'instant",
       home: has(L.house) ? `${pw(L.house)} consommés, hors voiture` : "consommation inconnue",
       bat: `${soc(S.soc)}, ${!has(b) ? "puissance inconnue" : Math.abs(b) < IDLE ? "en veille" : `${b > 0 ? "en charge" : "en décharge"} à ${pw(Math.abs(b))}`}`,
       grid: !has(g) ? "échange inconnu" : Math.abs(g) < IDLE ? "à l'équilibre" : `${pw(Math.abs(g))} ${g < 0 ? "revendus" : "achetés"}`,
-      car: `${soc(S.carSoc)}, ${S.carOn ? `en charge à ${pw(L.car)}` : L.plugged ? "branchée" : "débranchée"}`,
+      car: `${soc(S.carSoc)}, ${S.carOn ? `en charge à ${pw(L.car)}${share}` : L.plugged ? "branchée" : "débranchée"}`,
       boil: `${has(S.temp) ? `à ${fmt.n(S.temp)} °C` : "(température inconnue)"}${S.heat ? ", en chauffe" : ""}`,
     };
   }
@@ -494,7 +498,7 @@
     const pc = (v) => (has(v) ? `${fmt.n(v)} %` : "");
     return [
       { k: "grid", tone: N.grid.tone, ic: N.grid.ic, l: N.grid.label, v: gridV, sub: gridIdle || !has(g) ? "" : N.grid.state.toLowerCase(), idle: gridIdle, at: at(...INS), pos: [12, 12], side: "l",
-        act: "spot", spot: "en-grd", say: has(g) && !gridIdle ? W.grid : "", go: "Afficher la carte Réseau" },
+        act: "spot", spot: "en-grd", say: !has(g) || !gridIdle ? W.grid : "", go: "Afficher la carte Réseau" },
       { k: "home", tone: "accent", ic: N.home.ic, l: N.home.label, v: pw(L.house), idle: !has(L.house), at: at(ATTIC[0], ATTIC[1], ATTIC[2] + 0.64), pos: [190, 12], side: "c",
         act: "nav", to: "insights", say: has(L.house) ? "consommés hors voiture" : "consommation inconnue", go: "Voir le bilan" },
       { k: "sun", tone: N.sun.tone, ic: N.sun.ic, l: N.sun.label, v: sunV, idle: !S.sunOn, at: at(...roofPt(2.7, 4.55)), pos: [348, 12], side: "r",
@@ -508,13 +512,41 @@
     ];
   }
 
+  /* ─── Cadrages ──────────────────────────────────────────────────────
+     Énergie : le dessin entier, pastilles en deux rangées de trois (positions pos ci-dessus).
+     Aperçu (compact) : le même dessin vu d'un peu plus loin (marges sur les côtés, ciel et pied de l'îlot
+     rognés), une scène bien moins haute ; les pastilles se posent dans les coins, à quelques pixels du bord.
+     Le ballon n'y figure pas (pas un flux électrique de la maison ; il garde sa pastille sur Énergie). */
+  const FRAMES = { full: { x: 0, y: 0, w: VW, h: VH }, compact: { x: -28, y: 26, w: 416, h: 258 } };
+  // Aperçu : chaque pastille mène à sa carte de la page Énergie (atteinte puis signalée), au bilan ou à la voiture
+  const OVER = { grid: ["energy", "en-grd", "Voir le réseau sur la page Énergie"], sun: ["energy", "en-sun", "Voir la production sur la page Énergie"],
+    bat: ["energy", "en-bat", "Voir la batterie sur la page Énergie"] };
+  // Pastilles de l'Aperçu : ce qui circule en ce moment, sans la charge (%) de la batterie et de la voiture, que la
+  // carte Réserves de la même page affiche déjà (pas de doublon) ; le nom du lien de la maison la dit toujours.
+  function compactChips(S, W) {
+    const b = S.L.bat;
+    return chips(S, W).filter((c) => c.k !== "boil").map((c) => {
+      const o = OVER[c.k] ? { ...c, act: "nav", to: OVER[c.k][0], spot: OVER[c.k][1], go: OVER[c.k][2] } : { ...c };
+      if (c.k === "bat") Object.assign(o, { x: "", say: !has(b) ? "puissance inconnue" : c.idle ? "" : b > 0 ? "en charge" : "en décharge" });
+      if (c.k === "car") Object.assign(o, { x: "", say: S.carOn ? "en charge" : "" });
+      return o;
+    });
+  }
+  // Arrivée du repère d'une pastille (unités du viewBox), cachée sous la pastille
+  function leadEnd(c, top, F, cp) {
+    if (!cp) return { x: c.pos[0] + (c.side === "l" ? 16 : c.side === "r" ? -16 : 0), y: c.pos[1] + 20 };
+    const k = F.w / 358;   // unités par pixel sur une scène de 358 px (téléphone de 390 px) ; ailleurs l'écart reste sous la pastille
+    return { x: c.side === "l" ? F.x + 30 * k : c.side === "r" ? F.x + F.w - 30 * k : F.x + F.w / 2, y: top ? F.y + 24 * k : F.y + F.h - 24 * k };
+  }
+
   /* ─── Rendu ─────────────────────────────────────────────────────── */
-  function house() {
-    const S = state(), sum = summary(S), W = words(S);
-    const CH = chips(S, W);
+  function house({ compact: cp = false } = {}) {
+    const S = state(), sum = summary(S), W = words(S), F = FRAMES[cp ? "compact" : "full"], vb = `${F.x} ${F.y} ${F.w} ${F.h}`;
+    const CH = cp ? compactChips(S, W) : chips(S, W);
     // Flux : pour chaque trajet, 6 points (data-key stable) ; les inactifs restent dans le DOM, masqués
     const links = Object.entries(LINKS).map(([k, Ln]) => {
-      const w = S.on[k], live = w >= IDLE, n = count(k, Ln.lane ? w / 3 : w, Ln.cap), vis = VIS[n] || [];
+      // Capteur indisponible : trajet tracé comme au repos (jamais de NaN dans les attributs)
+      const w = has(S.on[k]) ? S.on[k] : 0, live = w >= IDLE, n = count(k, Ln.lane ? w / 3 : w, Ln.cap), vis = VIS[n] || [];
       const s = sat(Ln.lane ? w / 2 : w), rh = (4.6 + 2.2 * s).toFixed(1), rc = (1.6 + 0.6 * s).toFixed(2), rw = (0.7 + 0.25 * s).toFixed(2);
       const style = `--tw:${(Ln.lane ? 1.3 + 0.5 * s : 1.2 + 2.2 * s).toFixed(2)};--to:${(Ln.lane ? 0.3 + 0.12 * s : 0.12 + 0.3 * s).toFixed(2)}`;
       return h`<g class="hh-ln ${Ln.lane ? "is-lane" : ""}" data-l="${k}" data-tone="${Ln.tone}" data-on="${live ? 1 : 0}" data-n="${n}" data-rate="${live ? ((speed(w) / V0) * (Ln.spd || 1)).toFixed(2) : 0}" style="${style}">
@@ -526,42 +558,49 @@
     });
     // Calque animé : fumée du poêle, niveau de la batterie, flux, repères des pastilles
     const chim = at(FLUE[0], FLUE[1], FLUE[2] + 1.45);
-    const fx = h`<svg class="hh-fx" viewBox="0 0 ${VW} ${VH}" aria-hidden="true" focusable="false">
+    const fx = h`<svg class="hh-fx" viewBox="${vb}" aria-hidden="true" focusable="false">
       <defs><radialGradient id="hh-puff"><stop offset="0" class="hh-st-p1"/><stop offset=".55" class="hh-st-p2"/><stop offset="1" class="hh-st-p3"/></radialGradient></defs>
       <g class="hh-smoke">${[0, 1, 2].map((i) => h`<ellipse style="--i:${i}" cx="${chim.x}" cy="${chim.y}" rx="4.6" ry="2.6"/>`)}</g>
       <g transform="${onY(11.9)}"><rect class="hh-bat-soc" x="4.12" y=".3" width=".12" height="${((1.82 * BZ.clamp(has(S.soc) ? S.soc : 0, 0, 100)) / 100).toFixed(3)}" rx=".06"/></g>
       <g class="hh-links">${links}</g>
-      <g class="hh-leads">${CH.map((c) => {
-        const end = { x: c.pos[0] + (c.side === "l" ? 16 : c.side === "r" ? -16 : 0), y: c.pos[1] + 20 };
-        return h`<g data-tone="${c.tone}" class="${c.idle ? "is-idle" : ""}"><path d="M${c.at.x},${c.at.y}L${end.x},${end.y}"/><circle cx="${c.at.x}" cy="${c.at.y}" r="2.3"/></g>`;
+      <g class="hh-leads">${CH.map((c, i) => {
+        const end = leadEnd(c, i < 3, F, cp), r = (v) => Math.round(v * 10) / 10;
+        return h`<g data-tone="${c.tone}" class="${c.idle ? "is-idle" : ""}"><path d="M${c.at.x},${c.at.y}L${r(end.x)},${r(end.y)}"/><circle cx="${c.at.x}" cy="${c.at.y}" r="2.3"/></g>`;
       })}</g>
     </svg>`;
     const label = `Ta maison en direct : ${sum.who.toLowerCase()}${sum.a ? `, ${sum.a}` : ""}. Soleil : ${W.sun} ; maison : ${W.home} ; batterie ${W.bat} ; réseau : ${W.grid} ; e-Niro ${W.car} ; ballon ${W.boil}.`;
     const flags = `data-run="${running() ? 1 : 0}" style="--glow:${S.glow.toFixed(2)}" data-sky="${S.night ? "night" : "day"}" data-sun="${S.sunOn ? 1 : 0}" data-heat="${S.heat ? 1 : 0}" data-smoke="${S.smoke ? 1 : 0}" data-car="${S.carOn ? "charging" : S.L.plugged ? "plugged" : "off"}" data-bat="${!(Math.abs(S.L.bat) >= IDLE) ? "idle" : S.L.bat > 0 ? "in" : "out"}"`;
     const chip = (c) => {
-      const attrs = c.act === "nav" ? `href="#/${c.to}"` : `type="button" data-act="${c.act}" ${c.spot ? `data-spot="${c.spot}"` : ""} ${c.sheet ? `data-sheet="${c.sheet}"` : ""}`;
+      const attrs = c.act === "nav" ? `href="#/${c.to}" ${c.spot ? `data-spot="${c.spot}"` : ""}` : `type="button" data-act="${c.act}" ${c.spot ? `data-spot="${c.spot}"` : ""} ${c.sheet ? `data-sheet="${c.sheet}"` : ""}`;
       const tag = c.act === "nav" ? "a" : "button";
       const seen = `${c.l}${c.x ? ` ${c.x}` : ""} ${c.v}${c.sub ? ` ${c.sub}` : ""}`;
       return h`<${tag} class="hh-chip hh-c-${c.k} is-${c.side} ${c.x ? "has-x" : ""} ${c.idle ? "is-idle" : ""}" data-tone="${c.tone}" ${attrs} aria-label="${esc(`${seen}${c.say ? `, ${c.say}` : ""}. ${c.go}`)}">
         <span class="hh-cl">${icon(c.ic)}<span class="hh-cn">${c.l}</span>${c.x ? h`<span class="hh-cx">${c.x}</span>` : ""}</span><b class="hh-cv">${c.v}${c.sub ? h`<small> ${c.sub}</small>` : ""}</b></${tag}>`;
     };
-    return h`<section class="hh" ${flags} aria-labelledby="hh-t">
+    const say = h`<span class="hh-say"><b class="hh-who">${sum.who}</b>${sum.a ? h` <span class="hh-auto">· ${sum.a}</span>` : ""}</span>`;
+    // Aperçu : toute la carte mène à la page Énergie. Le lien, de la taille de la carte, passe sous le dessin et les
+    // pastilles (jamais de lien dans un lien) ; sa description en toutes lettres devient son nom, la phrase visible la
+    // répète, on la tait. Sans aucune mesure, l'étiquette « En direct » se met en veille (point gris immobile).
+    return h`<section class="hh ${cp ? "is-compact" : ""}" ${flags} aria-labelledby="hh-t">
       <h2 class="sr" id="hh-t">Ta maison en direct</h2>
+      ${cp ? h`<a class="hh-go" href="#/energy" aria-label="${esc(`${label} Voir le détail sur la page Énergie.`)}"></a>` : ""}
       <div class="hh-stage">
         <div class="hh-sky" aria-hidden="true"><i class="hh-sun"></i><i class="hh-moon"></i><i class="hh-stars"></i></div>
         <div class="hh-scene">
-          <div class="hh-img" role="img" aria-label="${esc(label)}"><svg class="hh-art" data-static="hh-art" viewBox="0 0 ${VW} ${VH}" aria-hidden="true" focusable="false"></svg></div>
+          <div class="hh-img" ${cp ? 'aria-hidden="true"' : `role="img" aria-label="${esc(label)}"`}><svg class="hh-art" data-static="${cp ? "hh-art-c" : "hh-art"}" viewBox="${vb}" aria-hidden="true" focusable="false"></svg></div>
           ${fx}
         </div>
         <div class="hh-chips" role="group" aria-label="Détail par appareil">
           <div class="hh-row is-top">${CH.slice(0, 3).map(chip)}</div>
-          <div class="hh-row is-bot">${CH.slice(3).map(chip)}</div>
+          <div class="hh-row is-bot">${cp ? [chip(CH[3]), h`<span class="hh-live ${sum.wait ? "is-idle" : ""}" aria-hidden="true"><i class="hh-ping"></i>En direct</span>`, chip(CH[4])] : CH.slice(3).map(chip)}</div>
         </div>
       </div>
-      <div class="hh-sum">
-        <p class="hh-now" data-tone="${sum.tone}"><i class="hh-ping"></i><span class="hh-say"><b class="hh-who">${sum.who}</b>${sum.a ? h` <span class="hh-auto">· ${sum.a}</span>` : ""}</span></p>
+      ${cp ? h`<div class="hh-sum" aria-hidden="true">
+        <p class="hh-now" data-tone="${sum.tone}">${say}</p>
+      </div>` : h`<div class="hh-sum">
+        <p class="hh-now" data-tone="${sum.tone}"><i class="hh-ping"></i>${say}</p>
         ${has(S.T.prod) ? h`<p class="hh-day">Aujourd'hui · <b>${fmt.kwhText(S.T.prod)}</b> produits${has(S.T.savings) ? h`<span class="hh-day-e"> · <b>${fmt.eur(S.T.savings)}</b> économisés</span>` : ""}</p>` : ""}
-      </div>
+      </div>`}
     </section>`;
   }
 
@@ -573,9 +612,16 @@
   const V0 = 20;   // vitesse de référence (unités du viewBox par seconde) pour playbackRate = 1
   // Maison hors de l'écran (page défilée) ou onglet caché : toutes les animations en pause, reprises telles quelles.
   // L'état passe aussi dans le gabarit (data-run) pour que BZ.morph ne l'efface pas ; il fige la fumée en CSS.
+  // Une seule maison par page (Aperçu ou Énergie) : en changeant de page, l'observateur passe à la nouvelle ;
+  // une maison retirée du document (page sans maison) n'est plus observée ni retenue.
   let inView = true, watched = null;
   const running = () => inView && !document.hidden;
-  const io = "IntersectionObserver" in window ? new IntersectionObserver((es) => { inView = es[es.length - 1].isIntersecting; sync(); }) : null;
+  const io = "IntersectionObserver" in window ? new IntersectionObserver((es) => {
+    for (const e of es) if (!e.target.isConnected) { io.unobserve(e.target); if (watched === e.target) watched = null; }
+    const e = es.filter((x) => x.target === watched).pop();
+    if (e) inView = e.isIntersecting;
+    sync();
+  }) : null;
   function sync() {
     const root = document.querySelector(".hh");
     if (!root) return;

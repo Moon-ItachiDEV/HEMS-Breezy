@@ -1,5 +1,7 @@
 // Aperçu (V3) : la mise en page de la maquette, appliquée à la maison.
 //  En-tête : salutation · titre · phrase d'état | sélecteur de jour + action principale
+//  Téléphone tenu droit : la maison en direct (version compacte) entre la salutation et le sélecteur de jour ;
+//  elle dit ce que disait la phrase d'état (masquée), et reste « en direct » quelle que soit la journée choisie
 //  Ligne 1 : 4 indicateurs avec mini-courbe (journée choisie vs veille)
 //  Gauche  : tableau des appareils (filtres en pastilles) puis Équipements + Raccourcis
 //  Droite  : Programme du jour (tarifs et événements), Répartition (anneau), Rentabilité
@@ -17,6 +19,7 @@
     const dateLabel = V.isToday ? `Aujourd'hui, ${fmt.date(V.date, { day: "numeric", month: "short" })}` : fmt.cap(fmt.date(V.date, { weekday: "short", day: "numeric", month: "short", year: "numeric" }));
     return h`<header class="ph">
       <div><p class="ph-hi">${hello}</p><h1>${BZ.esc(BZ.user)}<span class="wave" aria-hidden="true">👋</span></h1><p class="ph-sub">${status}</p></div>
+      ${BZ.house({ compact: true })}
       <div class="ph-a">
         <div class="datep" role="group" aria-label="Journée affichée">${icon("calendar")}<span aria-live="polite">${dateLabel}</span>
           <button type="button" data-act="day" data-d="-1" aria-label="Jour précédent" ${V.offset <= -29 ? "disabled" : ""}>${icon("left")}</button>
