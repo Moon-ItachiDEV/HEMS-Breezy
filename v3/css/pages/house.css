@@ -1,0 +1,339 @@
+/* Énergie (V3) — « Ta maison en direct » : maquette isométrique façon argile, héros du mobile.
+   Sur un téléphone tenu droit (moins de 768 px de large) elle remplace le schéma « Flux en direct » ;
+   au-delà, et sur un téléphone à l'horizontale (trop bas pour la maison), la page reste inchangée.
+   Le décor est un SVG fixe : chaque matériau a trois teintes (face avant-gauche --fy, avant-droite --fx,
+   dessus --fz), redéfinies pour le thème sombre (lumière du soir) et la nuit (fenêtres allumées). */
+
+.hh { display: none; }
+@media (max-width: 767px) and (min-height: 501px), (max-width: 767px) and (orientation: portrait) {
+  .hh { display: block; }
+  .en-flow { display: none; }
+  /* La maison dit déjà ce que disait la phrase d'en-tête : on garde la place pour les indicateurs */
+  .ph:has(+ .hh) .ph-sub { display: none; }
+}
+/* L'entrée en cascade de la page garde ses délais quand la maison est masquée (tablette, bureau) */
+.view.is-enter > .hh + * { animation-delay: 30ms; }
+.view.is-enter > .hh + * + * { animation-delay: 60ms; }
+
+/* ─── Palette : jour clair ─────────────────────────────────────────── */
+.hh {
+  --hh-sky1: #d9e6f6; --hh-sky2: #eef2f8; --hh-sky3: #f7f5f2;
+  --hh-g1: #d2e9c4; --hh-g2: #b3d7a2; --hh-lip: #9fcb8c; --hh-side-y: #dfd2c1; --hh-side-x: #efe6db; --hh-isl-sh: rgba(36, 48, 84, .3);
+  --hh-drive: #e9e6e0; --hh-joint: #d8d3ca; --hh-step: #f6f4ef; --hh-bed: #c6a688; --hh-shadow: rgba(32, 44, 80, .24); --hh-ao: .3;
+  --hh-wall-y: #eceef4; --hh-wall-x: #fcfcfe; --hh-wall-z: #ffffff; --hh-plinth: #d6d9e2; --hh-eave: .08;
+  --hh-frame: #ffffff; --hh-win: #9fb6d2; --hh-room: #55647f; --hh-lamp: #ffe2a0;
+  --hh-glow-c: #ffd98e; --hh-glow-k: .32; --hh-spill: 0;   /* lumière intérieure : couleur, force (× --glow, suit la conso) */
+  --hh-t1: #dfe5ee; --hh-t2: #ffffff; --hh-t3: #bcc6d6;
+  --hh-roof: #5a6379; --hh-roof-b: #474f63; --hh-ridge: #79839b;
+  --hh-pv1: #1b2950; --hh-pv2: #2f4576; --hh-pv-rail: #c2cad8; --hh-pv-cell: rgba(150, 180, 240, .32);
+  --hh-l1: #a6da97; --hh-l2: #5fae63; --hh-trunk: #b08a6b;
+  --hh-car-t: #efe9fd; --hh-car-t2: #ddd3f7; --hh-car-x: #dcd2f6; --hh-car-y: #c8bbee; --hh-car-gl: #2b3049; --hh-car-ws: #39425f;
+  --hh-tire: #262a35; --hh-arch: #3a3f4f; --hh-rim: #cdd1db; --hh-trim: #3a3f50;
+  --hh-glass: rgba(214, 232, 250, .22); --hh-glass-m: rgba(255, 255, 255, .6);
+  --hh-duct: #d4d7de; --hh-conduit: #c9cdd8; --hh-wire: #485064; --hh-cable: #343a4b;
+  --hh-smoke: rgba(150, 158, 178, .5); --hh-smoke-o: .5;
+  --hh-chip: rgba(255, 255, 255, .74); --hh-chip-b: rgba(255, 255, 255, .95); --hh-chip-sh: 0 8px 20px -10px rgba(24, 32, 60, .35), 0 1px 2px rgba(24, 32, 60, .06);
+  --hh-lead: rgba(40, 50, 80, .3);
+  --hh-lane: #ffc65a; --hh-lane-t: #ffd58a;   /* points et sillage sur les panneaux : lumière chaude, fusion « screen » */
+}
+/* Nuit (soleil couché) en thème clair : ciel lavande, décor un peu éteint, fenêtres allumées */
+:root:not([data-theme="dark"]) .hh[data-sky="night"] .hh-art { filter: brightness(.95) saturate(.88); }
+.hh[data-sky="night"] {
+  --hh-sky1: #c3c9e2; --hh-sky2: #dcdfee; --hh-sky3: #eceaf2;
+  --hh-g1: #c3dcbb; --hh-g2: #a6c99b; --hh-wall-y: #e2e4ee; --hh-wall-x: #f1f2f8;
+  --hh-win: #8792b6; --hh-room: #5d6588; --hh-lamp: #ffd06a; --hh-glow-c: #ffd27e; --hh-glow-k: 1; --hh-spill: .5;
+}
+
+/* ─── Palette : thème sombre (lumière du soir) ─────────────────────── */
+:root[data-theme="dark"] .hh {
+  --hh-sky1: #161c33; --hh-sky2: #2a2946; --hh-sky3: #3a3050;
+  --hh-g1: #3b6a4c; --hh-g2: #2b4f3b; --hh-lip: #2e573f; --hh-side-y: #2a2b38; --hh-side-x: #3a3b4b; --hh-isl-sh: rgba(0, 0, 0, .55);
+  --hh-drive: #444759; --hh-joint: #3a3c4c; --hh-step: #50536a; --hh-bed: #4d3d33; --hh-shadow: rgba(0, 0, 0, .38); --hh-ao: .5;
+  --hh-wall-y: #474d68; --hh-wall-x: #5d6486; --hh-wall-z: #687096; --hh-plinth: #3a3f55; --hh-eave: .16;
+  --hh-frame: #6b7396; --hh-win: #4c5374; --hh-room: #3a3f5e; --hh-lamp: #ffd06a; --hh-glow-c: #ffcd78; --hh-glow-k: 1; --hh-spill: .55;
+  --hh-t1: #c9cfdc; --hh-t2: #eef1f7; --hh-t3: #9aa3b8;
+  --hh-roof: #2d3346; --hh-roof-b: #232838; --hh-ridge: #424a64;
+  --hh-pv1: #131b36; --hh-pv2: #26335f; --hh-pv-rail: #5b6380; --hh-pv-cell: rgba(150, 165, 255, .24);
+  --hh-l1: #5d9a68; --hh-l2: #2f5d40; --hh-trunk: #6f5646;
+  --hh-car-t: #9c90c9; --hh-car-t2: #8579b4; --hh-car-x: #8579b4; --hh-car-y: #73689f; --hh-car-gl: #151a2a; --hh-car-ws: #1f2843;
+  --hh-tire: #101219; --hh-arch: #1b1e28; --hh-rim: #8a8fa3; --hh-trim: #232633;
+  --hh-glass: rgba(150, 175, 235, .16); --hh-glass-m: rgba(200, 215, 255, .3);
+  --hh-duct: #4c4f62; --hh-conduit: #7a809c; --hh-wire: #a4abc2; --hh-cable: #1c1f2b;
+  --hh-smoke: rgba(205, 210, 228, .55); --hh-smoke-o: .8;
+  --hh-chip: rgba(28, 31, 44, .7); --hh-chip-b: rgba(255, 255, 255, .1); --hh-chip-sh: 0 10px 24px -10px rgba(0, 0, 0, .7);
+  --hh-lead: rgba(220, 225, 245, .32);
+}
+:root[data-theme="dark"] .hh[data-sky="night"] { --hh-sky1: #0d1224; --hh-sky2: #171c33; --hh-sky3: #1f2340; --hh-g1: #2f5a40; --hh-g2: #244233; }
+
+/* ─── Cadre ───────────────────────────────────────────────────────── */
+.hh { position: relative; margin-bottom: var(--s-4); border-radius: var(--r-xl); overflow: hidden; isolation: isolate; container: hh / inline-size;
+  background: linear-gradient(180deg, var(--hh-sky1) 0%, var(--hh-sky2) 46%, var(--hh-sky3) 100%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent), 0 14px 34px -22px rgba(24, 32, 60, .45); }
+:root[data-theme="dark"] .hh { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07), 0 18px 40px -22px rgba(0, 0, 0, .8); }
+/* Petites tablettes : la maison ne dévore pas l'écran. Les pastilles se règlent sur la largeur de la scène. */
+.hh-stage { position: relative; aspect-ratio: 360 / 300; max-width: 520px; margin-inline: auto; container: hhs / inline-size; }
+.hh-sky, .hh-scene, .hh-img, .hh-fx, .hh-chips { position: absolute; inset: 0; }
+/* Décor et flux découpés ensemble au bord de la scène, avec un fondu à gauche : la ligne publique arrive
+   « de plus loin » sans jamais s'arrêter net, et les points ne sortent jamais du dessin (tablettes étroites) */
+.hh-scene { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%); mask-image: linear-gradient(90deg, transparent 0, #000 6%); }
+.hh-img svg, .hh-fx { display: block; width: 100%; height: 100%; overflow: visible; }
+.hh-fx, .hh-chips { pointer-events: none; }
+
+/* Ciel : soleil (jour), lune et étoiles (nuit), dans le ciel dégagé à droite, loin des pastilles et de la fumée */
+.hh-sun, .hh-moon, .hh-stars { position: absolute; transition: opacity .8s var(--ease); }
+.hh-sun, .hh-moon { left: 88.3%; top: 30%; translate: -50% -50%; }
+.hh-sun { width: 28px; height: 28px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 38%, #fff6d8, #ffd36b 55%, #ffb547);
+  box-shadow: 0 0 0 4px rgba(255, 220, 130, .25), 0 0 20px 8px rgba(255, 205, 110, .34), 0 0 54px 18px rgba(255, 205, 110, .16); }
+/* Thème sombre en journée : lumière du soir, le soleil n'est plus qu'une lueur chaude (pas d'étoiles) */
+:root[data-theme="dark"] .hh-sun { width: 26px; height: 26px; background: radial-gradient(circle at 50% 50%, #fff0cf 0, #ffc27a 38%, #ff8f5c 64%, rgba(255, 120, 80, 0) 74%);
+  box-shadow: 0 0 30px 12px rgba(255, 138, 92, .24), 0 0 70px 28px rgba(255, 110, 90, .12); }
+@container hhs (max-width: 349px) {
+  .hh-sun, .hh-moon { top: 32.5%; }
+  .hh-sun { width: 24px; height: 24px; box-shadow: 0 0 0 3px rgba(255, 220, 130, .25), 0 0 14px 6px rgba(255, 205, 110, .34), 0 0 36px 12px rgba(255, 205, 110, .15); }
+  :root[data-theme="dark"] .hh-sun { width: 22px; height: 22px; box-shadow: 0 0 22px 9px rgba(255, 138, 92, .24), 0 0 50px 20px rgba(255, 110, 90, .12); }
+}
+.hh-moon { width: 22px; height: 22px; border-radius: 50%; opacity: 0; box-shadow: inset -6px -3px 0 0 #f4f1ff; filter: drop-shadow(0 0 10px rgba(220, 225, 255, .55)); }
+:root:not([data-theme="dark"]) .hh-moon { box-shadow: inset -6px -3px 0 0 #fff; }
+.hh-stars { inset: 0 0 50% 0; opacity: 0;
+  background: radial-gradient(1.2px 1.2px at 12% 22%, #fff 99%, transparent), radial-gradient(1px 1px at 28% 9%, #fff 99%, transparent),
+    radial-gradient(1.4px 1.4px at 46% 16%, #fff 99%, transparent), radial-gradient(1px 1px at 57% 31%, #fff 99%, transparent),
+    radial-gradient(1.2px 1.2px at 79% 26%, #fff 99%, transparent), radial-gradient(1px 1px at 88% 12%, #fff 99%, transparent),
+    radial-gradient(1px 1px at 37% 38%, #fff 99%, transparent), radial-gradient(1.3px 1.3px at 96% 44%, #fff 99%, transparent),
+    radial-gradient(1px 1px at 6% 44%, #fff 99%, transparent), radial-gradient(1px 1px at 70% 6%, #fff 99%, transparent); }
+.hh[data-sky="night"] .hh-sun { opacity: 0; }
+.hh[data-sky="night"] .hh-moon { opacity: 1; }
+.hh[data-sky="night"] .hh-stars { opacity: .9; }
+:root:not([data-theme="dark"]) .hh[data-sky="night"] .hh-stars { opacity: .7; }
+:root[data-theme="dark"] .hh[data-sky="night"] .hh-stars { opacity: 1; }
+
+/* Éléments touchables du dessin (mêmes actions que les pastilles) */
+.hh-tap { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.hh-hit { fill: transparent; }
+.hh-glass, .hh-glass-m, .hh-glass-hi, .hh-beam, .hh-post, .hh-cable { pointer-events: none; }   /* la verrière laisse toucher la voiture */
+
+/* ─── Matériaux ──────────────────────────────────────────────────── */
+.hh-art .fy { fill: var(--fy); } .hh-art .fx { fill: var(--fx); } .hh-art .fz { fill: var(--fz); }
+.hh-wall { --fy: var(--hh-wall-y); --fx: var(--hh-wall-x); }
+.hh-canopy { --fy: var(--hh-plinth); --fx: var(--hh-wall-x); --fz: var(--hh-wall-z); }
+.hh-metal { --fy: #5b6378; --fx: #707a92; --fz: #858ea6; }
+.hh-flue-b { fill: url(#hh-steel); } .hh-flue-r { fill: #9aa3b5; } .hh-flue-c { fill: #6c7489; }
+.hh-st-s1 { stop-color: #8d96a8; } .hh-st-s2 { stop-color: #f4f6fa; } .hh-st-s3 { stop-color: #aab2c2; }
+.hh-fascia { --fy: var(--hh-wall-y); --fx: var(--hh-wall-z); }
+.hh-gutter { --fy: #b4bbc8; --fx: #d3d8e1; --fz: #edf0f4; }
+.hh-post, .hh-beam { --fy: #c9cfda; --fx: #e4e8ef; --fz: #f3f5f9; }
+.hh-wb { --fy: #2b303f; --fx: #383e51; --fz: #4a5167; }
+.hh-hub { --fy: #bfc6d3; --fx: #dce1e9; --fz: #f1f3f7; }
+.hh-hub-d { fill: #2b3142; } .hh-hub-v { fill: #b7bfcc; }
+.hh-hub-led { fill: #9aa2b2; }
+.hh[data-sun="1"] .hh-hub-led { fill: var(--solar); filter: drop-shadow(0 0 1.5px var(--solar)); }
+.hh-pad { --fy: #d3d6de; --fx: #e5e7ec; --fz: #eef0f4; }
+.hh-bat { --fy: #e7ebf2; --fx: #fdfdff; --fz: #f4f6fa; }
+.hh-bat-core { --fy: #3a4152; --fx: #485065; --fz: #3a4152; }
+.hh-bat-hub { --fy: #d9dfe9; --fx: #eef2f7; --fz: #ffffff; }
+.hh-meter { --fy: #e2e5eb; --fx: #f4f5f8; --fz: #fbfbfd; }
+.hh-pole { --fy: #b8ab99; --fx: #cfc4b4; --fz: #ded5c8; }
+.hh-ins { --fy: #7fa6c0; --fx: #a2c4d9; --fz: #c3dbea; }
+:root[data-theme="dark"] .hh .hh-metal { --fy: #2e3446; --fx: #3b4258; --fz: #485069; }
+:root[data-theme="dark"] .hh .hh-st-s1 { stop-color: #4e5670; } :root[data-theme="dark"] .hh .hh-st-s2 { stop-color: #a9b0c6; } :root[data-theme="dark"] .hh .hh-st-s3 { stop-color: #646d88; }
+:root[data-theme="dark"] .hh .hh-flue-r { fill: #6d7590; } :root[data-theme="dark"] .hh .hh-flue-c { fill: #3f465c; }
+:root[data-theme="dark"] .hh .hh-gutter { --fy: #4a5069; --fx: #5d6482; --fz: #6f7794; }
+:root[data-theme="dark"] .hh .hh-post, :root[data-theme="dark"] .hh .hh-beam { --fy: #5b6179; --fx: #707792; --fz: #7f86a2; }
+:root[data-theme="dark"] .hh .hh-wb { --fy: #171a24; --fx: #21252f; --fz: #2c303d; }
+:root[data-theme="dark"] .hh .hh-hub { --fy: #7f86a1; --fx: #959cb7; --fz: #a9b0c9; }
+:root[data-theme="dark"] .hh .hh-hub-d { fill: #161a24; } :root[data-theme="dark"] .hh .hh-hub-v { fill: #727a95; }
+:root[data-theme="dark"] .hh .hh-pad { --fy: #3c3e4d; --fx: #4a4c5e; --fz: #53566a; }
+:root[data-theme="dark"] .hh .hh-bat { --fy: #8d93ad; --fx: #aab0c9; --fz: #b8bed5; }
+:root[data-theme="dark"] .hh .hh-bat-core { --fy: #1c202b; --fx: #242936; --fz: #1c202b; }
+:root[data-theme="dark"] .hh .hh-bat-hub { --fy: #868ca7; --fx: #a1a7c1; --fz: #b3b9d0; }
+:root[data-theme="dark"] .hh .hh-meter { --fy: #6b7089; --fx: #80869f; --fz: #8f95ad; }
+:root[data-theme="dark"] .hh .hh-pole { --fy: #6c6457; --fx: #81786a; --fz: #8e8678; }
+:root[data-theme="dark"] .hh .hh-ins { --fy: #4f6f86; --fx: #6890a8; --fz: #7fa6bd; }
+
+/* Îlot */
+.hh-isl-sh { fill: var(--hh-isl-sh); }
+.hh-st-sy { stop-color: var(--hh-side-y); } .hh-st-sx { stop-color: var(--hh-side-x); }
+.hh-st-g1 { stop-color: var(--hh-g1); } .hh-st-g2 { stop-color: var(--hh-g2); }
+.hh-isl-side { fill: url(#hh-side); } .hh-isl-depth { fill: url(#hh-depth); } .hh-isl-lip { fill: var(--hh-lip); } .hh-isl-top { fill: url(#hh-isl); }
+.hh-mow rect { fill: #fff; opacity: .1; }
+:root[data-theme="dark"] .hh-mow rect { opacity: .04; }
+.hh-drive { fill: var(--hh-drive); } .hh-joint { fill: var(--hh-joint); } .hh-step { fill: var(--hh-step); } .hh-bed { fill: var(--hh-bed); }
+.hh-shadow { fill: var(--hh-shadow); }
+.hh-ao { fill: #0b1020; opacity: var(--hh-ao); }   /* ombre de contact : la voiture pèse sur l'allée */
+.hh-trunk { fill: var(--hh-trunk); }
+.hh-st-l1 { stop-color: var(--hh-l1); } .hh-st-l2 { stop-color: var(--hh-l2); }
+.hh-leaf, .hh-bush { fill: url(#hh-leafg); } .hh-leaf-hi { fill: #fff; opacity: .16; }
+
+/* Maison */
+.hh-plinth { fill: var(--hh-plinth); }
+.hh-eave-sh { fill: #0b1020; opacity: var(--hh-eave); }
+.hh-frame { fill: var(--hh-frame); } .hh-mull, .hh-sill { fill: var(--hh-frame); }
+.hh-win { fill: var(--hh-win); transition: fill .8s var(--ease); }
+.hh-door { fill: var(--accent); } .hh-handle { fill: #fff; opacity: .9; }
+.hh-lamp { fill: var(--hh-lamp); }
+.hh-room { fill: var(--hh-room); transition: fill .8s var(--ease); }
+.hh-st-t1 { stop-color: var(--hh-t1); } .hh-st-t2 { stop-color: var(--hh-t2); } .hh-st-t3 { stop-color: var(--hh-t3); }
+.hh-tank-b { fill: url(#hh-tankg); }
+.hh-tank-h { fill: url(#hh-heat); opacity: 0; transition: opacity .8s var(--ease); }
+.hh[data-heat="1"] .hh-tank-h { opacity: .9; }
+.hh-tank-l { fill: #fff; opacity: .55; }
+.hh-pipe { stroke: var(--hh-t3); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.hh-refl { fill: #fff; opacity: .2; }
+.hh-roof { fill: var(--hh-roof); } .hh-roof-b { fill: var(--hh-roof-b); }
+.hh-ridge { stroke: var(--hh-ridge); stroke-width: 1.6; stroke-linecap: round; }
+.hh-st-pv1 { stop-color: var(--hh-pv1); } .hh-st-pv2 { stop-color: var(--hh-pv2); }
+.hh-pv-rail { fill: var(--hh-pv-rail); }
+.hh-pv { fill: url(#hh-pvg); }
+.hh-pv-cell { fill: none; stroke: var(--hh-pv-cell); stroke-width: .6; vector-effect: non-scaling-stroke; }
+.hh-pv-sheen { fill: url(#hh-sheen); }
+:root[data-theme="dark"] .hh-pv-sheen { opacity: .45; }
+.hh[data-sky="night"] .hh-pv-sheen { opacity: .2; }
+/* Lumière intérieure : d'autant plus forte que la maison consomme (--glow, posé par le rendu) ; discrète en plein jour */
+.hh-glow { fill: var(--hh-glow-c); opacity: calc(var(--glow, .5) * var(--hh-glow-k)); transition: opacity .8s var(--ease); }
+.hh-spill { fill: #ffc56a; opacity: calc(var(--glow, .5) * var(--hh-spill)); transition: opacity .8s var(--ease); }
+/* Œil-de-bœuf du pignon : verre chaud éclairé de l'intérieur (même de jour), fins petits-bois, reflet */
+.hh-glow-a { fill: url(#hh-warm); opacity: calc(.42 + var(--glow, .5) * .5); transition: opacity .8s var(--ease); }
+.hh-oc-m { fill: none; stroke: var(--hh-frame); stroke-width: .8; vector-effect: non-scaling-stroke; opacity: .9; }
+.hh-oc-r { fill: none; stroke: #fff; stroke-width: 1.1; stroke-linecap: round; vector-effect: non-scaling-stroke; opacity: .55; }
+/* Nuit et soir : fenêtres et lampe rayonnent */
+.hh[data-sky="night"] .hh-glow, :root[data-theme="dark"] .hh-glow, .hh[data-sky="night"] .hh-glow-a, :root[data-theme="dark"] .hh-glow-a { filter: drop-shadow(0 0 calc(1px + var(--glow, .5) * 3px) rgba(255, 196, 92, .8)); }
+.hh[data-sky="night"] .hh-lamp, :root[data-theme="dark"] .hh-lamp { filter: drop-shadow(0 0 4px rgba(255, 200, 90, .95)); }
+/* Goulottes (façade, coffret, descente de gouttière) */
+.hh-conduit { fill: none; stroke: var(--hh-conduit); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Abri, borne, voiture */
+.hh-glass { fill: var(--hh-glass); } .hh-glass-m { fill: var(--hh-glass-m); } .hh-glass-hi { fill: #fff; opacity: .14; }
+:root[data-theme="dark"] .hh-glass-hi { opacity: .06; }
+.hh-wb-ring { fill: none; stroke: var(--ev); stroke-width: 1.4; vector-effect: non-scaling-stroke; opacity: .45; }
+.hh-wb-led { fill: var(--ev); opacity: .5; }
+.hh[data-car="charging"] .hh-wb-ring, .hh[data-car="charging"] .hh-wb-led { opacity: 1; filter: drop-shadow(0 0 2px var(--ev)); }
+.hh-cable { fill: none; stroke: var(--hh-cable); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.hh-cable-on { display: none; }
+.hh[data-car="charging"] .hh-cable-on, .hh[data-car="plugged"] .hh-cable-on { display: inline; }
+.hh[data-car="charging"] .hh-cable-off, .hh[data-car="plugged"] .hh-cable-off { display: none; }
+.hh-car-t { fill: var(--hh-car-t); } .hh-car-t2 { fill: var(--hh-car-t2); } .hh-car-x { fill: var(--hh-car-x); } .hh-car-y { fill: var(--hh-car-y); }
+.hh-car-gl { fill: var(--hh-car-gl); } .hh-car-ws { fill: var(--hh-car-ws); }
+.hh-car-clad { fill: var(--hh-trim); opacity: .9; }
+.hh-carm { fill: #000; opacity: .74; }   /* verrière à peine visible par-dessus la voiture */
+.hh-car-line { fill: none; stroke: rgba(40, 30, 90, .2); stroke-width: .7; vector-effect: non-scaling-stroke; }
+.hh-car-hi { fill: #fff; opacity: .16; }
+.hh-car-rail { fill: none; stroke: var(--hh-trim); stroke-width: 1; stroke-linecap: round; opacity: .55; }
+.hh-headx { fill: #fff; opacity: .9; }
+.hh-arch { fill: var(--hh-arch); } .hh-tire { fill: var(--hh-tire); } .hh-rim { fill: var(--hh-rim); }
+.hh-tail { fill: #e5484d; } .hh-head { fill: #fff; }
+:root[data-theme="dark"] .hh-head { filter: drop-shadow(0 0 2px #fff); }
+.hh-grille { fill: var(--hh-trim); } .hh-port { fill: #5b6074; }
+.hh[data-car="charging"] .hh-port { fill: var(--ev); filter: drop-shadow(0 0 2px var(--ev)); }
+
+/* Batterie, compteur, ligne */
+.hh-duct { fill: none; stroke: var(--hh-duct); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.hh-bat-led { fill: var(--battery); opacity: .55; }
+.hh:not([data-bat="idle"]) .hh-bat-led { opacity: 1; filter: drop-shadow(0 0 2px var(--battery)); }
+.hh-bat-track { fill: rgba(30, 50, 100, .14); }
+.hh-meter-d { fill: #bfe8b0; } .hh-meter-led { fill: #22c565; }
+:root[data-theme="dark"] .hh-meter-d { fill: #7fc79a; }
+.hh-wire { fill: none; stroke: var(--hh-wire); stroke-width: 1.1; stroke-linecap: round; }
+
+/* ─── Flux ───────────────────────────────────────────────────────── */
+/* Sillage : largeur (--tw) et opacité (--to) suivent la puissance, comme les liaisons de flow.js */
+.hh-trail { fill: none; stroke: var(--c); stroke-width: var(--tw, 2); stroke-linecap: round; stroke-linejoin: round; opacity: 0;
+  transition: opacity .6s var(--ease), stroke-width .6s var(--ease); }
+.hh-ln[data-on="1"] .hh-trail { opacity: var(--to, .22); }
+.hh-dot { opacity: 0; transition: opacity .5s var(--ease); }
+.hh-dot[data-v="1"] { opacity: 1; }
+.hh-ln[data-on="0"] .hh-dot { opacity: 0; }
+/* Point : halo en dégradé radial qui s'évanouit (jamais un disque à bord net), cœur, éclat blanc */
+.hh-hg0 { stop-color: var(--c); stop-opacity: .7; } .hh-hg1 { stop-color: var(--c); stop-opacity: .26; } .hh-hg2 { stop-color: var(--c); stop-opacity: 0; }
+.hh-dc { fill: var(--c); } .hh-dw { fill: #fff; opacity: .9; }
+.hh-dm { transform: translate(-99px, -99px); }
+.hh-arrow { display: none; fill: none; stroke: var(--c); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* Sur les panneaux : lumière chaude qui s'ajoute au bleu des cellules (fusion « screen »), sillage clair */
+.hh-ln.is-lane { --c: var(--hh-lane); mix-blend-mode: screen; }
+.hh-ln.is-lane .hh-trail { stroke: var(--hh-lane-t); }
+/* Soir et nuit (thème sombre) : tous les flux brillent sur le décor */
+:root[data-theme="dark"] .hh-ln { mix-blend-mode: screen; }
+.hh-bat-soc { fill: var(--battery); }
+/* Fumée du poêle à granulés : volutes étirées qui partent vers la gauche, loin du soleil */
+.hh-smoke ellipse { fill: url(#hh-puff); opacity: 0; transform-box: fill-box; transform-origin: center; }
+.hh-st-p1 { stop-color: var(--hh-smoke); } .hh-st-p2 { stop-color: var(--hh-smoke); stop-opacity: .7; } .hh-st-p3 { stop-color: var(--hh-smoke); stop-opacity: 0; }
+.hh[data-smoke="1"] .hh-smoke ellipse { animation: hh-smoke 4.6s linear infinite; animation-delay: calc(var(--i) * -1.53s); }
+@keyframes hh-smoke {
+  0% { transform: translate(0, 0) rotate(0deg) scale(.45); opacity: 0; }
+  18% { opacity: var(--hh-smoke-o); }
+  100% { transform: translate(-16px, -30px) rotate(-32deg) scale(2.4, 1.6); opacity: 0; }
+}
+/* Repères des pastilles */
+.hh-leads path { fill: none; stroke: var(--hh-lead); stroke-width: 1; stroke-dasharray: 2 2.5; }
+.hh-leads circle { fill: var(--c); stroke: var(--hh-chip-b); stroke-width: 1.5; }
+.hh-leads .is-idle circle { fill: var(--text-3); }
+
+/* Mouvement réduit : pas de points qui défilent, des flèches fixes sur un trait plein */
+@media (prefers-reduced-motion: reduce) {
+  .hh-dot { display: none; }
+  .hh-ln[data-on="1"] .hh-trail { opacity: calc(var(--to, .22) + .3); }
+  .hh-ln[data-on="1"] .hh-arrow { display: inline; }
+  .hh[data-smoke="1"] .hh-smoke ellipse { animation: none; opacity: calc(var(--hh-smoke-o) * .9); }
+  .hh[data-smoke="1"] .hh-smoke ellipse:nth-child(2) { transform: translate(-5px, -11px) rotate(-12deg) scale(1.4, 1.2); opacity: calc(var(--hh-smoke-o) * .6); }
+  .hh[data-smoke="1"] .hh-smoke ellipse:nth-child(3) { transform: translate(-11px, -22px) rotate(-24deg) scale(2, 1.4); opacity: calc(var(--hh-smoke-o) * .35); }
+}
+
+/* ─── Pastilles (verre dépoli) : libellé + valeur, ancrées à leur élément par un repère pointillé ───
+   Deux rangées souples (haut, bas) : chaque pastille garde sa place (gauche, milieu, droite) mais ne peut
+   jamais chevaucher sa voisine ; sur une scène étroite, le contenu se resserre. */
+.hh-row { position: absolute; left: 3.333%; right: 3.333%; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.hh-row.is-top { top: 4%; }
+.hh-row.is-bot { top: 83.333%; }
+.hh-chip { position: relative; flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-height: 40px; padding: 5px 10px 6px 9px; border-radius: 13px; pointer-events: auto;
+  background: var(--hh-chip); -webkit-backdrop-filter: blur(14px) saturate(1.7); backdrop-filter: blur(14px) saturate(1.7);
+  box-shadow: inset 0 0 0 1px var(--hh-chip-b), var(--hh-chip-sh); color: var(--text); white-space: nowrap; text-align: left;
+  -webkit-tap-highlight-color: transparent; transition: scale var(--t-1) var(--ease); }
+.hh-chip:active { scale: .95; }
+.hh-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 13px; }
+.hh-cl { display: flex; align-items: center; gap: 4px; font-size: var(--fs-11); font-weight: 500; line-height: 1.3; color: var(--text-3); }
+.hh-chip .ic { width: 13px; height: 13px; flex: none; color: var(--c); stroke-width: 2.2; }
+.hh-cx { font-variant-numeric: tabular-nums; }
+.hh-cv { font-size: var(--fs-14); font-weight: 650; line-height: 1.25; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.hh-cv small { font-size: var(--fs-11); font-weight: 600; color: var(--c-t); letter-spacing: 0; }
+/* Ballon en chauffe : la pastille teintée et la flamme le disent déjà ; le mot cède sa place sous 380 px */
+@container hhs (max-width: 379px) { .hh-c-boil .hh-cv small { display: none; } }
+/* Scène étroite (téléphones de 360 px et moins) : pastilles compactes ; l'état (revente, achat) reste
+   dit par la couleur, l'icône et le signe de la valeur */
+@container hhs (max-width: 339px) {
+  .hh-chip { padding: 4px 8px 5px 7px; border-radius: 12px; }
+  .hh-cv { font-size: var(--fs-13); }
+  .hh-cl { gap: 3px; }
+  .hh-cv small { display: none; }
+}
+/* Très étroite (320 px, zoom système) : l'icône suffit à nommer batterie et voiture, on garde leur charge */
+@container hhs (max-width: 299px) {
+  .hh-chip.has-x .hh-cn { display: none; }
+  .hh-chip { padding-inline: 7px 7px; }
+}
+.hh-chip.is-idle .ic { color: var(--text-3); }
+.hh-chip.is-idle .hh-cv { color: var(--text-2); }
+/* Ballon en chauffe : la pastille passe au chaud (le réservoir rougeoie derrière la fenêtre) */
+.hh[data-heat="1"] .hh-c-boil { background: color-mix(in srgb, var(--heat) 16%, var(--hh-chip)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--heat) 40%, transparent), var(--hh-chip-sh); }
+.hh[data-heat="1"] .hh-c-boil .ic { color: var(--heat); fill: color-mix(in srgb, var(--heat) 35%, transparent); }
+.hh[data-heat="1"] .hh-c-boil .hh-cv { color: var(--heat-t); }
+
+/* ─── Résumé : en ce moment (d'où vient l'énergie, autonomie), puis la journée ─────────
+   La phrase en direct ne se coupe jamais : sur un écran étroit elle passe sur deux lignes. */
+.hh-sum { max-width: 520px; margin-inline: auto; padding: 6px 16px 14px; }
+.hh-now { display: flex; align-items: flex-start; gap: 7px; font-size: var(--fs-13); line-height: 1.4; color: var(--text-2); }
+.hh-ping { flex: none; width: 7px; height: 7px; margin-top: calc(.7em - 3.5px); border-radius: 50%; background: var(--c); animation: ping 2.4s var(--ease) infinite; }
+.hh-say { min-width: 0; text-wrap: balance; }
+.hh-who { font-weight: 600; color: var(--c-t); white-space: nowrap; }
+.hh-auto { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hh-day { margin-top: 3px; padding-left: 14px; font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.hh-day b { font-weight: 600; color: var(--text-2); }
+@container hh (max-width: 349px) { .hh-day-e { display: none; } }
+/* Téléphones courts (iPhone SE, 360 × 640) : la journée cède sa ligne, pour que les indicateurs
+   apparaissent au-dessus du dock (la production du jour reste dans l'indicateur Production) */
+@media (max-width: 767px) and (max-height: 700px) {
+  .hh { margin-bottom: 12px; }
+  .hh-sum { padding: 4px 16px 10px; }
+  .hh-day { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .hh-ping { animation: none; } }
+/* Hors de l'écran ou onglet caché : fumée et pastille figées (data-run, voir house.js) */
+.hh[data-run="0"] .hh-smoke ellipse, .hh[data-run="0"] .hh-ping { animation-play-state: paused; }

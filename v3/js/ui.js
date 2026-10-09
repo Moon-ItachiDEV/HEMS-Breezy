@@ -70,11 +70,12 @@
 
   /* ─── Carte ────────────────────────────────────────────────────────
      Un seul modèle : en-tête (icône teintée, titre, sous-titre, action), corps. */
-  const card = ({ title, sub, ic, tone = "accent", aside, link, body, cls = "", tag = "section", attrs = "" }) => h`
+  // target : la carte est une cible de saut (action « spot ») ; son titre peut alors recevoir le focus
+  const card = ({ title, sub, ic, tone = "accent", aside, link, body, cls = "", tag = "section", attrs = "", target = false }) => h`
     <${tag} class="card ${cls}" ${attrs}>
       ${title ? h`<header class="card-h">
         ${ic ? h`<span class="card-i" data-tone="${tone}">${icon(ic)}</span>` : ""}
-        <div class="card-t"><h3>${title}</h3>${sub ? h`<p>${sub}</p>` : ""}</div>
+        <div class="card-t"><h3 ${target ? 'tabindex="-1"' : ""}>${title}</h3>${sub ? h`<p>${sub}</p>` : ""}</div>
         ${aside || link ? h`<div class="card-a">${aside || ""}${link ? more(link) : ""}</div>` : ""}
       </header>` : ""}
       ${body}

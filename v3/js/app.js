@@ -165,7 +165,7 @@
   function renderSheet() {
     const s = BZ.ui.sheet;
     const bg = [document.querySelector(".frame"), document.getElementById("tabs"), document.querySelector(".skip")];
-    if (!s) { if (sheetEl.classList.contains("is-open")) { sheetEl.classList.remove("is-open"); sheetEl.setAttribute("aria-hidden", "true"); bg.forEach((el) => el && (el.inert = false)); lastFocus && lastFocus.focus(); } return; }
+    if (!s) { if (sheetEl.classList.contains("is-open")) { sheetEl.classList.remove("is-open"); sheetEl.setAttribute("aria-hidden", "true"); bg.forEach((el) => el && (el.inert = false)); lastFocus && lastFocus.focus({ preventScroll: true }); } return; }
     bg.forEach((el) => el && (el.inert = true));   // le focus reste dans le panneau
     const [kind, i] = s.split(":"), d = BZ.sheets[kind](i != null ? +i : undefined);
     sheetEl.classList.toggle("is-full", !!d.full);
@@ -216,6 +216,15 @@
     "theme-set": (d) => { BZ.ui.theme = d.value; applyTheme(); persist(); render(); },
     "open-sheet": (d) => openSheet(d.i != null && d.i !== "" ? `${d.sheet}:${d.i}` : d.sheet),
     "close-sheet": closeSheet,
+    // Fait défiler jusqu'à une carte de la page et la signale brièvement (maison en direct → carte détaillée)
+    spot: (d) => {
+      const el = document.querySelector(`.${d.spot}`); if (!el) return;
+      const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "center" });
+      if (!still && el.animate) el.animate([{ boxShadow: "0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent)" }, { boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent) 55%, transparent)", offset: 0.25 }, { boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent) 0%, transparent)" }], { duration: 1600, delay: 350, easing: "ease-out" });
+      // Le titre de la carte porte tabindex="-1" dans son gabarit (card({ target: true })) : le focus survit aux rendus
+      (el.querySelector("h3[tabindex]") || el).focus({ preventScroll: true });
+    },
     toggle: (d) => call("switch.toggle", d.entity).then(done(() => `${nameOf(d.entity) || "Appareil"} ${isOn(d.entity) ? "allumé" : "éteint"}`.replace(/^(Lumière .*) (allumé|éteint)$/, "$1 $2e"))),
     // Maison
     "lights-off": () => call("light.turn_off", C.lumieres.filter(isOn)).then(done("Toutes les lumières sont éteintes")),

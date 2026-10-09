@@ -7,17 +7,34 @@
 
   const speed = (w) => `${BZ.clamp(2.6 - w / 1400, 0.55, 2.6).toFixed(2)}s`;
   const width = (w) => BZ.clamp(1.5 + w / 1100, 1.5, 5).toFixed(2);
+  const IDLE = 15;   // sous 15 W, une liaison est considérée au repos
 
+  // États des nœuds (libellé, puissance, note, teinte) : partagés par le schéma, la page Énergie et la maison
   function nodes(L) {
-    const batState = Math.abs(L.bat) < 15 ? "Veille" : L.bat > 0 ? "Charge" : "Décharge";
-    const gridState = Math.abs(L.grid) < 15 ? "Équilibre" : L.grid < 0 ? "Revente" : "Achat";
+    const batState = Math.abs(L.bat) < IDLE ? "Veille" : L.bat > 0 ? "Charge" : "Décharge";
+    const gridState = Math.abs(L.grid) < IDLE ? "Équilibre" : L.grid < 0 ? "Revente" : "Achat";
     return {
       sun: { ic: "sun", tone: "solar", label: "Soleil", w: L.solar, note: "3 onduleurs" },
       home: { ic: "home", tone: "home", label: "Maison", w: L.house, note: "hors voiture" },
-      bat: { ic: "battery", tone: "battery", label: "Batterie", w: Math.abs(L.bat), note: `${fmt.n(BZ.num(BZ.C.batterie_soc))} % · ${batState}`, soc: BZ.num(BZ.C.batterie_soc), dir: L.bat < -15 ? "in" : "out" },
-      grid: { ic: "grid", tone: L.grid > 15 ? "bad" : "grid", label: "Réseau", w: Math.abs(L.grid), note: gridState, dir: L.grid > 15 ? "in" : "out" },
+      bat: { ic: "battery", tone: "battery", label: "Batterie", w: Math.abs(L.bat), note: `${fmt.n(BZ.num(BZ.C.batterie_soc))} % · ${batState}`, state: batState, soc: BZ.num(BZ.C.batterie_soc), dir: L.bat < -15 ? "in" : "out" },
+      grid: { ic: "grid", tone: L.grid > 15 ? "bad" : "grid", label: "Réseau", w: Math.abs(L.grid), note: gridState, state: gridState, dir: L.grid > 15 ? "in" : "out" },
       car: { ic: "car", tone: "ev", label: "e-Niro", w: L.car, note: L.charging ? `${fmt.n(BZ.num(BZ.C.voiture_soc))} % · ${fmt.n(L.evSolarShare * 100)} % soleil` : L.plugged ? "Branchée" : "Débranchée", soc: BZ.num(BZ.C.voiture_soc) },
     };
+  }
+
+  /* Qui alimente qui, en ce moment. Les capteurs ne donnent qu'un total par nœud ; on répartit dans l'ordre
+     de l'autoconsommation : le soleil sert d'abord la maison, puis la voiture, la batterie, et le reste part au
+     réseau ; la batterie puis le réseau couvrent ce qui manque. → [{ from: "sun" | "bat" | "grid", to: "house" | "car" | "bat" | "grid", w }] */
+  function routes(L) {
+    const src = { sun: Math.max(0, L.solar), bat: Math.max(0, -L.bat), grid: Math.max(0, L.grid) };
+    const dst = { house: Math.max(0, L.house), car: Math.max(0, L.car), bat: Math.max(0, L.bat), grid: Math.max(0, -L.grid) };
+    const out = [];
+    for (const from of ["sun", "bat", "grid"]) for (const to of ["house", "car", "bat", "grid"]) {
+      if (from === to) continue;
+      const w = Math.min(src[from], dst[to]);
+      if (w > 0) { src[from] -= w; dst[to] -= w; out.push({ from, to, w }); }
+    }
+    return out;
   }
 
   // Une liaison : trait de fond + trait animé dans le sens réel de l'énergie
@@ -63,4 +80,7 @@
   }
 
   BZ.flow = flow;
+  BZ.flowNodes = nodes;
+  BZ.flowRoutes = routes;
+  BZ.FLOW_IDLE = IDLE;
 })();

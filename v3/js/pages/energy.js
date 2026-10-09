@@ -39,6 +39,9 @@
   // Aujourd'hui, de 0 h à maintenant : pts = [[x 0…1, valeur]], point en direct au bout (pastille HTML, jamais déformée)
   // zero : échelle symétrique autour de 0 (au-dessus = revente, en dessous = achat)
   function daySpark(pts, tone, { lo, hi, zero = false, live } = {}) {
+    // Capteur indisponible : on ne trace que les valeurs connues (jamais « NaN » dans un tracé SVG)
+    pts = pts.filter((p) => Number.isFinite(p[1]));
+    if (live && !Number.isFinite(live[1])) live = null;
     const vs = pts.map((p) => p[1]).concat(live ? [live[1]] : []);
     let a = lo != null ? lo : Math.min(0, ...vs), b = hi != null ? hi : Math.max(...vs, 0.001);
     if (zero) { const m = Math.max(Math.abs(a), Math.abs(b), 0.001); a = -m; b = m; }
@@ -108,14 +111,16 @@
     const grid = L.grid < -15 ? `tu revends ${fmt.powerText(-L.grid)}` : L.grid > 15 ? `tu achètes ${fmt.powerText(L.grid)}` : "rien ne passe par le réseau";
     // Pastille au service du bouton : température du ballon et surplus qui peut le chauffer
     const boost = num(C.ballon_boost) === 1, surplus = -L.grid, temp = `${fmt.n(num(C.ballon_temp))} °C`;
-    const live = boost ? { tone: "heat", main: "Ballon en chauffe", sub: temp, on: true }
+    // Libellés longs, et courts quand l'écran est étroit (en-bl / en-bs) : la pastille et le bouton tiennent côte à côte
+    const ls = (long, short) => h`<span class="en-bl">${long}</span><span class="en-bs">${short}</span>`;
+    const live = boost ? { tone: "heat", main: ls("Ballon en chauffe", "En chauffe"), sub: temp, on: true }
       : surplus > 15 ? { tone: "grid", main: `Surplus ${fmt.powerText(surplus)}`, sub: `ballon ${temp}`, on: true }
       : { tone: "neutral", main: "Pas de surplus", sub: `ballon ${temp}`, on: false };
     return h`<header class="ph">
       <div><p class="ph-hi">Temps réel</p><h1>Énergie</h1><p class="ph-sub">${sun}, ${bat} et ${grid}.</p></div>
       <div class="ph-a">
         <span class="en-live" data-tone="${live.tone}"><i class="${live.on ? "is-on" : ""}"></i><b>${live.main}</b><span>· ${live.sub}</span></span>
-        ${btn({ label: boost ? "Arrêter la chauffe" : "Chauffer le ballon", ic: boost ? "x" : "drop", act: "boiler-boost", kind: "primary", pending: BZ.isPending(C.ballon_boost) })}
+        ${btn({ label: boost ? ls("Arrêter la chauffe", "Arrêter") : ls("Chauffer le ballon", "Chauffer"), aria: boost ? "Arrêter la chauffe du ballon" : "Chauffer le ballon", ic: boost ? "x" : "drop", act: "boiler-boost", kind: "primary", pending: BZ.isPending(C.ballon_boost) })}
       </div></header>`;
   }
 
@@ -149,16 +154,7 @@
   const speed = (w) => `${BZ.clamp(2.6 - w / 1400, 0.55, 2.6).toFixed(2)}s`;
   const width = (w) => BZ.clamp(1.5 + w / 1100, 1.5, 5).toFixed(2);
   const link = (d, tone, w, reverse) => h`<path class="fl-bg" d="${d}"/>${w >= 15 ? h`<path class="fl-go ${reverse ? "is-rev" : ""}" data-tone="${tone}" d="${d}" style="--sp:${speed(w)};--sw:${width(w)}"/>` : ""}`;
-  function flowNodes(L) {
-    const soc = num(C.batterie_soc), bs = Math.abs(L.bat) < 15 ? "Veille" : L.bat > 0 ? "Charge" : "Décharge";
-    return {
-      sun: { ic: "sun", tone: "solar", label: "Soleil", w: L.solar, note: "3 onduleurs" },
-      home: { ic: "home", tone: "home", label: "Maison", w: L.house, note: "hors voiture" },
-      bat: { ic: "battery", tone: "battery", label: "Batterie", w: Math.abs(L.bat), note: `${fmt.n(soc)} % · ${bs}`, soc },
-      grid: { ic: "grid", tone: L.grid > 15 ? "bad" : "grid", label: "Réseau", w: Math.abs(L.grid), note: Math.abs(L.grid) < 15 ? "Équilibre" : L.grid < 0 ? "Revente" : "Achat" },
-      car: { ic: "car", tone: "ev", label: "e-Niro", w: L.car, note: L.charging ? `${fmt.n(num(C.voiture_soc))} % · ${fmt.n(L.evSolarShare * 100)} % soleil` : L.plugged ? "Branchée" : "Débranchée", soc: num(C.voiture_soc) },
-    };
-  }
+  const flowNodes = (L) => BZ.flowNodes(L);   // mêmes états que le schéma partagé (flow.js) et la maison
   const fnode = (k, n, [x, y]) => h`
     <div class="fn fn-${k} ${n.w < 15 && k !== "home" ? "is-idle" : ""}" data-tone="${n.tone}" style="--x:${x}%;--y:${y}%">
       <span class="fn-i">${icon(n.ic)}${n.soc != null ? h`<svg class="fn-soc" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18.5" pathLength="100" style="--p:${n.soc}"/></svg>` : ""}</span>
@@ -192,7 +188,7 @@
   function solarCard() {
     const K = caps(), ws = C.onduleurs_w.map((id) => Math.max(0, num(id) || 0)), tot = ws.reduce((a, b) => a + b, 0), T = BZ.today();
     const done = T.forecast > 0 ? BZ.clamp(T.prod / T.forecast, 0, 1) : 0, rest = Math.max(0, T.forecast - T.prod);
-    return card({ cls: "en-sun", title: "Production solaire", ic: "sun", tone: "accent",
+    return card({ cls: "en-sun", target: true, title: "Production solaire", ic: "sun", tone: "accent",
       aside: h`<span class="en-note"><b>${fmt.n(T.prod, 1)}</b> kWh<span class="en-lo"> aujourd'hui</span></span>`, body: h`
       <div class="en-fc">
         ${meter({ value: done * 100, tone: "solar", size: "xs", label: `Production du jour : ${fmt.n(done * 100)} % de la prévision` })}
@@ -227,7 +223,7 @@
       money,
     ];
     const net = T.exp - T.imp, vt = exp ? `Revente de ${fmt.powerText(-g)}` : imp ? `Achat de ${fmt.powerText(g)}` : "Aucun échange";
-    return card({ cls: "en-grd", title: "Réseau", ic: "grid", tone: "accent",
+    return card({ cls: "en-grd", target: true, title: "Réseau", ic: "grid", tone: "accent",
       aside: h`<span title="Solde du jour : revente moins achat">${pill(`Solde ${net >= 0 ? "+" : "−"}${fmt.n(Math.abs(net), 1)} kWh`, net >= 0 ? "good" : "bad")}</span>`, body: h`
       <div class="en-dv" data-tone="${exp ? "grid" : imp ? "bad" : "neutral"}" role="meter" aria-label="Échange avec le réseau" aria-valuemin="${Math.round(-span)}" aria-valuemax="${Math.round(span)}" aria-valuenow="${Math.round(-g)}" aria-valuetext="${vt}">
         <span class="en-dv-l ${imp ? "is-on" : ""}">Achat</span>
@@ -247,7 +243,7 @@
     const tin = num(C.batterie_total_charge_kwh), tout = num(C.batterie_total_decharge_kwh), eff = tin ? tout / tin : 0;
     const state = Math.abs(L.bat) < 15 ? pill("En veille", "neutral") : L.bat > 0 ? pill("Charge", "battery", true) : pill("Décharge", "warn", true);
     const life = `Depuis l'installation : ${big(tin)} kWh stockés, ${big(tout)} kWh rendus`;
-    return card({ cls: "en-bat", title: "Batterie SolarFlow", ic: "battery", tone: "accent", aside: state, body: h`
+    return card({ cls: "en-bat", target: true, title: "Batterie SolarFlow", ic: "battery", tone: "accent", aside: state, body: h`
       <div class="en-bat-top">
         ${ring({ value: soc, tone: "battery", size: 112, stroke: 10, mark: min, label: `Batterie à ${fmt.n(soc)} %, ${fmt.kwhText(num(C.batterie_dispo_kwh))} disponibles, réserve à ${fmt.n(min)} %`,
           inner: h`<b>${fmt.n(soc)}<small>%</small></b><span>${fmt.kwhText(num(C.batterie_dispo_kwh))}</span>` })}
@@ -314,7 +310,8 @@
 
   BZ.pages.energy = () => {
     const L = BZ.live();
-    return h`${header(L)}${kpis(L)}
+    // Mobile : la maison en direct remplace le schéma « Flux en direct » (masqué sous 768 px)
+    return h`${header(L)}${BZ.house()}${kpis(L)}
       <div class="layout en-grid">
         <div class="col en-l">${flowCard(L)}<div class="en-pair">${solarCard()}${gridCard(L)}</div></div>
         <div class="col en-r">${batCard(L)}${tariffCard()}</div>

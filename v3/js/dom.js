@@ -11,6 +11,8 @@
     }
     if (a.nodeType === 3 || a.nodeType === 8) { if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
     if (a.nodeType !== 1) return;
+    // Décor figé (data-static) : même empreinte, contenu inchangé, rien à comparer ni à toucher
+    if (b.hasAttribute("data-static") && a.getAttribute("data-static") === b.getAttribute("data-static")) return;
     for (const { name } of [...a.attributes]) if (!b.hasAttribute(name)) a.removeAttribute(name);
     for (const { name, value } of [...b.attributes]) if (a.getAttribute(name) !== value) a.setAttribute(name, value);
     if ((a.tagName === "INPUT" || a.tagName === "SELECT") && a !== document.activeElement && a.value !== b.value) a.value = b.value;

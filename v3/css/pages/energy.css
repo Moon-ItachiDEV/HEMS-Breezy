@@ -40,6 +40,13 @@
 .en-live i.is-on { animation: ping 2.4s var(--ease) infinite; }
 .en-live b { color: var(--c-t); font-weight: 600; font-variant-numeric: tabular-nums; }
 @media (max-width: 767px) { .en-live { justify-content: center; } .en-live > span { display: none; } }
+/* Téléphones étroits : libellés courts (« En chauffe », « Chauffer »), et rien ne déborde de l'écran */
+.en-bs { display: none; }
+@media (max-width: 429px) { .ph .en-bl { display: none; } .ph .en-bs { display: inline; } }
+@media (max-width: 767px) {
+  .ph-a > .en-live, .ph-a > .en-live + .btn { min-width: 0; }
+  .ph-a > .en-live b, .ph-a > .en-live + .btn > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+}
 
 /* ─── Indicateurs ─────────────────────────────────────────────────── */
 .en-d { color: var(--c-t); }
