@@ -177,7 +177,7 @@
           <div class="btn-row">${btn({ label: BZ.ui.armed === "fill" ? "Confirmer : sac versé" : "Sac versé dans la trémie", act: "pellet-fill", kind: BZ.ui.armed === "fill" ? "danger" : "secondary", pending: BZ.isPending(C.script_remplir) })}${btn({ label: "+1 sac au stock", ic: "plus", act: "pellet-buy", kind: "primary", pending: BZ.isPending(C.script_achat) })}</div>` }; },
     ballon: () => { const boost = num(C.ballon_boost) === 1, t = num(C.ballon_temp), c = attr(C.ballon, "temperature");
       return { ic: "drop", tone: "battery", title: "Ballon d'eau chaude", sub: isOn(C.ballon_chauffe) ? "Chauffe en cours" : "Au repos",
-        body: h`<div class="big-v center">${BZ.val([fmt.n(t), "°C"])}<span class="big-s">consigne ${fmt.n(c)} °C</span></div>${meter({ value: (t / c) * 100, tone: "battery", label: "Température du ballon" })}
+        body: h`<div class="sh-hero"><div class="big-v center">${BZ.val([fmt.n(t), "°C"])}<span class="big-s">consigne ${fmt.n(c)} °C</span></div>${meter({ value: (t / c) * 100, tone: "battery", label: "Température du ballon" })}</div>
           <div class="rows"><div class="row"><div><strong>Forcer la chauffe</strong><span>${boost ? "J1 · boost" : "J0 · normal"}</span></div>${toggle({ on: boost, act: "boiler-boost", label: "Forcer la chauffe", pending: BZ.isPending(C.ballon_boost) })}</div>
           <div class="row"><div><strong>Dernier entretien</strong><span>${fmt.date(new Date(st(C.ballon_entretien)), { day: "numeric", month: "long", year: "numeric" })}</span></div><span class="muted">${fmt.ago(st(C.ballon_entretien))}</span></div></div>` }; },
     strip: () => ({ ic: "plug", tone: "good", title: "Multiprise", sub: `${C.multiprise.filter(isOn).length} sur ${C.multiprise.length} allumées`,

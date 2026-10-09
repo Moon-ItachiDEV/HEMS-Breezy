@@ -165,14 +165,15 @@
     bg.forEach((el) => el && (el.inert = true));   // le focus reste dans le panneau
     const [kind, i] = s.split(":"), d = BZ.sheets[kind](i != null ? +i : undefined);
     sheetEl.classList.toggle("is-full", !!d.full);
-    const html = h`<div class="sheet-p ${d.full ? "is-full" : ""}" role="dialog" aria-modal="true" aria-labelledby="sheet-t">
+    const html = h`<div class="sheet-p ${d.full ? "is-full" : ""}" role="dialog" aria-modal="true" aria-labelledby="sheet-t" tabindex="-1">
       <header class="sheet-h"><span class="chip" data-tone="${d.tone}">${icon(d.ic)}</span><div><h2 id="sheet-t">${d.title}</h2><p>${d.sub}</p></div>
         <button type="button" class="icon-btn" data-act="close-sheet" aria-label="Fermer le panneau">${icon("x")}</button></header>
       <div class="sheet-b">${d.body}</div></div><div class="sheet-bg" data-act="close-sheet"></div>`;
     if (!sheetEl.classList.contains("is-open")) {
       sheetEl.innerHTML = html; sheetEl.classList.add("is-open"); sheetEl.removeAttribute("aria-hidden");
       lastFocus = document.activeElement;
-      requestAnimationFrame(() => (sheetEl.querySelector(".vs, .sheet-b button, .icon-btn") || sheetEl).focus());
+      // Au doigt, le focus va au panneau lui-même (pas d'anneau sur le bouton Fermer) ; au clavier, sur la première commande
+      requestAnimationFrame(() => (matchMedia("(pointer: coarse)").matches ? sheetEl.querySelector(".sheet-p") : sheetEl.querySelector(".vs, .sheet-b button, .icon-btn") || sheetEl).focus());
     } else BZ.morph(sheetEl, html);
   }
   const openSheet = (k) => { BZ.ui.sheet = k; BZ.ui.pop = null; render(); };
