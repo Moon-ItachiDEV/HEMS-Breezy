@@ -6,9 +6,9 @@
 
   /* ─── État d'interface (pas d'état métier ici) ─────────────────────── */
   const saved = (() => { try { return JSON.parse(localStorage.getItem("bz3") || "{}"); } catch { return {}; } })();
-  BZ.ui = { period: "semaine", carPeriod: "mois", homeFilter: "all", devFilter: "all", dayOffset: 0, armed: null, sheet: null, pop: null, theme: saved.theme || "light", ...saved.ui };
+  BZ.ui = { period: "semaine", carPeriod: "mois", homeFilter: "all", devFilter: "all", carArt: "roadster", dayOffset: 0, armed: null, sheet: null, pop: null, theme: saved.theme || "light", ...saved.ui };
   BZ.ui.dayOffset = 0; BZ.ui.pop = null; BZ.ui.homeFilter = "all";
-  const persist = () => { try { localStorage.setItem("bz3", JSON.stringify({ theme: BZ.ui.theme, ui: { period: BZ.ui.period, carPeriod: BZ.ui.carPeriod, devFilter: BZ.ui.devFilter } })); } catch {} };
+  const persist = () => { try { localStorage.setItem("bz3", JSON.stringify({ theme: BZ.ui.theme, ui: { period: BZ.ui.period, carPeriod: BZ.ui.carPeriod, devFilter: BZ.ui.devFilter, carArt: BZ.ui.carArt } })); } catch {} };
   BZ.user = C.utilisateur_nom || "Breezy";
 
   const ROUTES = [
@@ -295,7 +295,13 @@
   }
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (BZ.ui.theme === "auto") { applyTheme(); render(); } });
 
+  /* ─── Mode « une page » : seulement quand l'écran peut tout tenir, sinon la page défile ─ */
+  const fitQ = matchMedia("(min-width: 1366px) and (min-height: 820px), (min-width: 1200px) and (min-height: 900px)");
+  const applyFit = () => document.body.classList.toggle("fit", fitQ.matches);
+  fitQ.addEventListener("change", applyFit);
+
   /* ─── Démarrage ────────────────────────────────────────────────────── */
+  applyFit();
   applyTheme();
   topInit();
   const sync = () => { const r = fromHash(); if (r && r !== current) go(r, false); };
