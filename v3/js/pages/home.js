@@ -10,11 +10,11 @@
   /* ─── Tuile : l'icône agit tout de suite, le texte ouvre le détail ─── */
   const tile = (a, extra = "") => {
     const iconAct = a.toggle
-      ? h`data-act="${a.quick}" ${a.quick === "toggle" ? `data-entity="${a.id}"` : BZ.dataArgs({ i: (a.sheet || "").split(":")[1] || "" })} aria-label="${esc(`${a.verb} : ${a.name}`)}" aria-pressed="${String(a.on)}"`
+      ? h`data-act="${a.quick}" ${a.quick === "toggle" ? `data-entity="${a.id}"` : BZ.dataArgs(a.args || { i: (a.sheet || "").split(":")[1] || "" })} aria-label="${esc(`${a.verb} : ${a.name}`)}" aria-pressed="${String(a.on)}"`
       : h`data-act="open-sheet" data-sheet="${a.sheet}" aria-label="${esc(`Ouvrir ${a.name}`)}"`;
-    return h`<div class="ma-tile ${a.on ? "is-on" : ""}" data-tone="${a.tone}" data-key="${a.id}${a.name}">
-      <button type="button" class="ma-tile-i" ${iconAct} ${BZ.isPending(a.id) ? 'aria-busy="true"' : ""}>${icon(a.ic)}</button>
-      <button type="button" class="ma-tile-t" ${a.sheet ? `data-act="open-sheet" data-sheet="${a.sheet}"` : `data-act="nav" data-to="${a.to}"`}><strong>${a.name}</strong><span>${a.state}</span></button>
+    return h`<div class="ma-tile ${a.on ? "is-on" : ""} ${a.anim || ""}" data-tone="${a.tone}" data-key="${a.id}${a.name}">
+      <button type="button" class="ma-tile-i ${a.armed ? "is-armed" : ""}" ${iconAct} ${BZ.isPending(a.id) ? 'aria-busy="true"' : ""}>${icon(a.ic)}</button>
+      <button type="button" class="ma-tile-t" ${a.sheet ? `data-act="open-sheet" data-sheet="${a.sheet}"` : a.toggle ? h`data-act="${a.quick}" ${a.quick === "toggle" ? `data-entity="${a.id}"` : BZ.dataArgs(a.args || {})} aria-pressed="${String(a.on)}"` : `data-act="nav" data-to="${a.to}"`}><strong>${a.name}</strong><span>${a.state}</span></button>
       ${extra}
     </div>`;
   };

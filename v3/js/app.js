@@ -164,7 +164,8 @@
     if (!s) { if (sheetEl.classList.contains("is-open")) { sheetEl.classList.remove("is-open"); sheetEl.setAttribute("aria-hidden", "true"); bg.forEach((el) => el && (el.inert = false)); lastFocus && lastFocus.focus(); } return; }
     bg.forEach((el) => el && (el.inert = true));   // le focus reste dans le panneau
     const [kind, i] = s.split(":"), d = BZ.sheets[kind](i != null ? +i : undefined);
-    const html = h`<div class="sheet-p" role="dialog" aria-modal="true" aria-labelledby="sheet-t">
+    sheetEl.classList.toggle("is-full", !!d.full);
+    const html = h`<div class="sheet-p ${d.full ? "is-full" : ""}" role="dialog" aria-modal="true" aria-labelledby="sheet-t">
       <header class="sheet-h"><span class="chip" data-tone="${d.tone}">${icon(d.ic)}</span><div><h2 id="sheet-t">${d.title}</h2><p>${d.sub}</p></div>
         <button type="button" class="icon-btn" data-act="close-sheet" aria-label="Fermer le panneau">${icon("x")}</button></header>
       <div class="sheet-b">${d.body}</div></div><div class="sheet-bg" data-act="close-sheet"></div>`;
@@ -203,12 +204,16 @@
     "covers-all": (d) => call("cover.set_cover_position", C.volets, { position: +d.pos }).then(done(+d.pos ? "Volets ouverts" : "Volets fermés")),
     "cover-flip": (d) => { const id = C.volets[d.i], p = attr(id, "current_position") > 0 ? 0 : 100; return call("cover.set_cover_position", id, { position: p }).then(done(`${C.volets_noms[d.i]} ${p ? "ouvert" : "fermé"}`)); },
     "cover-set": (d) => call("cover.set_cover_position", C.volets[d.i], { position: +d.pos }),
-    "rad-power": (d) => { const id = C.radiateurs[d.i]; return call("climate.set_hvac_mode", id, { hvac_mode: st(id) === "off" ? "heat" : "off" }); },
-    "stove-power": () => call("climate.set_hvac_mode", C.poele, { hvac_mode: st(C.poele) === "off" ? "heat" : "off" }),
+    "rad-power": (d) => { const id = C.radiateurs[d.i]; return call("climate.set_hvac_mode", id, { hvac_mode: st(id) === "off" ? "heat" : "off" }).then(done(() => `Radiateur ${C.radiateurs_noms[d.i]} ${st(id) === "off" ? "éteint" : "allumé"}`)); },
+    // Poêle : une seconde touche dans les 4 s confirme (évite d'allumer ou d'éteindre par erreur)
+    "stove-power": () => { const on = st(C.poele) !== "off";
+      return confirm2("stove", () => call("climate.set_hvac_mode", C.poele, { hvac_mode: on ? "off" : "heat" }).then(done(on ? "Poêle éteint" : "Poêle allumé")), on ? "Appuie encore pour éteindre le poêle" : "Appuie encore pour allumer le poêle"); },
     "boiler-boost": () => call("number.set_value", C.ballon_boost, { value: num(C.ballon_boost) === 1 ? 0 : 1 }).then(() => { BZ.ent(C.ballon_chauffe).state = num(C.ballon_boost) === 1 ? "on" : "off"; BZ.toast(num(C.ballon_boost) === 1 ? "Chauffe du ballon forcée" : "Ballon en mode normal", "good"); }),
     "pellet-fill": () => confirm2("fill", () => call("script.turn_on", C.script_remplir).then(done("Sac versé : trémie mise à jour")), "Appuie encore pour confirmer le sac versé"),
     "pellet-buy": () => call("script.turn_on", C.script_achat).then(done("Un sac ajouté au stock")),
-    robot: (d) => call(`vacuum.${d.cmd}`, C.robot).then(done(d.cmd === "start" ? "Nettoyage lancé" : "Retour à la base")),
+    robot: (d) => call(`vacuum.${d.cmd}`, C.robot).then(done({ start: `Nettoyage lancé : ${(st(C.robot_scene) || "").toLowerCase()}`, pause: "Nettoyage en pause", return_to_base: "L'aspirateur retourne à sa base", locate: "L'aspirateur émet un bip pour se signaler" }[d.cmd] || "Commande envoyée")),
+    "robot-zone": (d) => call("select.select_option", C.robot_scene, { option: d.value }),
+    "robot-fan": (d) => call("vacuum.set_fan_speed", C.robot, { fan_speed: d.value }).then(done(`Aspiration : ${d.value}`)),
     media: (d) => call(`media_player.media_${d.cmd}${d.cmd === "play_pause" ? "" : "_track"}`, C.homepod),
     // Énergie
     "bat-min": (d) => call("number.set_value", C.batterie_min_pct, { value: step(C.batterie_min_pct, +d.d, 5, 0, 50) }),

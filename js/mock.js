@@ -85,7 +85,7 @@
   s("sensor.chambre_eve_energy_puissance", 45, { unit_of_measurement: "W" });
   s("sensor.chambre_eve_energy_energie", 1.2, { unit_of_measurement: "kWh" });
   ["on", "on", "off", "off", "on"].forEach((v, i) => s(`switch.smart_power_strip_commutateur_${i + 1}`, v));
-  s("vacuum.robovac", "docked");
+  s("vacuum.robovac", "docked", { friendly_name: "RoboVac", fan_speed: "Standard", fan_speed_list: ["Pure", "Standard", "Turbo", "Max"], cleaned_area: 46, cleaning_time: 52, last_clean: new Date(Date.now() - 26 * 3600e3).toISOString() });
   s("sensor.robovac_battery", 100, { unit_of_measurement: "%" });
   s("select.robovac_scene", "Tout le rez-de-chaussée", { options: ["Tout le rez-de-chaussée", "Cuisine", "Salon", "Chambres"] });
   s("media_player.salon", "playing", { media_title: "Midnight City", media_artist: "M83", media_album_name: "Hurry Up, We're Dreaming", media_duration: 243, media_position: 97, volume_level: 0.35, entity_picture: "" });

@@ -68,11 +68,11 @@
       { label: "Maison", sub: "Page · lumières, volets, chauffage", ic: "home", tone: "accent", to: "home" },
       { label: "Poêle à granulés", sub: "Chauffage", ic: "flame", tone: "heat", sheet: "poele" },
       { label: "Ballon d'eau chaude", sub: "Chauffage", ic: "drop", tone: "battery", sheet: "ballon" },
-      { label: "Aspirateur", sub: "Appareil", ic: "robot", tone: "battery", sheet: "robot" },
+      { label: C.robot_nom || "Aspirateur", sub: "Aspirateur robot", ic: "robot", tone: "battery", sheet: "robot" },
       { label: "Multiprise", sub: "Appareil", ic: "plug", tone: "good", sheet: "strip" },
       { label: "HomePod salon", sub: "Musique", ic: "speaker", tone: "ev", sheet: "media" },
       ...C.volets_noms.map((n, i) => ({ label: `Volet ${n}`, sub: "Volet", ic: "blinds", tone: "battery", sheet: `cover:${i}` })),
-      ...C.radiateurs_noms.map((n, i) => ({ label: `Radiateur ${n}`, sub: "Chauffage", ic: "thermo", tone: "heat", sheet: `rad:${i}` })),
+      ...C.radiateurs_noms.map((n, i) => ({ label: `Radiateur ${n}`, sub: st(C.radiateurs[i]) !== "off" ? "Allumé · Entrée pour éteindre" : "Éteint · Entrée pour allumer", ic: "thermo", tone: "heat", act: "rad-power", args: { i } })),
       ...C.lumieres_noms.map((n, i) => ({ label: `Lumière ${n}`, sub: isOn(C.lumieres[i]) ? "Allumée · Entrée pour éteindre" : "Éteinte · Entrée pour allumer", ic: "bulb", tone: "light", act: "toggle", args: { entity: C.lumieres[i] } })),
     ];
     return out;

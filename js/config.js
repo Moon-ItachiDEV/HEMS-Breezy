@@ -101,6 +101,7 @@ window.VOLTIA_CONFIG = {
   robot: "vacuum.robovac",
   robot_batterie: "sensor.robovac_battery",
   robot_scene: "select.robovac_scene",
+  robot_nom: "Eufy RoboVac",
   homepod: "media_player.salon",
 
   // ─── Chauffage
