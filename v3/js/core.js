@@ -40,7 +40,15 @@
     "input_number.set_value": (id, d) => patch(id, d.value),
     "lock.lock": (id) => patch(id, "locked"),
     "lock.unlock": (id) => patch(id, "unlocked"),
-    "button.press": (id) => { if (id === C.voiture_rafraichir) patch(C.voiture_maj, new Date().toISOString()); },
+    // Démo : un relevé forcé rapporte des valeurs fraîches (en charge : +1 %)
+    "button.press": (id) => {
+      if (id !== C.voiture_rafraichir) return;
+      patch(C.voiture_maj, new Date().toISOString());
+      if (isOn(C.voiture_branchee) && isOn(C.voiture_en_charge) && num(C.voiture_soc) < num(C.voiture_limite_pct)) {
+        patch(C.voiture_soc, num(C.voiture_soc) + 1); patch(C.session_soc, num(C.session_soc) + 1);
+        patch(C.voiture_autonomie_km, num(C.voiture_autonomie_km) + 5); patch(C.voiture_minutes_restantes, Math.max(0, num(C.voiture_minutes_restantes) - 6));
+      }
+    },
     "vacuum.start": (id) => patch(id, "cleaning", { started_at: new Date().toISOString() }),
     "vacuum.pause": (id) => patch(id, "paused"),
     // Démo : le retour à la base prend quelques secondes, puis l'aspirateur se recharge
@@ -66,6 +74,48 @@
     finally { ids.forEach((id) => pending.delete(id)); notify(); }
   }
   const isPending = (id) => pending.has(id);
+
+  /* ─── Commandes lentes : la voiture passe par le cloud Kia Connect ─────
+     Le service HA rend la main quand Kia a accepté la commande (souvent 5 à 30 s) ;
+     la voiture l'applique ensuite et son état ne change qu'au relevé suivant
+     (jusqu'à 1 à 2 min). Chaque commande est suivie en trois temps :
+       send : envoi au cloud Kia → wait : la voiture applique → ok, ou fail (refus ou délai dépassé).
+     Une seule commande voiture à la fois : l'API Kia les traite l'une après l'autre. */
+  const slow = new Map();
+  const demo = { fail: null, ack: 2400, apply: 5200, timeout: 120000 };   // démo : délais simulés ; fail = "send" | "wait" pour tester un échec
+  const transportSlow = (service, ids, data) => new Promise((resolve, reject) => setTimeout(() => {
+    const f = demo.fail; demo.fail = null;
+    if (f === "send") return reject(new Error("refus"));
+    resolve();
+    if (f !== "wait") setTimeout(() => { ids.forEach((id) => SERVICES[service] && SERVICES[service](id, data)); notify(); }, demo.apply);
+  }, demo.ack));
+  const waitFor = (ok, ms) => new Promise((resolve) => {
+    if (ok()) return resolve(true);
+    let off = null;
+    const timer = setTimeout(() => { off(); resolve(false); }, ms);
+    off = subscribe(() => { if (ok()) { clearTimeout(timer); off(); resolve(true); } });
+  });
+  const slowEnd = (t, phase, why) => {
+    t.phase = phase; t.why = why || ""; t.tEnd = Date.now(); notify();
+    setTimeout(() => { if (slow.get(t.key) === t) { slow.delete(t.key); notify(); } }, phase === "ok" ? 2600 : 12000);
+    return phase === "ok";
+  };
+  // key : nom de la commande (lock, clim, charge, refresh) ; to : état visé (pour les libellés) ; expect() : vrai quand la voiture a appliqué
+  function slowCall(key, service, target, data, { to = null, expect, timeout = demo.timeout } = {}) {
+    const busy = slowBusy();
+    if (busy) return busy.promise;
+    const t = { key, to, phase: "send", t0: Date.now(), tWait: 0, tEnd: 0, why: "" };
+    slow.set(key, t); notify();
+    t.promise = (async () => {
+      try { await transportSlow(service, [].concat(target), data); }
+      catch { return slowEnd(t, "fail", "Kia Connect n'a pas accepté la commande"); }
+      t.phase = "wait"; t.tWait = Date.now(); notify();
+      return slowEnd(t, ...(await waitFor(expect || (() => true), timeout) ? ["ok"] : ["fail", "La voiture n'a pas confirmé à temps"]));
+    })();
+    return t.promise;
+  }
+  const slowOf = (key) => slow.get(key) || null;
+  const slowBusy = () => [...slow.values()].find((t) => t.phase === "send" || t.phase === "wait") || null;
 
   /* ─── Modèle énergétique en direct ─────────────────────────────────── */
   function live() {
@@ -259,7 +309,7 @@
   setInterval(jitter, 5000);
 
   Object.assign(BZ, {
-    C, ent, st, num, attr, isOn, clamp, call, isPending, subscribe, notify,
+    C, ent, st, num, attr, isOn, clamp, call, isPending, subscribe, notify, slowCall, slowOf, slowBusy, demo,
     live, today, tariffNow, tariffHours, tariffAt, rangeLabel, TARIFS, hours, period, day, chargeDays, chargeMix, roi,
     fmt, MONTHS, MONTHS_LONG,
   });

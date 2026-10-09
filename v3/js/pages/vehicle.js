@@ -474,6 +474,7 @@ __FLOW__
   function hero() {
     const S = chargeState(), { L } = S;
     const locked = st(C.voiture_verrou) === "locked", armed = BZ.ui.armed === "unlock", clim = isOn(C.voiture_clim);
+    const run = (k) => { const t = BZ.slowOf(k); return !!t && (t.phase === "send" || t.phase === "wait"); };
     const meta = L.charging ? h`Encore <b>${dur(S.mins)}</b> à ${fmt.powerText(L.car)}` : S.why ? fmt.cap(S.why) : h`Dernier trajet <b>${fmt.ago(st(C.voiture_dernier_trajet))}</b>`;
     const action = ({ label, ic, act, tone, on, disabled, pending, aria, title }) => h`
       <button type="button" class="ve-act" data-tone="${tone}" data-act="${act}" ${on != null ? `aria-pressed="${String(!!on)}"` : ""} ${disabled ? "disabled" : ""} ${pending ? 'aria-busy="true"' : ""} aria-label="${esc(aria)}" title="${esc(title || aria)}">
@@ -485,12 +486,12 @@ __FLOW__
         <p class="ve-range"><b>${fmt.n(S.km)} km</b> d'autonomie</p>
         <p class="ve-meta">${meta}</p>
         <div class="ve-acts">
-          ${action({ label: armed ? "Confirmer" : "Verrou", ic: locked ? "lock" : "unlock", act: "car-lock", tone: armed ? "bad" : locked ? "good" : "warn", on: locked, pending: BZ.isPending(C.voiture_verrou),
+          ${action({ label: armed ? "Confirmer" : "Verrou", ic: locked ? "lock" : "unlock", act: "car-lock", tone: armed ? "bad" : locked ? "good" : "warn", on: locked, pending: run("lock"),
             aria: armed ? "Confirmer le déverrouillage" : "Verrou des portes", title: armed ? "Appuie encore pour déverrouiller" : locked ? "Verrouillée · appuie deux fois pour ouvrir" : "Déverrouillée · appuie pour verrouiller" })}
-          ${action({ label: "Climat", ic: "snow", act: "car-clim", tone: "battery", on: clim, pending: BZ.isPending(C.voiture_clim), aria: "Climatisation", title: clim ? "Climatisation en marche" : "Lancer la climatisation" })}
-          ${action({ label: "Recharge", ic: "bolt", act: "car-charge", tone: "ev", on: L.charging, disabled: !L.plugged || (S.full && !L.charging), pending: BZ.isPending(C.voiture_en_charge),
+          ${action({ label: "Climat", ic: "snow", act: "car-clim", tone: "battery", on: clim, pending: run("clim"), aria: "Climatisation", title: clim ? "Climatisation en marche" : "Lancer la climatisation" })}
+          ${action({ label: "Recharge", ic: "bolt", act: "car-charge", tone: "ev", on: L.charging, disabled: !L.plugged || (S.full && !L.charging), pending: run("charge"),
             aria: "Recharge", title: !L.plugged ? "Branche la voiture pour charger" : S.full ? "Limite atteinte" : L.charging ? "Arrêter la recharge" : "Démarrer la recharge" })}
-          ${action({ label: "Actualiser", ic: "refresh", act: "car-refresh", tone: "neutral", pending: BZ.isPending(C.voiture_rafraichir), aria: "Demander un relevé à la voiture" })}
+          ${action({ label: "Actualiser", ic: "refresh", act: "car-refresh", tone: "neutral", pending: run("refresh"), aria: "Demander un relevé à la voiture" })}
         </div>
       </div>
       <div class="ve-hero-r">

@@ -188,6 +188,12 @@
   };
   // Message affiché une fois la commande appliquée (msg peut être une fonction : lue après coup)
   const done = (msg) => () => BZ.toast(typeof msg === "function" ? msg() : msg, "good");
+  // Commande voiture : une à la fois ; le message part quand la voiture a confirmé (ou l'échec)
+  const car = (key, service, id, data, to, expect, ok) => {
+    const busy = BZ.slowBusy();
+    if (busy) { BZ.toast("Une commande est déjà en cours avec la voiture"); return; }
+    return BZ.slowCall(key, service, id, data, { to, expect }).then((good) => BZ.toast(good ? ok : BZ.slowOf(key)?.why || "La voiture n'a pas répondu", good ? "good" : "bad"));
+  };
   const nameOf = (id) => { const i = C.lumieres.indexOf(id); if (i >= 0) return `Lumière ${C.lumieres_noms[i]}`; const k = C.multiprise.indexOf(id); if (k >= 0) return C.multiprise_noms[k]; return id === C.prise_chambre ? "Prise chambre" : ""; };
   const A = {
     nav: (d) => go(d.to),
@@ -219,12 +225,16 @@
     "bat-min": (d) => call("number.set_value", C.batterie_min_pct, { value: step(C.batterie_min_pct, +d.d, 5, 0, 50) }),
     "bat-max": (d) => call("number.set_value", C.batterie_max_pct, { value: step(C.batterie_max_pct, +d.d, 5, 70, 100) }),
     // Voiture
-    "car-charge": () => call(`switch.turn_${isOn(C.voiture_en_charge) ? "off" : "on"}`, C.voiture_en_charge).then(done(() => (isOn(C.voiture_en_charge) ? "Recharge démarrée" : "Recharge arrêtée"))),
+    // Voiture : commandes lentes (cloud Kia Connect), suivies jusqu'à ce que la voiture confirme
+    "car-charge": () => { const on = !isOn(C.voiture_en_charge);
+      return car("charge", `switch.turn_${on ? "on" : "off"}`, C.voiture_en_charge, {}, on, () => isOn(C.voiture_en_charge) === on, on ? "Recharge démarrée" : "Recharge arrêtée"); },
     "car-lock": () => (st(C.voiture_verrou) === "locked"
-      ? confirm2("unlock", () => call("lock.unlock", C.voiture_verrou).then(done("Voiture déverrouillée")), "Appuie encore pour déverrouiller la voiture")
-      : call("lock.lock", C.voiture_verrou).then(done("Voiture verrouillée"))),
-    "car-clim": () => call("switch.toggle", C.voiture_clim).then(done(() => (isOn(C.voiture_clim) ? "Climatisation lancée" : "Climatisation arrêtée"))),
-    "car-refresh": () => call("button.press", C.voiture_rafraichir).then(done("Relevé demandé à la voiture")),
+      ? confirm2("unlock", () => car("lock", "lock.unlock", C.voiture_verrou, {}, "unlocked", () => st(C.voiture_verrou) === "unlocked", "Voiture déverrouillée"), "Appuie encore pour déverrouiller la voiture")
+      : car("lock", "lock.lock", C.voiture_verrou, {}, "locked", () => st(C.voiture_verrou) === "locked", "Voiture verrouillée")),
+    "car-clim": () => { const on = !isOn(C.voiture_clim);
+      return car("clim", `switch.turn_${on ? "on" : "off"}`, C.voiture_clim, {}, on, () => isOn(C.voiture_clim) === on, on ? "Climatisation lancée" : "Climatisation arrêtée"); },
+    "car-refresh": () => { const was = st(C.voiture_maj);
+      return car("refresh", "button.press", C.voiture_rafraichir, {}, null, () => st(C.voiture_maj) !== was, "Relevé à jour"); },
     "car-lim": (d) => call("number.set_value", C.voiture_limite_pct, { value: step(C.voiture_limite_pct, +d.d, 10, 50, 100) }),
     "car-limdc": (d) => call("number.set_value", C.voiture_limite_dc_pct, { value: step(C.voiture_limite_dc_pct, +d.d, 10, 50, 100) }),
     "car-service": () => confirm2("service", () => call("input_number.set_value", C.entretien_dernier_km, { value: num(C.voiture_odometre) }).then(done("Révision enregistrée au compteur actuel")), "Appuie encore pour remettre le compteur de révision à zéro"),
