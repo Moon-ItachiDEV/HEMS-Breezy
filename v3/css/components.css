@@ -340,13 +340,14 @@ a.plist-r:hover, button.plist-r:hover { background: var(--hover); box-shadow: -8
 .tip-r.is-sub b { font-weight: 500; color: var(--text-2); }
 
 /* ─── Notification ────────────────────────────────────────────────────── */
+/* largeur du texte (max-content) : sinon, décalée de 50 %, la bulle se rétrécit de moitié et passe sur plusieurs lignes */
 .toast { position: fixed; left: 50%; bottom: calc(88px + env(safe-area-inset-bottom)); z-index: 90; display: flex; align-items: center; gap: var(--s-3);
-  max-width: calc(100% - 32px); padding: 10px 16px 10px 10px; border-radius: var(--r-pill); background: var(--surface); box-shadow: var(--shadow-pop);
+  width: max-content; max-width: calc(100% - 32px); padding: 10px 16px 10px 10px; border-radius: var(--r-pill); background: var(--surface); box-shadow: var(--shadow-pop);
   font-size: var(--fs-13); font-weight: 500; transform: translate(-50%, 16px); opacity: 0; pointer-events: none; transition: transform var(--t-3) var(--ease), opacity var(--t-2); }
 .toast.is-on { transform: translate(-50%, 0); opacity: 1; }
 .toast-i { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--c-s); color: var(--c-t); }
 .toast-i .ic { width: 14px; height: 14px; stroke-width: 2.4; }
-@media (min-width: 1200px) { .toast { bottom: 32px; left: calc(50% + var(--side-w) / 2); } }
+@media (min-width: 1200px) { .toast { bottom: 32px; left: calc(50% + var(--side-w) / 2); max-width: calc(100% - var(--side-w) - 64px); } }
 
 /* ─── Popovers (recherche, notifications, profil) ─────────────────────── */
 .pop { position: absolute; z-index: 60; top: calc(100% + 8px); min-width: 300px; padding: var(--s-2); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-pop);

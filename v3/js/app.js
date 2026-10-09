@@ -146,7 +146,11 @@
       if (lastRoute) { view.scrollTo(0, 0); window.scrollTo(0, 0); view.focus({ preventScroll: true }); }
       lastRoute = cur;
     } else {
+      // Un bouton qui disparaît au rendu (« Réessayer » une fois relancé ou expiré) rend le focus à l'élément
+      // qu'il désigne (data-refocus) : au clavier, on ne repart pas du début de la page
+      const ae = document.activeElement, back = ae && ae.dataset && ae.dataset.refocus;
       BZ.morph(view, html);
+      if (back && (!ae.isConnected || ae.dataset.refocus !== back)) view.querySelector(back)?.focus();
     }
     BZ.morph(document.getElementById("side"), side());
     BZ.morph(document.getElementById("top-a"), topActions());
@@ -184,17 +188,24 @@
   let armTimer;
   const confirm2 = (key, run, msg) => {
     if (BZ.ui.armed === key) { BZ.ui.armed = null; clearTimeout(armTimer); run(); return; }
-    BZ.ui.armed = key; BZ.toast(msg); clearTimeout(armTimer);
+    BZ.ui.armed = key; BZ.ui.armedAt = Date.now(); if (msg) BZ.toast(msg); clearTimeout(armTimer);
     armTimer = setTimeout(() => { BZ.ui.armed = null; render(); }, 4000); render();
   };
   // Message affiché une fois la commande appliquée (msg peut être une fonction : lue après coup)
   const done = (msg) => () => BZ.toast(typeof msg === "function" ? msg() : msg, "good");
-  // Commande voiture : une à la fois ; le message part quand la voiture a confirmé (ou l'échec)
+  // Commande voiture : une à la fois ; le message part quand la voiture a confirmé (ou l'échec).
+  // Pupitre de la page Voiture à l'écran : sa ligne le dit déjà (et sur mobile le toast couvrirait les tuiles) ;
+  // page défilée plus bas ou autre page : toast
+  const carBusy = () => !!BZ.slowBusy() && (BZ.toast("Attends la fin de la commande en cours", "warn"), true);
+  const seen = (el) => { const r = el && el.getBoundingClientRect(); return !!r && r.bottom > 60 && r.top < innerHeight - 90; };
   const car = (key, service, id, data, to, expect, ok) => {
-    const busy = BZ.slowBusy();
-    if (busy) { BZ.toast("Une commande est déjà en cours avec la voiture"); return; }
-    return BZ.slowCall(key, service, id, data, { to, expect }).then((good) => BZ.toast(good ? ok : BZ.slowOf(key)?.why || "La voiture n'a pas répondu", good ? "good" : "bad"));
+    if (carBusy()) return;
+    if (BZ.ui.armed === "unlock") { BZ.ui.armed = null; clearTimeout(armTimer); }   // une autre commande part : le déverrouillage n'est plus à confirmer
+    return BZ.slowCall(key, service, id, data, { to, expect })
+      .then((good) => (route() !== "vehicle" || !seen(document.querySelector(".ve-acts"))) && BZ.toast(good ? ok : BZ.slowOf(key)?.why || "La voiture n'a pas répondu", good ? "good" : "bad"));
   };
+  // Cible explicite (d.to) : « Réessayer » relance la commande échouée telle quelle, sans basculer l'état actuel
+  const aim = (d, now) => (d.to != null ? d.to === "true" : !now);
   const nameOf = (id) => { const i = C.lumieres.indexOf(id); if (i >= 0) return `Lumière ${C.lumieres_noms[i]}`; const k = C.multiprise.indexOf(id); if (k >= 0) return C.multiprise_noms[k]; return id === C.prise_chambre ? "Prise chambre" : ""; };
   const A = {
     nav: (d) => go(d.to),
@@ -227,12 +238,13 @@
     "bat-max": (d) => call("number.set_value", C.batterie_max_pct, { value: step(C.batterie_max_pct, +d.d, 5, 70, 100) }),
     // Voiture
     // Voiture : commandes lentes (cloud Kia Connect), suivies jusqu'à ce que la voiture confirme
-    "car-charge": () => { const on = !isOn(C.voiture_en_charge);
+    "car-charge": (d) => { const on = aim(d, isOn(C.voiture_en_charge));
       return car("charge", `switch.turn_${on ? "on" : "off"}`, C.voiture_en_charge, {}, on, () => isOn(C.voiture_en_charge) === on, on ? "Recharge démarrée" : "Recharge arrêtée"); },
-    "car-lock": () => (st(C.voiture_verrou) === "locked"
-      ? confirm2("unlock", () => car("lock", "lock.unlock", C.voiture_verrou, {}, "unlocked", () => st(C.voiture_verrou) === "unlocked", "Voiture déverrouillée"), "Appuie encore pour déverrouiller la voiture")
+    // Déverrouiller demande une seconde touche : la tuile devient « Déverrouiller ? » avec son compte à rebours (pas de message)
+    "car-lock": (d) => (carBusy() ? null : (d.to || (st(C.voiture_verrou) === "locked" ? "unlocked" : "locked")) === "unlocked"
+      ? confirm2("unlock", () => car("lock", "lock.unlock", C.voiture_verrou, {}, "unlocked", () => st(C.voiture_verrou) === "unlocked", "Voiture déverrouillée"), null)
       : car("lock", "lock.lock", C.voiture_verrou, {}, "locked", () => st(C.voiture_verrou) === "locked", "Voiture verrouillée")),
-    "car-clim": () => { const on = !isOn(C.voiture_clim);
+    "car-clim": (d) => { const on = aim(d, isOn(C.voiture_clim));
       return car("clim", `switch.turn_${on ? "on" : "off"}`, C.voiture_clim, {}, on, () => isOn(C.voiture_clim) === on, on ? "Climatisation lancée" : "Climatisation arrêtée"); },
     "car-refresh": () => { const was = st(C.voiture_maj);
       return car("refresh", "button.press", C.voiture_rafraichir, {}, null, () => st(C.voiture_maj) !== was, "Relevé à jour"); },

@@ -1,5 +1,5 @@
 /* Voiture (V3) — préfixe ve-.
-   Hero : à gauche l'état, le % géant, l'autonomie et 4 actions rondes ; à droite la voiture posée sur
+   Hero : à gauche l'état, le % géant, l'autonomie et le pupitre de 4 commandes ; à droite la voiture posée sur
    l'unique barre de batterie, le déroulé de la charge et deux infos secondaires. */
 
 /* ─── Grille ───────────────────────────────────────────────────────────── */
@@ -23,23 +23,189 @@
 .ve-range b { font-size: var(--fs-24); font-weight: 600; color: var(--text); letter-spacing: var(--tr-title); font-variant-numeric: tabular-nums; margin-right: 4px; }
 .ve-meta { margin-top: var(--s-2); font-size: var(--fs-14); color: var(--text-2); }
 .ve-meta b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
-.ve-acts { display: flex; gap: var(--s-3); margin-top: auto; padding-top: var(--s-5); }
-.ve-act { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 58px; border-radius: var(--r-md); }
-.ve-act-i { position: relative; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; color: var(--text-2);
-  background: var(--surface); border: 1px solid var(--border-2); box-shadow: 0 1px 2px rgba(20, 24, 36, .06);
-  transition: background var(--t-2), color var(--t-2), border-color var(--t-2), transform var(--t-1) var(--ease); }
-.ve-act-i .ic { width: 20px; height: 20px; }
-.ve-act-l { font-size: var(--fs-12); font-weight: 500; color: var(--text-2); white-space: nowrap; }
-.ve-act:hover:not(:disabled) .ve-act-i { border-color: color-mix(in srgb, var(--c) 45%, var(--border-2)); color: var(--text); }
-.ve-act:active:not(:disabled) .ve-act-i { transform: scale(.94); }
-/* État par la couleur : verrouillée = vert, déverrouillée = orange, climat = bleu, recharge = violet */
-.ve-act[aria-pressed="true"] .ve-act-i, .ve-act[data-tone="warn"] .ve-act-i, .ve-act[data-tone="bad"] .ve-act-i { background: var(--c-s); color: var(--c-t); border-color: color-mix(in srgb, var(--c) 35%, transparent); }
+/* ─── Commandes à distance : pupitre de 4 tuiles (cloud Kia Connect, donc lentes) ──
+   Même langage que les tuiles de Maison (.ma-tile) : puits rond + nom + état actuel ; allumée = tuile posée
+   (surface, bord, ombre teintée) et puits plein de la teinte. data-st : idle · held (une autre commande tourne)
+   · off (impossible) · send (envoi à Kia) · wait (la voiture applique) · ok (confirmé) · fail (échec, appuyer
+   relance) · armed (déverrouillage à confirmer). Deux <rect pathLength="100"> suivent le bord : la comète
+   (envoi, application) et l'anneau (confirmé, compte à rebours qui se vide). */
+.ve-acts { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: var(--s-4); container: ve-acts / inline-size; }
+.ve-acts-h { display: flex; align-items: center; gap: 7px; min-width: 0; height: 16px; font-size: var(--fs-12); font-weight: 500; color: var(--text-3); white-space: nowrap; }
+.ve-acts-h > i { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--c); opacity: .9; }
+.ve-acts[data-tone="neutral"] .ve-acts-h > i { background: var(--text-3); opacity: .45; }
+.ve-acts:not([data-tone="neutral"]) .ve-acts-h { color: var(--c-t); }
+.ve-acts-h.is-run > i { animation: ping 1.6s var(--ease) infinite; }
+.ve-acts-s { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ve-acts-late, .ve-acts-h.is-late .ve-acts-now { display: none; }
+.ve-acts-h.is-late .ve-acts-late { display: inline; }
+.ve-acts-d { flex: none; margin-left: auto; font-size: var(--fs-11); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.ve-acts-c { flex: none; margin-left: auto; padding: 1px 7px; border-radius: var(--r-pill); font-size: var(--fs-11); font-weight: 600; font-variant-numeric: tabular-nums;
+  color: var(--c-t); background: var(--c-s); }
+/* Après un échec : « Réessayer » à droite de la raison, à la place des secondes. Sans marge intérieure à droite, le texte
+   s'aligne sur le bord des tuiles ; le fond au survol se prolonge de 4 px par une ombre (sans élargir la ligne) */
+.ve-acts-retry { flex: none; display: inline-flex; align-items: center; gap: 3px; height: 20px; margin: -2px 0 -2px auto; padding: 0 0 0 4px; border-radius: 6px;
+  font-size: 11.5px; font-weight: 600; color: var(--bad-t); background: transparent; white-space: nowrap; transition: background var(--t-1), box-shadow var(--t-1); }
+.ve-acts-retry .ic { width: 12px; height: 12px; stroke-width: 2.3; transition: transform var(--t-2) var(--ease); }
+.ve-acts-retry:hover { background: var(--bad-s); box-shadow: 4px 0 0 var(--bad-s); }
+.ve-acts-retry:hover .ic { transform: rotate(-120deg); }
+.ve-acts-retry:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+/* Ligne étroite (bureau étroit, petits téléphones) : textes courts, « Réessayer » sans son icône */
+@container ve-acts (max-width: 250px) {
+  .ve-acts-h .ve-x, .ve-acts-retry .ic { display: none; }
+  .ve-acts-h .ve-xs { display: inline; }
+}
+.ve-acts-g { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+
+.ve-act { --tw: 32px; position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 6px 10px 6px 6px; border-radius: 14px; text-align: left;
+  background: var(--surface-2); border: 1px solid transparent;
+  transition: background var(--t-2), border-color var(--t-2), box-shadow var(--t-2), opacity var(--t-2), transform var(--t-1) var(--ease); }
+.ve-act-i { position: relative; display: grid; place-items: center; width: var(--tw); height: var(--tw); border-radius: 50%; flex: none; color: var(--text-3);
+  background: var(--surface); box-shadow: 0 1px 2px rgba(20, 24, 36, .06); transition: background var(--t-2), color var(--t-2), box-shadow var(--t-2); }
+.ve-act-i .ic { width: 17px; height: 17px; stroke-width: 1.9; }
+.ve-act-t { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.22; }
+.ve-act-l { font-size: var(--fs-13); font-weight: 600; color: var(--text-2); letter-spacing: -0.01em; transition: color var(--t-2); }
+.ve-act-s { font-size: 11.5px; font-weight: 500; color: var(--text-3); font-variant-numeric: tabular-nums; transition: color var(--t-2); }
+.ve-act-l, .ve-act-s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:root[data-theme="dark"] .ve-act-i { background: var(--surface-3); box-shadow: none; }
+.ve-act:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(.975); }
+.ve-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Allumée (verrouillée vert, climat bleu, en charge violet) : tuile posée, puits plein */
+.ve-act[aria-pressed="true"]:is([data-st="idle"], [data-st="held"]) { background: var(--surface); border-color: var(--border);
+  box-shadow: 0 1px 2px rgba(20, 24, 36, .05), 0 6px 16px -10px color-mix(in srgb, var(--c) 60%, transparent); }
+.ve-act[aria-pressed="true"]:is([data-st="idle"], [data-st="held"]) .ve-act-i { background: var(--c); color: #fff; box-shadow: 0 5px 12px -5px var(--c); }
 .ve-act[aria-pressed="true"] .ve-act-l { color: var(--text); }
-.ve-act[data-tone="bad"] .ve-act-i { background: var(--bad); color: #fff; animation: nudge .35s var(--ease); }
-.ve-act:disabled { opacity: .45; cursor: not-allowed; }
+.ve-act[aria-pressed="true"] .ve-act-s { color: var(--c-t); }
+:root[data-theme="dark"] .ve-act[aria-pressed="true"]:is([data-st="idle"], [data-st="held"]) { background: var(--surface-3); border-color: var(--border-2); box-shadow: none; }
+/* Ouverte : à surveiller, ambre doux */
+.ve-act[data-k="lock"][aria-pressed="false"][data-st="idle"] .ve-act-i { background: var(--c-s); color: var(--c-t); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent); }
+.ve-act[data-k="lock"][aria-pressed="false"][data-st="idle"] .ve-act-s { color: var(--c-t); }
+.ve-act[data-k="clim"][aria-pressed="true"][data-st="idle"] .ve-act-i .ic { animation: ve-fan 9s linear infinite; }
+@keyframes ve-fan { to { transform: rotate(1turn); } }
+
+/* Impossible (débranchée, limite atteinte : la raison reste dans l'état) et occupé ailleurs (une seule commande
+   à la fois chez Kia) : estompées comme les boutons désactivés de V3, à plat */
+.ve-act:disabled, .ve-act[data-st="held"] { opacity: .5; cursor: not-allowed; }
+.ve-act[data-st="held"][aria-disabled="true"], .ve-act[data-st="held"][aria-disabled="true"] .ve-act-i { box-shadow: none; }
+
+/* Survol (vrai pointeur seulement : au doigt, :hover reste collé après la touche) : au repos comme sur Maison,
+   la tuile éteinte fonce, l'allumée et les étapes gardent leur teinte et avivent leur bord */
+@media (hover: hover) {
+  .ve-act[data-st="idle"]:not([aria-pressed="true"]):hover { background: var(--surface-3); }
+  .ve-act[data-st="idle"][aria-pressed="true"]:hover, .ve-act:is([data-st="send"], [data-st="wait"], [data-st="ok"], [data-st="fail"], [data-st="armed"]):hover {
+    border-color: color-mix(in srgb, var(--c) 55%, transparent); }
+}
+
+/* En cours : la tuile se pose, la comète fait le tour. Même période à l'envoi et à l'application (elle ne saute
+   pas quand Kia accepte) : à l'application elle s'allonge, s'adoucit et le tracé complet apparaît en filigrane */
+.ve-act[aria-busy="true"] { pointer-events: auto; cursor: progress; }
 .ve-act[aria-busy="true"] > * { opacity: 1; }
 .ve-act[aria-busy="true"]::after { content: none; }
-.ve-act[aria-busy="true"] .ve-act-i::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--c, var(--accent)); border-right-color: transparent; animation: spin .8s linear infinite; }
+.ve-act:is([data-st="send"], [data-st="wait"]) { background: var(--surface); border-color: color-mix(in srgb, var(--c) 24%, var(--border)); box-shadow: 0 6px 18px -10px color-mix(in srgb, var(--c) 70%, transparent); }
+.ve-act:is([data-st="send"], [data-st="wait"]) .ve-act-i { background: var(--c-s); color: var(--c-t); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 30%, transparent); }
+.ve-act:is([data-st="send"], [data-st="wait"]) .ve-act-l { color: var(--text); }
+.ve-act:is([data-st="send"], [data-st="wait"]) .ve-act-s { color: var(--c-t); }
+:root[data-theme="dark"] .ve-act:is([data-st="send"], [data-st="wait"]) { background: var(--surface-3); }
+.ve-act-r { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; transition: filter var(--t-3); }
+.ve-act-r rect { rx: 13px; fill: none; stroke: var(--c); stroke-width: 2; stroke-linecap: round; opacity: 0; transition: opacity .5s var(--ease), stroke var(--t-3); }
+.ve-act-r .ve-orb { stroke-dasharray: 16 84; transition: opacity .5s var(--ease), stroke var(--t-3), stroke-dasharray .8s var(--ease), stroke-width .8s var(--ease); }
+.ve-ring { stroke-dasharray: 100 0; }
+.ve-act:is([data-st="send"], [data-st="wait"], [data-st="ok"]) .ve-orb { animation: ve-orbit 1.6s linear infinite; }
+.ve-act[data-st="send"] .ve-orb { opacity: 1; stroke-width: 2.25; }
+.ve-act[data-st="wait"] .ve-orb { opacity: 1; stroke-dasharray: 34 66; }
+.ve-act[data-st="wait"] .ve-ring { opacity: .16; }
+.ve-act[data-st="send"] .ve-act-r { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c) 80%, transparent)); }
+.ve-act[data-st="wait"] .ve-act-r { filter: drop-shadow(0 0 3px color-mix(in srgb, var(--c) 55%, transparent)); }
+.ve-act:is([data-st="send"], [data-st="wait"]) .ve-act-i .ic { animation: ve-breathe 1.6s ease-in-out infinite; }
+.ve-act[data-k="refresh"]:is([data-st="send"], [data-st="wait"]) .ve-act-i .ic { animation: spin 1.6s linear infinite; }
+.ve-act[data-st="wait"] .ve-act-i::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--c); opacity: 0; animation: ve-glow 1.6s ease-in-out infinite; }
+@keyframes ve-orbit { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -100; } }
+@keyframes ve-breathe { 50% { opacity: .5; } }
+@keyframes ve-glow { 50% { opacity: .14; } }
+
+/* Confirmé : la comète s'efface en continuant sa course pendant que l'anneau complet s'allume puis s'éteint ;
+   le puits passe au vert et la coche se dessine */
+.ve-act[data-st="ok"] { border-color: color-mix(in srgb, var(--good) 35%, transparent); background: color-mix(in srgb, var(--good) 8%, var(--surface)); }
+.ve-act[data-st="ok"] .ve-ring { animation: ve-close 2.4s ease-out forwards; }
+.ve-act[data-st="ok"] .ve-act-i { background: var(--good); color: #fff; box-shadow: 0 5px 12px -5px var(--good); animation: ve-pop .5s var(--ease); }
+.ve-act[data-st="ok"] .ve-act-l { color: var(--text); }
+.ve-act[data-st="ok"] .ve-act-s { color: var(--good-t); }
+:root[data-theme="dark"] .ve-act[data-st="ok"] { background: color-mix(in srgb, var(--good) 10%, var(--surface-2)); }
+.ve-tick path { stroke-dasharray: 22; stroke-dashoffset: 22; animation: ve-draw .45s .12s var(--ease) forwards; }
+.ve-act[data-st="ok"] .ve-act-i .ic { stroke-width: 2.4; }
+@keyframes ve-close { 0% { opacity: .16; } 20%, 65% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes ve-draw { to { stroke-dashoffset: 0; } }
+@keyframes ve-pop { 0% { transform: scale(.7); } 60% { transform: scale(1.08); } }
+
+/* Échec : bord rouge, alerte, petit refus ; appuyer sur la tuile relance la même commande */
+.ve-act[data-st="fail"] { background: color-mix(in srgb, var(--bad) 6%, var(--surface)); border-color: color-mix(in srgb, var(--bad) 40%, transparent); animation: nudge .4s var(--ease); }
+.ve-act[data-st="fail"] .ve-act-i { background: var(--bad-s); color: var(--bad-t); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bad) 30%, transparent); }
+.ve-act[data-st="fail"] .ve-act-l { color: var(--text); }
+.ve-act[data-st="fail"] .ve-act-s { color: var(--bad-t); }
+:root[data-theme="dark"] .ve-act[data-st="fail"] { background: color-mix(in srgb, var(--bad) 9%, var(--surface-2)); }
+
+/* Déverrouillage à confirmer : tuile ambre, compte à rebours en encre sombre dans le puits ambre (comme les
+   tuiles allumées de teinte claire sur Maison), anneau qui se vide en 4 s */
+.ve-act[data-st="armed"] { background: var(--warn-s); border-color: color-mix(in srgb, var(--warn) 45%, transparent); box-shadow: 0 6px 18px -10px color-mix(in srgb, var(--warn) 90%, transparent); }
+.ve-act[data-st="armed"] .ve-act-i { background: var(--warn); color: #3a2a00; box-shadow: 0 5px 12px -5px var(--warn); }
+.ve-act[data-st="armed"] .ve-act-l { color: var(--text); }
+.ve-act[data-st="armed"] .ve-act-s { color: var(--warn-t); font-weight: 600; }
+.ve-act[data-st="armed"] .ve-ring { stroke: var(--warn); opacity: 1; stroke-dasharray: 100 100; animation: ve-drain 4s linear forwards; }
+.ve-act-n { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; animation: ve-pop .35s var(--ease); }
+@keyframes ve-drain { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 100; } }
+
+/* Tuile étroite, via des requêtes de conteneur sur la tuile (largeur de contenu, puits compris) : « Déverrouiller ? »
+   un peu plus petit, puis les textes courts (.ve-xs : « Ouvrir ? », « Confirme », « Terminée », « Envoi… »), puis un
+   puits plus petit et des états en 11 px */
+.ve-acts-g > .ve-act { container: ve-tile / inline-size; }
+.ve-xs { display: none; }
+@container ve-tile (max-width: 131px) { .ve-act[data-st="armed"] .ve-act-l { font-size: 12px; } }
+@container ve-tile (max-width: 124px) {
+  .ve-act[data-st="armed"] .ve-act-l { font-size: var(--fs-13); }
+  .ve-x { display: none; }
+  .ve-xs { display: inline; }
+}
+@container ve-tile (max-width: 109px) {
+  .ve-act-i { --tw: 28px; margin-right: -2px; }
+  .ve-act-i .ic { width: 16px; height: 16px; }
+  .ve-act-s { font-size: 11px; letter-spacing: -0.01em; }
+  .ve-act-n { font-size: 14px; }
+}
+
+/* Relevé forcé : les chiffres de la voiture chatoient en attendant, puis s'éclairent à l'arrivée */
+.ve-hero.is-reading .ve-soc .val-n, .ve-hero.is-reading .ve-range b, .ve-hero.is-reading .ve-knob span {
+  color: transparent; background: linear-gradient(100deg, var(--text) 30%, color-mix(in srgb, var(--ev) 60%, var(--text-3)) 50%, var(--text) 70%) 0 0 / 250% 100%;
+  -webkit-background-clip: text; background-clip: text; animation: ve-shimmer 1.8s linear infinite; }
+.ve-hero.is-reading .ve-knob span { background-image: linear-gradient(100deg, var(--ev-t) 30%, color-mix(in srgb, var(--ev) 40%, var(--surface)) 50%, var(--ev-t) 70%); }
+@keyframes ve-shimmer { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+.ve-hero.is-fresh .ve-soc .val-n, .ve-hero.is-fresh .ve-range b { animation: ve-fresh 2s ease-out; }
+.ve-hero.is-fresh .ve-knob { animation: ve-knob 1.2s ease-out 2; }
+@keyframes ve-fresh { 0%, 40% { color: var(--ev-t); text-shadow: 0 0 18px color-mix(in srgb, var(--ev) 45%, transparent); } 100% { color: var(--text); text-shadow: 0 0 0 transparent; } }
+@keyframes ve-knob { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ev) 60%, transparent), 0 2px 6px rgba(20, 24, 36, .25); } 100% { box-shadow: 0 0 0 12px transparent, 0 2px 6px rgba(20, 24, 36, .25); } }
+/* En-tête : « Relevé en cours… » suivi des secondes dans une pastille où bat un point, puis « Relevé à l'instant ✓ »
+   en vert (fond doux qui s'efface, puis retour en douceur à la couleur de l'en-tête), ou « · échec du relevé » en rouge.
+   Les marques suivent le texte : « Relevé » ne bouge jamais */
+/* flex de niveau bloc (et non inline-flex) : la ligne garde sa hauteur quand la pastille ou la coche apparaît */
+.ve-upd { display: flex; align-items: center; gap: 6px; width: fit-content; max-width: 100%; border-radius: 6px; white-space: nowrap; transition: color .6s var(--ease); }
+.ve-upd.is-reading { color: var(--text-2); }
+.ve-upd-c { display: inline-flex; align-items: center; gap: 5px; padding: 0 7px 0 6px; border-radius: var(--r-pill); line-height: 17px; font-size: var(--fs-11); font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--ev-t); background: var(--ev-s); }
+.ve-upd-c::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ev); --c: var(--ev); animation: ping 1.4s var(--ease) infinite; }
+.ve-upd .ic { flex: none; width: 15px; height: 15px; stroke-width: 2.4; animation: ve-pop .45s var(--ease); }
+.ve-upd.is-fresh { color: var(--good-t); animation: ve-upd 2.4s ease-out; }
+.ve-upd.is-fail { color: var(--text-2); } .ve-upd.is-fail > span { color: var(--bad-t); }   /* corail et rouge se confondraient (thème sombre) */
+@keyframes ve-upd { 0%, 45% { background: var(--good-s); box-shadow: 0 0 0 3px var(--good-s); } 100% { background: transparent; box-shadow: 0 0 0 3px transparent; } }
+
+/* Mouvement réduit : pas de boucles ; l'étape reste lisible (tracé plein, teinte, texte, secondes) */
+@media (prefers-reduced-motion: reduce) {
+  .ve-act .ve-act-r .ve-orb { animation: none; opacity: 0; }
+  .ve-act:is([data-st="send"], [data-st="wait"]) .ve-ring { opacity: .55; }
+  .ve-act[data-st="ok"] .ve-ring { animation: none; opacity: .8; }
+  .ve-act[data-st="armed"] .ve-ring { animation: none; stroke-dasharray: 100 0; }
+  .ve-act-i .ic, .ve-act-i::before, .ve-acts-h > i, .ve-upd-c::before, .ve-upd .ic, .ve-upd.is-fresh { animation: none !important; }
+  .ve-tick path { animation: none; stroke-dashoffset: 0; }
+  .ve-hero.is-reading .ve-soc .val-n, .ve-hero.is-reading .ve-range b, .ve-hero.is-reading .ve-knob span { animation: none; color: var(--text-3); background: none; }
+}
 
 .ve-hero-r { display: flex; flex-direction: column; justify-content: flex-end; gap: var(--s-3); min-width: 0; }
 .ve-car { display: block; width: 100%; height: auto; max-height: 200px; overflow: visible; margin-bottom: -12px; }
@@ -153,15 +319,19 @@
   .ve-soc { order: 5; margin-top: var(--s-2); font-size: 56px; }
   .ve-range { order: 6; }
   .ve-meta { order: 7; }
-  .ve-acts { order: 8; margin-top: 0; justify-content: space-around; }
+  .ve-acts { order: 8; margin-top: 0; padding-top: var(--s-5); }
   .ve-chips { order: 9; margin-top: var(--s-4); padding-top: var(--s-4); border-top: 1px solid var(--border); }
-  .ve-act-i { width: 50px; height: 50px; }
+  .ve-act { --tw: 34px; padding: 8px 10px 8px 8px; gap: 10px; }
   .ve-steps strong { font-size: var(--fs-12); white-space: normal; line-height: 1.25; }
   .ve-steps small { font-size: 11px; white-space: normal; }
   .ve-steps li { padding: 0 2px; }
   .ve-res { display: none; }
   .ve-pair .card-h, .ve-r .card-h { flex-wrap: wrap; row-gap: var(--s-2); }
 }
+/* Tablette portrait : les 4 tuiles sur une rangée dès qu'elles y gardent leurs textes (≈ 138 px chacune) */
+@media (min-width: 640px) and (max-width: 899px) { .ve-acts-g { grid-template-columns: repeat(4, minmax(0, 1fr)); } .ve-act { --tw: 32px; gap: 9px; } }
+/* Petits téléphones (320 à 359 px) : tuiles plus serrées */
+@media (max-width: 359px) { .ve-act { padding-inline: 6px 8px; gap: 8px; } }
 /* Mobile et tablette : le hero passe juste sous le titre, avant les indicateurs */
 @media (max-width: 1199px) {
   .view:has(.ve-grid) { display: flex; flex-direction: column; }
@@ -186,11 +356,12 @@
 /* Bureau jusqu'à 1199 px de haut (1080p plein écran compris) : version compacte, voiture à l'échelle */
 @media (min-width: 1200px) and (max-height: 1199px) {
   .ve-hero { padding-block: 18px; }
-  .ve-soc { font-size: 60px; margin-top: var(--s-3); }
+  .ve-soc { font-size: 60px; margin-top: 10px; }
   .ve-soc .val-u { font-size: 24px; }
+  .ve-range { margin-top: var(--s-2); }
   .ve-range b { font-size: var(--fs-20); }
-  .ve-acts { padding-top: var(--s-4); }
-  .ve-act-i { width: 42px; height: 42px; }
+  .ve-acts { padding-top: 10px; gap: 6px; }
+  .ve-act { padding-block: 5px; }
   .ve-hero-r { gap: var(--s-2); }
   .ve-pair .card, .ve-r .card { gap: var(--s-3); padding-block: 16px; }
   .ve-src li { padding: 3px 0; }
@@ -205,27 +376,47 @@
 @media (min-width: 1200px) and (max-width: 1599px) {
   .ve-steps small { font-size: 11px; }
   .ve-steps strong { font-size: var(--fs-12); }
-  .ve-act { min-width: 50px; }
-  .ve-acts { gap: var(--s-2); }
 }
 @media (min-width: 2200px) {
   .ve-car { max-height: 196px; }
   .ve-soc { font-size: 88px; } .ve-soc .val-u { font-size: 34px; }
-  .ve-act-i { width: 52px; height: 52px; }
+  .ve-act { --tw: 38px; padding: 8px 12px 8px 8px; border-radius: 16px; }
+  .ve-act-r rect { rx: 15px; }
+  .ve-act-i .ic { width: 19px; height: 19px; }
+  .ve-act-s { font-size: var(--fs-12); } .ve-act-n { font-size: 17px; }
+  .ve-acts-h { height: 18px; }
+  .ve-acts { padding-top: var(--s-3); }
 }
 @media (min-width: 1200px) and (max-width: 1799px) and (max-height: 1000px) {
   .ve-set .row:not(.ve-care) > div:first-child > span { display: none; }
 }
 @media (min-width: 1200px) and (max-width: 1799px) and (max-height: 1000px) { .ve-avg { display: none; } }
 
-/* Bureau étroit : actions et étapes resserrées */
+/* Bureau moyen : la colonne d'état s'élargit pour que les tuiles disent leur état en toutes lettres
+   (la voiture, limitée en hauteur, garde sa taille), et le grand % se resserre pour leur laisser la place.
+   De 1600 à 1799 px, l'étape du milieu (la plus longue : « 76 % soleil · 2,1 kWh réseau ») prend plus de place ;
+   les colonnes des côtés restent égales, le repère du milieu reste au centre */
+@media (min-width: 1366px) and (max-width: 1799px) { .ve-hero { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); } }
+@media (min-width: 1366px) and (max-width: 1599px) { .ve-res { display: none; } }
+@media (min-width: 1600px) and (max-width: 1799px) { .ve-steps { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr); } }
+@media (min-width: 1200px) and (max-width: 1799px) and (max-height: 1199px), (min-width: 1800px) and (max-width: 2199px) and (max-height: 944px) {
+  .ve-soc { font-size: 54px; margin-top: var(--s-2); } .ve-soc .val-u { font-size: 22px; }
+  .ve-range { margin-top: 6px; } .ve-meta { margin-top: 4px; }
+}
+/* Bureau étroit : colonnes du hero d'origine (la voiture et le déroulé gardent leur largeur), tuiles serrées
+   (textes courts, voir les requêtes de conteneur) et pupitre plus bas pour que le hero ne grandisse pas */
 @media (min-width: 1200px) and (max-width: 1365px) {
-  .ve-hero { grid-template-columns: minmax(236px, 0.8fr) minmax(0, 1.2fr); gap: var(--s-5); }
-  .ve-acts { gap: 4px; }
-  .ve-act { min-width: 0; flex: 1 1 0; }
-  .ve-act-l { font-size: 11px; }
+  .ve-hero { grid-template-columns: minmax(236px, .8fr) minmax(0, 1.2fr); gap: var(--s-5); }
+  .ve-soc { font-size: 50px; } .ve-soc .val-u { font-size: 21px; }
+  .ve-acts { padding-top: 6px; gap: 5px; }
   .ve-steps strong { white-space: normal; line-height: 1.25; }
   .ve-res { display: none; }
+}
+/* Tuiles étroites (colonne d'état de 236 à 280 px : bureau étroit, tablette paysage) */
+@media (min-width: 900px) and (max-width: 1365px) {
+  .ve-act { --tw: 28px; gap: 8px; padding: 4px 7px 4px 5px; } .ve-act-i .ic { width: 16px; height: 16px; }
+  .ve-act-t { line-height: 1.15; }
+  .ve-acts-h { gap: 5px; font-size: 11.5px; }   /* la raison d'un échec tient à côté de « Réessayer » */
 }
 
 /* Choix de l'illustration (coin du hero) */

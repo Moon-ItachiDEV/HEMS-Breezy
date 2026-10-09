@@ -96,21 +96,25 @@
     off = subscribe(() => { if (ok()) { clearTimeout(timer); off(); resolve(true); } });
   });
   const slowEnd = (t, phase, why) => {
-    t.phase = phase; t.why = why || ""; t.tEnd = Date.now(); notify();
-    setTimeout(() => { if (slow.get(t.key) === t) { slow.delete(t.key); notify(); } }, phase === "ok" ? 2600 : 12000);
+    const end = t.tEnd = Date.now(); t.phase = phase; t.why = why || ""; notify();
+    setTimeout(() => { if (slow.get(t.key) === t && t.tEnd === end) { slow.delete(t.key); notify(); } }, phase === "ok" ? 2600 : 12000);
+    // Échec, mais la voiture finit par appliquer (confirmation arrivée après le délai) : la commande est faite,
+    // on passe à « confirmé » (sinon « Réessayer » relancerait une commande déjà appliquée)
+    if (phase === "fail" && t.expect) { const off = subscribe(() => { if (slow.get(t.key) !== t || t.phase !== "fail") off(); else if (t.expect()) { off(); slowEnd(t, "ok"); } }); }
     return phase === "ok";
   };
   // key : nom de la commande (lock, clim, charge, refresh) ; to : état visé (pour les libellés) ; expect() : vrai quand la voiture a appliqué
   function slowCall(key, service, target, data, { to = null, expect, timeout = demo.timeout } = {}) {
     const busy = slowBusy();
     if (busy) return busy.promise;
-    const t = { key, to, phase: "send", t0: Date.now(), tWait: 0, tEnd: 0, why: "" };
+    const t = { key, to, expect, phase: "send", t0: Date.now(), tWait: 0, tEnd: 0, why: "" };
     slow.set(key, t); notify();
+    // Raisons d'échec courtes : la page Voiture les affiche telles quelles dans la ligne étroite du pupitre
     t.promise = (async () => {
       try { await transportSlow(service, [].concat(target), data); }
-      catch { return slowEnd(t, "fail", "Kia Connect n'a pas accepté la commande"); }
+      catch { return slowEnd(t, "fail", "Kia a refusé la commande"); }
       t.phase = "wait"; t.tWait = Date.now(); notify();
-      return slowEnd(t, ...(await waitFor(expect || (() => true), timeout) ? ["ok"] : ["fail", "La voiture n'a pas confirmé à temps"]));
+      return slowEnd(t, ...(await waitFor(expect || (() => true), timeout) ? ["ok"] : ["fail", "La voiture n'a pas confirmé"]));
     })();
     return t.promise;
   }

@@ -1,7 +1,7 @@
 // Voiture (V3) : Kia e-Niro.
 // Hero inspiré des applis constructeurs (Tesla, Rivian, Volvo, evcc) : la voiture « posée » sur une seule
 // barre de batterie (violet foncé = au branchement, violet = ajouté), repère du niveau actuel et drapeau de
-// limite, déroulé de la charge, quatre actions rondes. Puis les recharges de la période et les réglages.
+// limite, déroulé de la charge, pupitre de quatre commandes à distance. Puis les recharges de la période et les réglages.
 // Chaque information n'apparaît qu'une fois sur la page.
 (() => {
   const BZ = window.BZ;
@@ -460,7 +460,8 @@ __FLOW__
       const last = BZ.chargeDays(14).filter((d) => d.kwh).pop();
       if (!last) return "";
       const d = last.date.toDateString(), when = d === new Date().toDateString() ? "aujourd'hui" : d === new Date(Date.now() - 864e5).toDateString() ? "hier" : fmt.date(last.date, { weekday: "long", day: "numeric", month: "long" });
-      return h`<p class="ve-last">${icon("clock")}Dernière recharge ${when} · <b>${fmt.kwhText(last.kwh)}</b>, ${fmt.n(last.sun * 100)} % solaire</p>`;
+      // Texte d'un seul tenant : sinon l'écart du flex s'insère entre les morceaux (« 8,9 kWh  , 76 % »)
+      return h`<p class="ve-last">${icon("clock")}<span>Dernière recharge ${when} · <b>${fmt.kwhText(last.kwh)}</b>, ${fmt.n(last.sun * 100)} % solaire</span></p>`;
     }
     const startAt = new Date(st(C.session_debut)), share = S.kwh ? S.sol / S.kwh : 0;
     const endKm = S.kmPerPct * S.lim;
@@ -471,28 +472,123 @@ __FLOW__
     </ol>`;
   }
 
+  /* ─── Commandes à distance : pupitre de quatre tuiles ─────────────────
+     Tout passe par le cloud Kia Connect : Kia accepte la commande (5 à 30 s), puis la voiture l'applique et
+     ne le confirme qu'au relevé suivant (jusqu'à 2 min). Chaque tuile dit l'état actuel de la voiture ;
+     pendant une commande, un trait fait le tour de la tuile (envoi, puis application), laisse place à un
+     anneau vert et une coche quand la voiture confirme, ou la tuile vire au rouge en cas d'échec (appuyer
+     dessus relance la même commande). La ligne du pupitre raconte l'étape en clair avec les secondes
+     écoulées : c'est elle que lisent les lecteurs d'écran. */
+  const secs = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")}`; };
+  const remain = (until) => String(Math.max(0, Math.ceil((until - Date.now()) / 1000)));
+  const LATE = 15000;   // au-delà, on rassure : Kia met parfois 2 minutes
+  const running = (t) => !!t && (t.phase === "send" || t.phase === "wait");
+  // Secondes qui défilent sans redessiner la page (même principe que l'avancement du morceau)
+  setInterval(() => {
+    document.querySelectorAll("[data-since]").forEach((el) => {
+      const ms = Date.now() - +el.dataset.since, txt = secs(ms);
+      if (el.textContent !== txt) el.textContent = txt;
+      const late = el.closest("[data-late]"); if (late) late.classList.toggle("is-late", ms >= LATE);
+    });
+    document.querySelectorAll("[data-until]").forEach((el) => { const txt = remain(+el.dataset.until); if (el.textContent !== txt) el.textContent = txt; });
+  }, 250);
+
+  // Teinte d'une commande en cours (déverrouiller = ambre) et ce qu'elle vise, dit aux lecteurs d'écran
+  const TONE = { lock: "good", clim: "battery", charge: "ev", refresh: "ev" };   // relevé : violet de la voiture (le corail ressemblerait à une erreur)
+  const toneOf = (t) => (t.key === "lock" && t.to === "unlocked" ? "warn" : TONE[t.key]);
+  const VERB = { lock: (to) => (to === "unlocked" ? "Déverrouillage" : "Verrouillage"), clim: (to) => (to ? "Démarrage du climat" : "Arrêt du climat"),
+    charge: (to) => (to ? "Démarrage de la recharge" : "Arrêt de la recharge"), refresh: () => "Actualisation" };
+  const actOf = (key) => `car-${key}`;   // action d'app.js qui (re)lance la commande
+  // Texte long et texte court : une tuile ou une ligne étroite (requêtes de conteneur) garde le court
+  const xs = (long, short) => h`<span class="ve-x">${long}</span><span class="ve-xs">${short}</span>`;
+  const lc = (s) => s.charAt(0).toLowerCase() + s.slice(1);   // « Envoi à Kia… » → « envoi à Kia… » (Kia garde sa majuscule)
+  // Relance de la même commande (cible explicite) : la tuile en échec et « Réessayer » la portent
+  const target = (t) => (t.to != null ? `data-to="${t.to}"` : "");
+
+  function controls(S) {
+    const { L } = S, busy = BZ.slowBusy(), armed = BZ.ui.armed === "unlock" && !busy;
+    const locked = st(C.voiture_verrou) === "locked", clim = isOn(C.voiture_clim), ago = fmt.ago(st(C.voiture_maj));
+    const charge = L.charging ? "En charge" : !L.plugged ? "Débranchée" : S.full ? "Limite atteinte" : S.state === "En attente" ? S.state : "Arrêtée";
+    const T = [
+      { key: "lock", act: "car-lock", label: "Verrou", aria: "Verrou des portes", ic: locked ? "lock" : "unlock", tone: locked ? "good" : "warn", on: locked,
+        state: locked ? "Verrouillée" : "Ouverte", hint: locked ? "Verrouillée · appuie deux fois pour déverrouiller" : "Ouverte · appuie pour verrouiller" },
+      { key: "clim", act: "car-clim", label: "Climat", aria: "Climatisation", ic: "snow", tone: TONE.clim, on: clim,
+        state: clim ? "En marche" : "Arrêté", hint: clim ? "Climatisation en marche · appuie pour l'arrêter" : "Appuie pour lancer la climatisation" },
+      { key: "charge", act: "car-charge", label: "Recharge", aria: "Recharge", ic: L.plugged ? "bolt" : "plug", tone: TONE.charge, on: L.charging,
+        off: !L.plugged || (S.full && !L.charging), said: lc(charge), state: S.full && !L.charging && L.plugged ? xs(charge, "Terminée") : charge,
+        hint: !L.plugged ? "Branche la voiture pour charger" : S.full ? `Limite de ${fmt.n(S.lim)} % atteinte` : L.charging ? "En charge · appuie pour arrêter" : "Appuie pour démarrer la recharge" },
+      // État : l'âge du dernier relevé (le mot « relevé » est déjà dans l'en-tête de la page)
+      { key: "refresh", act: "car-refresh", label: "Actualiser", aria: "Demander un relevé à la voiture", ic: "refresh", tone: TONE.refresh,
+        state: fmt.cap(ago), said: `dernier relevé ${ago}`, hint: "Réveille la voiture pour un relevé frais (lent : à garder pour quand tu en as besoin)" },
+    ];
+    // Dernier résultat affiché (confirmé ou échec) : le plus récent
+    const done = T.map((x) => BZ.slowOf(x.key)).filter((t) => t && !running(t)).sort((a, b) => b.tEnd - a.tEnd)[0];
+    const until = (BZ.ui.armedAt || Date.now()) + 4000;
+
+    const tile = (x) => {
+      const t = BZ.slowOf(x.key);
+      // Étape de la tuile : à confirmer > en cours > confirmé > impossible > occupé ailleurs > échec > repos
+      const ph = armed && x.key === "lock" ? "armed" : running(t) ? t.phase : t && t.phase === "ok" ? "ok" : x.off ? "off" : busy ? "held" : t ? t.phase : "idle";
+      const tone = ph === "armed" ? "warn" : ph === "fail" ? "bad" : ph === "ok" ? "good" : running(t) ? toneOf(t) : x.tone;
+      const ic = ph === "ok" ? icon("check", "ve-tick") : ph === "fail" ? icon("alert")
+        : ph === "armed" ? h`<b class="ve-act-n" data-until="${until}">${remain(until)}</b>`
+        : icon(x.key === "lock" && t ? (t.to === "unlocked" ? "unlock" : "lock") : x.ic);
+      // Sous-titre : l'étape en cours, sinon l'état actuel ; la raison d'un échec et « Réessayer » sont sur la ligne du pupitre
+      const sub = { send: xs("Envoi à Kia…", "Envoi…"), wait: x.key === "refresh" ? "Réveil…" : "En cours…", fail: "Échec", armed: xs("Appuie encore", "Confirme") }[ph] || x.state;
+      const say = { send: "envoi à Kia…", wait: x.key === "refresh" ? "réveil de la voiture…" : "en cours d'application…", fail: "échec, appuie pour réessayer",
+        armed: "appuie encore pour confirmer" }[ph] || x.said || lc(x.state);
+      const title = { send: "Commande envoyée à Kia Connect : patiente, la voiture répond en 30 s à 2 min", wait: "Kia a accepté : la voiture applique la commande",
+        held: "Une commande est déjà en cours avec la voiture : attends qu'elle se termine", fail: `${t && t.why}. Appuie pour réessayer`,
+        armed: "Appuie encore dans les 4 secondes pour déverrouiller la voiture" }[ph] || x.hint;
+      // Deux tracés sur le pourtour : la comète (envoi, application) et l'anneau (confirmé, compte à rebours)
+      return h`<button type="button" class="ve-act" data-st="${ph}" data-k="${x.key}" data-tone="${tone}" data-act="${x.act}" ${ph === "fail" ? target(t) : ""}
+          ${x.on != null ? `aria-pressed="${String(!!x.on)}"` : ""} ${ph === "off" ? "disabled" : ""} ${ph === "held" ? 'aria-disabled="true"' : ""} ${running(t) ? 'aria-busy="true"' : ""}
+          aria-label="${esc(`${ph === "armed" ? "Confirmer le déverrouillage" : x.aria}, ${say}`)}" title="${esc(title)}">
+        <svg class="ve-act-r" aria-hidden="true"><rect class="ve-orb" width="100%" height="100%" rx="13" pathLength="100"/><rect class="ve-ring" width="100%" height="100%" rx="13" pathLength="100"/></svg>
+        <span class="ve-act-i">${ic}</span>
+        <span class="ve-act-t"><b class="ve-act-l">${ph === "armed" ? xs("Déverrouiller ?", "Ouvrir ?") : x.label}</b><small class="ve-act-s">${sub}</small></span>
+      </button>`;
+    };
+
+    // Ligne du pupitre : l'étape en clair, puis les secondes écoulées ; après un échec, la raison et « Réessayer ».
+    // Les lecteurs d'écran entendent d'abord la commande concernée (« Démarrage du climat. Envoi à Kia Connect… »)
+    const last = !armed && (busy || done);
+    let what = last ? h`<span class="sr">${VERB[last.key](last.to)}. </span>` : "", line, tone = "neutral", aside = "", tip = "";
+    if (armed) {
+      // La tuile dit déjà « Déverrouiller ? · Appuie encore » : la ligne dit ce qui se passe sinon
+      what = h`<span class="sr">Appuie encore sur le verrou pour déverrouiller. </span>`; line = "Sans confirmation, elle reste verrouillée"; tone = "warn";
+    } else if (busy) {
+      tone = toneOf(busy);
+      line = h`<span class="ve-acts-now">${busy.phase === "send" ? "Envoi à Kia Connect…" : busy.key === "refresh" ? "Réveil de la voiture…" : "La voiture applique la commande…"}</span><span class="ve-acts-late">${xs("Normal : Kia met parfois 2 min", "Kia met parfois 2 min")}</span>`;
+      aside = h`<span class="ve-acts-c" data-since="${busy.t0}" aria-hidden="true">${secs(Date.now() - busy.t0)}</span>`;
+    } else if (done && done.phase === "ok") {
+      tone = "good"; line = `${done.key === "refresh" ? "Relevé reçu" : "Confirmé par la voiture"} en ${secs(done.tEnd - done.t0)}`;
+    } else if (done) {
+      // La raison vient de Kia ou de Home Assistant : échappée. « Réessayer » relance la même commande (le déverrouillage
+      // redemande sa double touche) puis rend le focus à sa tuile ; la tuile reste l'autre façon de réessayer
+      tone = "bad"; line = esc(done.why); tip = done.why;
+      if (!T.find((x) => x.key === done.key).off)
+        aside = h`<button type="button" class="ve-acts-retry" data-act="${actOf(done.key)}" ${target(done)} data-refocus="${esc(`.ve-act[data-k="${done.key}"]`)}"
+          title="${esc(`Relancer : ${lc(VERB[done.key](done.to))}`)}">${icon("refresh")}Réessayer</button>`;
+    } else { line = xs("Commandes via Kia Connect", "Via Kia Connect"); aside = h`<span class="ve-acts-d" title="Délai habituel d'une commande à distance">30 s à 2 min</span>`; }
+    const late = busy && Date.now() - busy.t0 >= LATE;
+    return h`<div class="ve-acts" data-tone="${tone}">
+      <p class="ve-acts-h ${busy ? "is-run" : ""} ${late ? "is-late" : ""}" ${busy ? "data-late" : ""}><i aria-hidden="true"></i><span class="ve-acts-s" role="status" aria-live="polite" ${tip ? `title="${esc(tip)}"` : ""}>${what}${line}</span>${aside}</p>
+      <div class="ve-acts-g" role="group" aria-label="Commandes à distance">${T.map(tile)}</div>
+    </div>`;
+  }
+
   function hero() {
-    const S = chargeState(), { L } = S;
-    const locked = st(C.voiture_verrou) === "locked", armed = BZ.ui.armed === "unlock", clim = isOn(C.voiture_clim);
-    const run = (k) => { const t = BZ.slowOf(k); return !!t && (t.phase === "send" || t.phase === "wait"); };
+    const S = chargeState(), { L } = S, R = BZ.slowOf("refresh");
     const meta = L.charging ? h`Encore <b>${dur(S.mins)}</b> à ${fmt.powerText(L.car)}` : S.why ? fmt.cap(S.why) : h`Dernier trajet <b>${fmt.ago(st(C.voiture_dernier_trajet))}</b>`;
-    const action = ({ label, ic, act, tone, on, disabled, pending, aria, title }) => h`
-      <button type="button" class="ve-act" data-tone="${tone}" data-act="${act}" ${on != null ? `aria-pressed="${String(!!on)}"` : ""} ${disabled ? "disabled" : ""} ${pending ? 'aria-busy="true"' : ""} aria-label="${esc(aria)}" title="${esc(title || aria)}">
-        <span class="ve-act-i">${icon(ic)}</span><span class="ve-act-l">${label}</span></button>`;
-    return h`<section class="card ve-hero ${L.charging ? "is-charging" : ""}" aria-label="État de la voiture">
+    // Relevé forcé en cours : les chiffres « chatoient » ; à l'arrivée des valeurs fraîches, un bref éclat
+    return h`<section class="card ve-hero ${L.charging ? "is-charging" : ""} ${running(R) ? "is-reading" : ""} ${R && R.phase === "ok" ? "is-fresh" : ""}" aria-label="État de la voiture">
       <div class="ve-hero-l">
         <div class="ve-status">${BZ.pill(S.state, S.tone, L.charging)}</div>
         <div class="ve-soc ${S.soc <= 20 ? "is-low" : ""}">${val([fmt.n(S.soc), "%"])}</div>
         <p class="ve-range"><b>${fmt.n(S.km)} km</b> d'autonomie</p>
         <p class="ve-meta">${meta}</p>
-        <div class="ve-acts">
-          ${action({ label: armed ? "Confirmer" : "Verrou", ic: locked ? "lock" : "unlock", act: "car-lock", tone: armed ? "bad" : locked ? "good" : "warn", on: locked, pending: run("lock"),
-            aria: armed ? "Confirmer le déverrouillage" : "Verrou des portes", title: armed ? "Appuie encore pour déverrouiller" : locked ? "Verrouillée · appuie deux fois pour ouvrir" : "Déverrouillée · appuie pour verrouiller" })}
-          ${action({ label: "Climat", ic: "snow", act: "car-clim", tone: "battery", on: clim, pending: run("clim"), aria: "Climatisation", title: clim ? "Climatisation en marche" : "Lancer la climatisation" })}
-          ${action({ label: "Recharge", ic: "bolt", act: "car-charge", tone: "ev", on: L.charging, disabled: !L.plugged || (S.full && !L.charging), pending: run("charge"),
-            aria: "Recharge", title: !L.plugged ? "Branche la voiture pour charger" : S.full ? "Limite atteinte" : L.charging ? "Arrêter la recharge" : "Démarrer la recharge" })}
-          ${action({ label: "Actualiser", ic: "refresh", act: "car-refresh", tone: "neutral", pending: run("refresh"), aria: "Demander un relevé à la voiture" })}
-        </div>
+        ${controls(S)}
       </div>
       <div class="ve-hero-r">
         <div class="ve-art">${BZ.segmented({ name: "carArt", label: "Illustration de la voiture", value: BZ.ui.carArt === "eniro" ? "eniro" : "roadster", options: [["roadster", "Roadster"], ["eniro", "e-Niro"]] })}</div>
@@ -590,11 +686,21 @@ __FLOW__
     </div>` });
   }
 
+  // « Relevé il y a 12 min » : devient « Relevé en cours… 8 s » pendant un relevé forcé, « Relevé à l'instant ✓ » en vert
+  // une fois à jour, et signale l'échec (les chiffres affichés n'ont alors pas été rafraîchis). Le texte part toujours
+  // de « Relevé » au même endroit : les marques (secondes, coche) viennent après, rien ne se décale
+  function updated() {
+    const R = BZ.slowOf("refresh");
+    if (running(R)) return h`<p class="ph-hi ve-upd is-reading">Relevé en cours…<span class="ve-upd-c" data-since="${R.t0}" aria-hidden="true">${secs(Date.now() - R.t0)}</span></p>`;
+    if (R && R.phase === "ok") return h`<p class="ph-hi ve-upd is-fresh">Relevé à l'instant${icon("check", "ve-tick")}</p>`;
+    return h`<p class="ph-hi ve-upd ${R ? "is-fail" : ""}">Relevé ${fmt.ago(st(C.voiture_maj))}${R ? h`<span> · échec du relevé</span>` : ""}</p>`;
+  }
+
   BZ.pages.vehicle = () => {
     const S = stats();
     return h`
       <header class="ph">
-        <div><p class="ph-hi">Relevé ${fmt.ago(st(C.voiture_maj))}</p><h1>Kia e-Niro</h1><p class="ph-sub">${fmt.n(num(C.voiture_odometre))} km au compteur · batterie de ${fmt.n(C.voiture_capacite_kwh)} kWh</p></div>
+        <div>${updated()}<h1>Kia e-Niro</h1><p class="ph-sub">${fmt.n(num(C.voiture_odometre))} km au compteur · batterie de ${fmt.n(C.voiture_capacite_kwh)} kWh</p></div>
         <div class="ph-a">${pills({ name: "carPeriod", label: "Période des recharges", value: S.kind, options: [["semaine", "7 jours"], ["mois", "Mois"], ["annee", "Année"]] })}</div>
       </header>
       ${kpis(S)}

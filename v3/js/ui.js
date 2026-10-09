@@ -185,7 +185,8 @@
   let toastTimer;
   function toast(text, tone = "neutral") {
     const el = document.getElementById("toast");
-    el.innerHTML = h`<span class="toast-i" data-tone="${tone}">${icon(tone === "bad" ? "alert" : "check")}</span><span>${esc(text)}</span>`;
+    // Coche pour une réussite ou une information, alerte pour un refus ou un échec (warn, bad)
+    el.innerHTML = h`<span class="toast-i" data-tone="${tone}">${icon(tone === "bad" || tone === "warn" ? "alert" : "check")}</span><span>${esc(text)}</span>`;
     el.classList.add("is-on");
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove("is-on"), 2600);
