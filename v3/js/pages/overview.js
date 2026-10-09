@@ -15,6 +15,7 @@
     const status = V.isToday
       ? [L.grid < -15 ? `Tu revends ${fmt.powerText(-L.grid)}` : L.grid > 15 ? `Tu achètes ${fmt.powerText(L.grid)}` : "Aucun échange avec le réseau",
          L.charging ? `l'e-Niro charge à ${fmt.n(L.evSolarShare * 100)} % au soleil` : null].filter(Boolean).join(" et ") + "."
+      : V.loading ? "Chargement de l'historique…"   // Home Assistant : la journée arrive des statistiques
       : `Voici le bilan du ${fmt.date(V.date, { weekday: "long", day: "numeric", month: "long" })}.`;
     const dateLabel = V.isToday ? `Aujourd'hui, ${fmt.date(V.date, { day: "numeric", month: "short" })}` : fmt.cap(fmt.date(V.date, { weekday: "short", day: "numeric", month: "short", year: "numeric" }));
     return h`<header class="ph">
@@ -22,14 +23,15 @@
       ${BZ.house({ compact: true })}
       <div class="ph-a">
         <div class="datep" role="group" aria-label="Journée affichée">${icon("calendar")}<span aria-live="polite">${dateLabel}</span>
-          <button type="button" data-act="day" data-d="-1" aria-label="Jour précédent" ${V.offset <= -29 ? "disabled" : ""}>${icon("left")}</button>
+          <button type="button" data-act="day" data-d="-1" aria-label="Jour précédent" ${V.offset <= -29 || (BZ.hist && BZ.hist.has("energie") === false) ? "disabled" : ""}>${icon("left")}</button>
           <button type="button" data-act="day" data-d="1" aria-label="Jour suivant" ${V.isToday ? "disabled" : ""}>${icon("chevron")}</button></div>
         ${btn({ label: L.charging ? "Arrêter la charge" : "Charger l'e-Niro", ic: L.charging ? "pause" : "bolt", act: "car-charge", kind: "primary", disabled: !L.plugged, pending: BZ.isPending(C.voiture_en_charge) })}
       </div></header>`;
   }
 
   function kpis(V) {
-    const c = V.cur, p = V.prev, vs = V.isToday ? "vs hier" : "vs veille", wk = (f) => V.week.map(f);
+    // Home Assistant : aujourd'hui jusqu'à maintenant contre hier à la même heure (le dire)
+    const c = V.cur, p = V.prev, vs = V.isToday ? (V.sameHour ? `vs hier à ${fmt.time(new Date())}` : "vs hier") : "vs veille", wk = (f) => V.week.map(f);
     return h`<div class="kpis">
       ${kpi({ label: "Production solaire", ic: "sun", tone: "solar", value: val(fmt.kwh(c.prod)), delta: delta(c.prod, p.prod), vs, spark: BZ.spark(wk((d) => d.prod), "solar"), to: "energy" })}
       ${kpi({ label: "Consommation", ic: "home", tone: "battery", value: val(fmt.kwh(c.cons)), delta: delta(c.cons, p.cons, { invert: true }), vs, spark: BZ.spark(wk((d) => d.cons), "battery"), to: "insights" })}
@@ -58,12 +60,15 @@
   // Programme du jour : changements de tarif + événements, le prochain mis en avant
   function scheduleCard() {
     const now = new Date(), H = now.getHours() + now.getMinutes() / 60, L = BZ.live(), hrs = BZ.hours();
-    const peak = hrs.reduce((a, b) => (b.prod > a.prod ? b : a));
+    // Pic : jamais une case partielle ou inconnue (Home Assistant : l'heure en cours, ou un reste du jour sans heures écrites)
+    const peak = hrs.filter((b) => !b.partial && !b.unknown && Number.isFinite(b.prod)).reduce((a, b) => (b.prod > a.prod ? b : a), { h: 0, prod: -Infinity });
     const T = BZ.TARIFS, ev = [];
     let prev = BZ.tariffAt(23);
     for (let x = 0; x < 24; x++) { const k = BZ.tariffAt(x); if (k !== prev) ev.push({ t: x, tone: k, title: T[k].label, sub: `${fmt.n(T[k].price(), 4)} €/kWh · ${BZ.rangeLabel(k)}`, ic: "clock" }); prev = k; }
-    if (L.plugged) { const d = new Date(st(C.session_debut)); ev.push({ t: d.getHours() + d.getMinutes() / 60, tone: "ev", title: "e-Niro branchée", sub: `${fmt.n(num(C.voiture_soc) - num(C.session_soc))} % au branchement`, ic: "car" }); }
-    ev.push({ t: peak.h + 0.5, tone: "solar", title: "Pic de production", sub: `${fmt.kwhText(peak.prod)} sur l'heure`, ic: "sun" });
+    // Heure de branchement illisible (aide absente dans Home Assistant) : pas d'événement plutôt qu'une heure fausse
+    const plugAt = BZ.dt(C.session_debut);
+    if (L.plugged && Number.isFinite(+plugAt)) { const d = plugAt; ev.push({ t: d.getHours() + d.getMinutes() / 60, tone: "ev", title: "e-Niro branchée", sub: `${fmt.n(num(C.voiture_soc) - num(C.session_soc))} % au branchement`, ic: "car" }); }
+    if (peak.prod > 0.05) ev.push({ t: peak.h + 0.5, tone: "solar", title: "Pic de production", sub: `${fmt.kwhText(peak.prod)} sur l'heure`, ic: "sun" });
     if (L.charging) { const fin = new Date(Date.now() + num(C.voiture_minutes_restantes) * 6e4); ev.push({ t: fin.getHours() + fin.getMinutes() / 60, tone: "ev", title: "Fin de recharge prévue", sub: `limite ${fmt.n(num(C.voiture_limite_pct))} %`, ic: "bolt" }); }
     ev.sort((a, b) => a.t - b.t);
     const next = ev.findIndex((e) => e.t > H);
@@ -80,7 +85,7 @@
       { label: "Soleil direct", v: c.self, tone: "solar" }, { label: "Batterie", v: c.dch, tone: "battery" }, { label: "Réseau", v: c.imp, tone: "neutral" },
     ];
     return card({ cls: "o-mix", title: "D'où vient l'énergie", ic: "leaf", tone: "accent", link: { label: "Détails", to: "insights" }, body: h`
-      <div class="mixr">${donut({ parts, size: 132, stroke: 16, center: `${fmt.n(V.autonomy * 100)} %`, sub: "autonome", label: `Autosuffisance ${Math.round(V.autonomy * 100)} %` })}
+      <div class="mixr">${donut({ parts, size: 132, stroke: 16, center: `${fmt.n(V.autonomy * 100)} %`, sub: "autonome", label: `Autosuffisance ${Number.isFinite(V.autonomy) ? Math.round(V.autonomy * 100) : "—"} %` })}
         <ul class="keys">${parts.map((p) => h`<li data-tone="${p.tone}"><i></i><span>${p.label}</span><b>${fmt.kwhText(p.v)}</b></li>`)}
           <li class="keys-t"><span>Consommé</span><b>${fmt.kwhText(c.cons)}</b></li></ul></div>` });
   }
@@ -93,7 +98,7 @@
       { ic: "sack", tone: tre < 5 ? "bad" : "heat", name: "Trémie à granulés", sub: `${fmt.n(tre, 1)} kg sur ${fmt.n(max)} kg`, status: tre < 5 ? ["À remplir", "bad"] : ["OK", "good"], v: (tre / max) * 100, sheet: "poele" },
     ];
     return card({ cls: "o-eq", title: "Réserves", ic: "gauge", tone: "accent", body: h`
-      <ul class="plist">${items.map((x) => h`<li>${x.to ? h`<a class="plist-r" href="#/${x.to}">` : h`<button type="button" class="plist-r" data-act="open-sheet" data-sheet="${x.sheet}">`}
+      <ul class="plist">${items.map((x) => h`<li>${x.to ? h`<a class="plist-r" href="${BZ.href(x.to)}">` : h`<button type="button" class="plist-r" data-act="open-sheet" data-sheet="${x.sheet}">`}
         <span class="dt-ic" data-tone="${x.tone}">${icon(x.ic)}</span><span><strong>${x.name}</strong><small>${x.sub}</small></span>
         ${pill(x.status[0], x.status[1])}
         <span class="plist-p"><span>${fmt.n(x.v)} %</span>${meter({ value: x.v, tone: x.tone, size: "xs" })}</span>${x.to ? h`</a>` : h`</button>`}</li>`)}</ul>` });
@@ -118,7 +123,7 @@
       <div class="o-roi-t">
         <h3>Ton installation est rentabilisée à ${fmt.n(R.progress * 100)} %</h3>
         <p>${fmt.eur(R.total, 0)} économisés sur ${fmt.eur(R.inv, 0)}. Remboursée vers ${fmt.date(R.payback, { month: "long", year: "numeric" })} au rythme actuel.</p>
-        <a class="btn btn-primary btn-sm" href="#/insights"><span>Voir le bilan</span>${icon("arrow")}</a>
+        <a class="btn btn-primary btn-sm" href="${BZ.href("insights")}"><span>Voir le bilan</span>${icon("arrow")}</a>
       </div>
       <svg class="o-roi-art" viewBox="0 0 160 120" aria-hidden="true">
         <circle cx="122" cy="30" r="16" class="art-sun"/>

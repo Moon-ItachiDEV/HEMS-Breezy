@@ -463,7 +463,7 @@ __FLOW__
       // Texte d'un seul tenant : sinon l'écart du flex s'insère entre les morceaux (« 8,9 kWh  , 76 % »)
       return h`<p class="ve-last">${icon("clock")}<span>Dernière recharge ${when} · <b>${fmt.kwhText(last.kwh)}</b>, ${fmt.n(last.sun * 100)} % solaire</span></p>`;
     }
-    const startAt = new Date(st(C.session_debut)), share = S.kwh ? S.sol / S.kwh : 0;
+    const startAt = BZ.dt(C.session_debut), share = S.kwh ? S.sol / S.kwh : 0;
     const endKm = S.kmPerPct * S.lim;
     return h`<ol class="ve-steps" aria-label="Déroulé de la recharge">
       <li class="is-done"><i></i><strong>Branchée à ${fmt.time(startAt)}</strong><small>${fmt.n(S.start)} %</small></li>
@@ -580,7 +580,7 @@ __FLOW__
 
   function hero() {
     const S = chargeState(), { L } = S, R = BZ.slowOf("refresh");
-    const meta = L.charging ? h`Encore <b>${dur(S.mins)}</b> à ${fmt.powerText(L.car)}` : S.why ? fmt.cap(S.why) : h`Dernier trajet <b>${fmt.ago(st(C.voiture_dernier_trajet))}</b>`;
+    const meta = L.charging ? h`Encore <b>${dur(S.mins)}</b> à ${fmt.powerText(L.car)}` : S.why ? fmt.cap(S.why) : h`Dernier trajet <b>${fmt.ago(BZ.dt(C.voiture_dernier_trajet))}</b>`;
     // Relevé forcé en cours : les chiffres « chatoient » ; à l'arrivée des valeurs fraîches, un bref éclat
     return h`<section class="card ve-hero ${L.charging ? "is-charging" : ""} ${running(R) ? "is-reading" : ""} ${R && R.phase === "ok" ? "is-fresh" : ""}" aria-label="État de la voiture">
       <div class="ve-hero-l">
@@ -597,7 +597,7 @@ __FLOW__
         ${timeline(S)}
         <ul class="ve-chips">
           <li><span>Batterie 12 V</span><b>${fmt.n(num(C.voiture_12v_pct))} %</b></li>
-          ${L.plugged ? h`<li><span>Dernier trajet</span><b>${fmt.ago(st(C.voiture_dernier_trajet))}</b></li>` : ""}
+          ${L.plugged ? h`<li><span>Dernier trajet</span><b>${fmt.ago(BZ.dt(C.voiture_dernier_trajet))}</b></li>` : ""}
         </ul>
       </div>
     </section>`;
@@ -605,27 +605,46 @@ __FLOW__
 
   /* ─── Recharges de la période ───────────────────────────────────────── */
   const gridMix = () => (isOn(C.voiture_heures_creuses) ? { hsc: 0.72, hc: 0.28, hp: 0 } : { hsc: 0.62, hc: 0.23, hp: 0.15 });   // même règle que core.chargeMix
-  const costOf = (t) => { const g = Math.max(0, (t.ev || 0) - (t.evSun || 0)), m = gridMix(); return g * (m.hsc * num(C.tarif_hsc) + m.hc * num(C.tarif_hc) + m.hp * num(C.tarif_hp)); };
+  const costOf = (t) => {
+    // Home Assistant : kWh du réseau par tarif, lus heure par heure dans l'historique de la borne (inconnus tant qu'ils arrivent)
+    if (BZ.hist) return (t.evHp ?? NaN) * BZ.TARIFS.hp.price() + (t.evHc ?? NaN) * BZ.TARIFS.hc.price() + (t.evHsc ?? NaN) * BZ.TARIFS.hsc.price();
+    const g = Math.max(0, (t.ev || 0) - (t.evSun || 0)), m = gridMix(); return g * (m.hsc * num(C.tarif_hsc) + m.hc * num(C.tarif_hc) + m.hp * num(C.tarif_hp));
+  };
+  // Pas de recharge : 0 ; Home Assistant, historique pas encore arrivé : inconnu (« — »), pas 0
+  const none = (t) => (BZ.hist && !Number.isFinite(t.ev) ? NaN : 0);
+  // Home Assistant : historique de la borne absent (pas de statistiques) ou en chargement : on le dit, sans dessiner de jours vides
+  const evWait = (days) => {
+    const HB = BZ.hist; if (!HB) return null;
+    const diag = btn({ label: "Diagnostic", ic: "alert", act: "open-sheet", args: { sheet: "diag" }, size: "sm" });
+    if (HB.has("voiture") === false) return { ic: "clock", title: "Pas d'historique de recharge", text: "Les compteurs de la borne n'ont pas de statistiques dans Home Assistant.", action: diag };
+    return days.some((d) => d.loading) ? { ic: "clock", title: "Chargement…", text: "L'historique des recharges arrive de Home Assistant." } : null;
+  };
 
   function stats() {
-    const kind = BZ.ui.carPeriod, P = BZ.period(kind), T = P.total, Q = P.prevTotal, real = P.buckets.filter((b) => !b.forecast);
+    const kind = BZ.ui.carPeriod, P = BZ.period(kind, "voiture"), T = P.total, Q = P.prevTotal, real = P.buckets.filter((b) => !b.forecast);
+    // Home Assistant : l'écart compare la même durée, arrêtée à la même heure, sur les jours connus des deux côtés (Tc)
+    const Tc = P.cmpTotal || T;
     const conso = C.voiture_conso_kwh_100km || 16.5, ess = (C.essence_l_100km || 6.5) * (C.essence_prix_l || 1.85);
-    const per100 = (t) => (t.ev ? (costOf(t) / t.ev) * conso : 0), saved = (t) => (ess - per100(t)) * ((t.ev || 0) / conso);
-    const share = (t) => (t.ev ? t.evSun / t.ev : 0);
+    const per100 = (t) => (t.ev ? (costOf(t) / t.ev) * conso : none(t)), saved = (t) => (ess - per100(t)) * ((t.ev || 0) / conso);
+    const share = (t) => (t.ev ? t.evSun / t.ev : none(t));
     const m = new Date().getMonth();
-    const vs = { semaine: "vs 7 j avant", mois: `vs ${BZ.MONTHS[(m + 11) % 12]} à date`, annee: `vs ${new Date().getFullYear() - 1} à date` }[kind];
+    const base = { semaine: "vs 7 j avant", mois: `vs ${BZ.MONTHS[(m + 11) % 12]} à date`, annee: `vs ${new Date().getFullYear() - 1} à date` }[kind];
+    const cmp = P.cmp || {}, from = cmp.from ? new Date(`${cmp.from}T12:00:00`) : null;
+    const vs = BZ.hist && BZ.hist.has("voiture") === false ? "historique indisponible"
+      : cmp.none ? "pas de comparaison : historique incomplet" : cmp.partial ? `${base}, dès le ${fmt.date(from, { day: "numeric", month: "short" })}` : base;
     // Cumuls (courbes lisibles : pas de dents de scie entre jours avec et sans recharge)
     let e = 0, s = 0, c = 0;
-    const cum = real.map((b) => { e += b.ev || 0; s += b.evSun || 0; c += costOf(b); return { e, share: e ? s / e : null, per100: e ? (c / e) * conso : null }; });
-    return { kind, P, T, Q, real, conso, ess, per100, saved, share, vs, cum };
+    const add = (v) => (BZ.hist ? v : v || 0);   // Home Assistant : un jour inconnu rend le cumul inconnu (pas de courbe fausse)
+    const cum = real.map((b) => { e += add(b.ev); s += add(b.evSun); c += costOf(b); return { e, share: e ? s / e : null, per100: e ? (c / e) * conso : null }; });
+    return { kind, P, T, Q, Tc, real, conso, ess, per100, saved, share, vs, cum };
   }
 
   function kpis(S) {
-    const { T, Q, per100, saved, share, vs, ess, cum } = S;
+    const { T, Q, Tc, per100, saved, share, vs, ess, cum } = S;
     return h`<div class="kpis">
-      ${kpi({ label: "Énergie rechargée", ic: "bolt", tone: "ev", value: val(fmt.kwh(T.ev)), delta: delta(T.ev, Q.ev), vs, spark: BZ.spark(cum.map((x) => x.e), "ev") })}
-      ${kpi({ label: "Part solaire", ic: "sun", tone: "solar", value: val([fmt.n(share(T) * 100), "%"]), delta: delta(share(T), share(Q), { unit: "pts" }), vs, spark: BZ.spark(cum.map((x) => x.share), "solar") })}
-      ${kpi({ label: "Coût aux 100 km", ic: "euro", tone: "accent", value: val([fmt.n(per100(T), 2), "€"]), delta: delta(per100(T), per100(Q), { invert: true }), vs, spark: BZ.spark(cum.map((x) => x.per100), "accent") })}
+      ${kpi({ label: "Énergie rechargée", ic: "bolt", tone: "ev", value: val(fmt.kwh(T.ev)), delta: delta(Tc.ev, Q.ev), vs, spark: BZ.spark(cum.map((x) => x.e), "ev") })}
+      ${kpi({ label: "Part solaire", ic: "sun", tone: "solar", value: val([fmt.n(share(T) * 100), "%"]), delta: delta(share(Tc), share(Q), { unit: "pts" }), vs, spark: BZ.spark(cum.map((x) => x.share), "solar") })}
+      ${kpi({ label: "Coût aux 100 km", ic: "euro", tone: "accent", value: val([fmt.n(per100(T), 2), "€"]), delta: delta(per100(Tc), per100(Q), { invert: true }), vs, spark: BZ.spark(cum.map((x) => x.per100), "accent") })}
       ${kpi({ label: "Économisé vs essence", ic: "leaf", tone: "good", value: val([fmt.n(saved(T), 0), "€"]), delta: "", vs: `essence : ${fmt.n(ess, 2)} € / 100 km`, spark: BZ.spark(cum.map((x, i) => saved({ ev: x.e, evSun: S.real.slice(0, i + 1).reduce((a, b) => a + (b.evSun || 0), 0) })), "good") })}
     </div>`;
   }
@@ -643,6 +662,8 @@ __FLOW__
   function calendarCard() {
     // 4 semaines complètes + la semaine en cours, du lundi au dimanche (5 rangées)
     const wd = (new Date().getDay() + 6) % 7, days = BZ.chargeDays(29 + wd), maxDay = Math.max(...days.map((d) => d.kwh), 1);
+    const wait = evWait(days);
+    if (wait) return card({ cls: "ve-cal", title: "Jours de recharge", ic: "calendar", tone: "accent", body: BZ.empty(wait) });
     const n = days.filter((d) => d.kwh).length, sel = BZ.ui.calSel != null && days[BZ.ui.calSel] ? BZ.ui.calSel : days.length - 1, d = days[sel];
     const lab = (x) => fmt.cap(fmt.date(x.date, { weekday: "long", day: "numeric", month: "long" }));
     return card({ cls: "ve-cal", title: "Jours de recharge", ic: "calendar", tone: "accent", aside: h`<span class="ve-total">${n} en 5 semaines</span>`, body: h`
@@ -657,13 +678,17 @@ __FLOW__
 
   // Dernières recharges (motif « Recent projects ») : date, énergie, part solaire, coût
   function recentCard() {
+    const wait = BZ.hist && evWait(BZ.chargeDays(30));
+    if (wait) return card({ cls: "ve-recent", title: "Dernières recharges", ic: "clock", tone: "accent", body: BZ.empty(wait) });
     const S = chargeState(), list = BZ.chargeDays(21).filter((d) => d.kwh).reverse().slice(0, 4);
     const today = new Date().toDateString();
-    if (S.L.plugged) list[0] && list[0].date.toDateString() === today ? (list[0] = { date: new Date(), kwh: S.kwh, sun: S.kwh ? S.sol / S.kwh : 0, live: S.L.charging }) : list.unshift({ date: new Date(), kwh: S.kwh, sun: S.kwh ? S.sol / S.kwh : 0, live: S.L.charging });
+    // Séance en cours : Home Assistant donne sa recharge réseau par tarif depuis le branchement (coût réel)
+    const live = () => ({ date: new Date(), kwh: S.kwh, sun: S.kwh ? S.sol / S.kwh : 0, live: S.L.charging, ...(BZ.hist ? BZ.hist.evSplitBetween(+BZ.dt(C.session_debut), Date.now()) : {}) });
+    if (S.L.plugged) list[0] && list[0].date.toDateString() === today ? (list[0] = live()) : list.unshift(live());
     const rows = list.slice(0, 4);
     const when = (d) => (d.toDateString() === today ? "Aujourd'hui" : d.toDateString() === new Date(Date.now() - 864e5).toDateString() ? "Hier" : fmt.cap(fmt.date(d, { weekday: "short", day: "numeric", month: "short" })));
     return card({ cls: "ve-recent", title: "Dernières recharges", ic: "clock", tone: "accent", body: h`
-      <ul class="plist">${rows.map((r) => { const cost = costOf({ ev: r.kwh, evSun: r.kwh * r.sun }); return h`<li><div class="plist-r">
+      <ul class="plist">${rows.map((r) => { const cost = costOf({ ev: r.kwh, evSun: r.kwh * r.sun, evHp: r.evHp, evHc: r.evHc, evHsc: r.evHsc }); return h`<li><div class="plist-r">
         <span class="dt-ic" data-tone="${r.sun >= 0.5 ? "solar" : "grid"}">${icon(r.sun >= 0.5 ? "sun" : "grid")}</span>
         <span><strong>${when(r.date)}${r.live ? h` <span class="pill is-live" data-tone="ev">en cours</span>` : ""}</strong><small>${fmt.kwhText(r.kwh)} · ${fmt.eur(cost)}</small></span>
         <span class="plist-p"><span>${fmt.n(r.sun * 100)} % soleil</span>${meter({ value: r.sun * 100, tone: "solar", size: "xs" })}</span>

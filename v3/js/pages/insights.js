@@ -5,7 +5,7 @@
 //  Droite  : D'où vient ta consommation (anneau + réseau par tarif), Rentabilité solaire
 (() => {
   const BZ = window.BZ;
-  const { h, esc, fmt, icon, val, card, pill, kpi, pills, donut, meter, C } = BZ;
+  const { h, esc, fmt, icon, val, card, pill, kpi, pills, donut, meter, btn, C } = BZ;
 
   /* ─── Historique de la page ──────────────────────────────────────────
      Construit sur BZ.day() (core.js), avec quatre corrections à remonter un jour dans core.js :
@@ -13,7 +13,8 @@
      2. la batterie ne stocke que ce que la soirée et la nuit consommeront, et en rend 90 % ;
      3. les économies des jours passés sont recalées pour que leur somme = compteur cumulé (BZ.roi().total) ;
      4. la période d'avant s'arrête à la même heure tant que la période en cours n'est pas finie. */
-  const [Y0, M0, D0] = String(C.solaire_mise_en_service).split("-").map(Number);
+  // Début de l'historique : la mise en service (Home Assistant : historique_debut de config.js s'il est rempli)
+  const [Y0, M0, D0] = String((BZ.hist && C.historique_debut) || C.solaire_mise_en_service).split("-").map(Number);
   const START = new Date(Y0, M0 - 1, D0);
   const HRS = Array.from({ length: 24 }, (_, i) => i);
   const SUN = (x) => Math.max(0, Math.exp(-((x + 0.5 - 13.2) ** 2) / (2 * 2.7 ** 2)) - 0.02);      // mêmes profils que BZ.hours()
@@ -30,7 +31,9 @@
   const nowH = () => { const n = new Date(); return n.getHours() + n.getMinutes() / 60; };
   const TAR = ["hp", "hc", "hsc"];
   const FIELDS = ["prod", "cons", "self", "chg", "dch", "imp", "exp", "hp", "hc", "hsc", "savings"];
-  const sum = (days) => FIELDS.reduce((o, f) => ((o[f] = days.reduce((a, x) => a + (x[f] || 0), 0)), o), {});
+  // Home Assistant (BZ.hist) : une valeur inconnue (NaN, en chargement) le reste, un jour sans historique n'est pas compté,
+  // et les drapeaux des jours suivent (history.js)
+  const sum = (days) => (BZ.hist ? BZ.hist.sum(days) : FIELDS.reduce((o, f) => ((o[f] = days.reduce((a, x) => a + (x[f] || 0), 0)), o), {}));
   const worth = (x) => (x.self + x.dch) * 0.2 + x.exp * 0.06;     // même barème que BZ.day()
 
   const memo = new Map();
@@ -62,7 +65,11 @@
     }
     return Math.max(0, BZ.roi().total - BZ.today().savings) / (rawSum.v || 1);
   }
-  const dayX = (date) => (isToday(date) ? { ...BZ.day(date), today: true } : { ...pastDay(date), savings: pastDay(date).raw * F });
+  const dayDemo = (date) => (isToday(date) ? { ...BZ.day(date), today: true } : { ...pastDay(date), savings: pastDay(date).raw * F });
+  // Home Assistant : les vraies journées (statistiques), sans aucune des corrections de la démo
+  const dayX = (date) => (BZ.hist ? { ...BZ.day(date), today: isToday(date) || undefined } : dayDemo(date));
+  // Heures d'une journée (aujourd'hui ou passée) : HA les lit dans l'historique, la démo les répartit sur ses profils
+  const hoursOf = (HB, live, date, x) => (HB ? (live ? BZ.hours() : HB.hoursOf(date)).map((b) => ({ ...b, key: b.label })) : live ? todayHours() : dayHours(x));
 
   // Une journée arrêtée à l'heure H : production au rythme du soleil, batterie et réseau au rythme des heures sans soleil
   function cut(x, H) {
@@ -108,13 +115,52 @@
     if (kind === "mois") return START.getFullYear() * 12 + START.getMonth() - (t.getFullYear() * 12 + t.getMonth());
     return START.getFullYear() - t.getFullYear();
   }
+  // Home Assistant : chaque période et celle d'avant viennent des statistiques ; l'écart ne compare que ce qui est connu des
+  // deux côtés (panneaux posés, compteurs existants), sur la même durée, la période d'avant arrêtée à la même heure
+  function buildHA(kind, off) {
+    const HB = BZ.hist, K = HB.key, S = HB.shifts, now = new Date(), y = now.getFullYear(), m = now.getMonth(), d = now.getDate(), live = off === 0;
+    const P = { kind, off, live, H: nowH(), min: minOff(kind) };
+    const like = (a, b, pa, pb, shift, cut = live) => HB.like({ a: K(a), b: K(b), pa: K(pa), pb: K(pb), live: cut, shift });
+    if (kind === "jour") {
+      const date = D12(y, m, d + off), x = dayX(date), buckets = hoursOf(HB, live, date, x), total = sum([x]);
+      // Les heures arrivent à part (statistiques horaires) ; tant qu'elles manquent, pas de graphique
+      Object.assign(total, { loading: total.loading || buckets.some((b) => b.loading), error: total.error || buckets.some((b) => b.error), gapHours: buckets.filter((b) => b.gap && !b.dst).length });
+      const pd = D12(y, m, d + off - 1);
+      return { ...P, date, buckets, total, cmp: like(date, date, pd, pd, S.days(1)) };
+    }
+    if (kind === "semaine") {
+      const dates = span(D12(y, m, d - 6 + 7 * off), 7), pd = span(D12(y, m, d - 13 + 7 * off), 7);
+      const buckets = dates.map((x) => ({ key: fmt.cap(x.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "")), ...dayX(x), date: x, current: live && isToday(x) }));
+      return { ...P, from: dates[0], to: dates[6], pFrom: pd[0], pTo: pd[6], buckets, total: sum(buckets), cmp: like(dates[0], dates[6], pd[0], pd[6], S.days(7)) };
+    }
+    if (kind === "mois") {
+      const first = D12(y, m + off, 1), n = daysIn(first), fc = live ? BZ.period("mois").buckets : [];
+      const buckets = span(first, n).map((x, i) => (live && x.getDate() > d ? { ...fc[i], key: String(x.getDate()), date: x }
+        : { key: String(x.getDate()), ...dayX(x), date: x, current: live && x.getDate() === d }));
+      const pFirst = D12(first.getFullYear(), first.getMonth() - 1, 1), pn = daysIn(pFirst), whole = !live || d > pn;
+      const last = live ? D12(y, m, d) : D12(first.getFullYear(), first.getMonth(), n);
+      return { ...P, first, pFirst, whole, upTo: d, buckets, total: sum(buckets.filter((b) => !b.forecast)),
+        cmp: like(first, last, pFirst, D12(pFirst.getFullYear(), pFirst.getMonth(), whole ? pn : d), S.month(K(first).slice(0, 7)), live && !whole) };
+    }
+    const Y = y + off, fc = live ? BZ.period("annee").buckets : [];
+    const buckets = BZ.MONTHS.map((lab, i) => {
+      if (live && i > m) return { ...fc[i], key: lab, i };
+      const n = live && i === m ? d : daysIn(D12(Y, i, 1));
+      // Un mois = la somme de ses journées (le mois en cours : jusqu'à aujourd'hui)
+      return { key: lab, i, ...HB.monthSum(Y, i, live && i === m ? d : null), days: live && i === m ? d - 1 + share(USE, P.H) : n, current: live && i === m, pre: D12(Y, i, n) < START };
+    });
+    const pb = live ? D12(Y - 1, m, Math.min(d, daysIn(D12(Y - 1, m, 1)))) : D12(Y - 1, 11, 31);
+    return { ...P, year: Y, buckets, total: sum(buckets.filter((b) => !b.forecast)), cmp: like(D12(Y, 0, 1), live ? D12(y, m, d) : D12(Y, 11, 31), D12(Y - 1, 0, 1), pb, S.year(Y)) };
+  }
   function build(kind, off) {
+    if (BZ.hist) { const P = buildHA(kind, off); P.prevTotal = P.cmp.prevTotal; P.cmpTotal = P.cmp.cmpTotal || P.total; return P; }
     const now = new Date(), H = nowH(), y = now.getFullYear(), m = now.getMonth(), d = now.getDate(), live = off === 0;
+    // Dernier jour de la période d'avant arrêté à la même heure, découpé sur les profils de la démo
     const before = (dates) => dates.map((x, i) => (live && i === dates.length - 1 ? cut(dayX(x), H) : dayX(x)));
     const P = { kind, off, live, H, min: minOff(kind) };
     if (kind === "jour") {
-      const date = D12(y, m, d + off), x = dayX(date);
-      return { ...P, date, buckets: live ? todayHours() : dayHours(x), total: sum([x]), prevTotal: sum(before([D12(y, m, d + off - 1)])) };
+      const date = D12(y, m, d + off), x = dayX(date), buckets = hoursOf(null, live, date, x), total = sum([x]);
+      return { ...P, date, buckets, total, prevTotal: sum(before([D12(y, m, d + off - 1)])) };
     }
     if (kind === "semaine") {
       const dates = span(D12(y, m, d - 6 + 7 * off), 7), pd = span(D12(y, m, d - 13 + 7 * off), 7);
@@ -146,7 +192,8 @@
   const range = (a, b) => (a.getMonth() !== b.getMonth() ? `${sh(a)} – ${sh(b)}` : a.getDate() === b.getDate() ? sh(b) : `${dn(a)}–${sh(b)}`);
   const monthOf = (d) => BZ.MONTHS_LONG[d.getMonth()];
   function labels(P) {
-    const t = fmt.time(new Date()), none = P.prevTotal.prod <= 0.01 && P.total.prod > 0.01;
+    const t = fmt.time(new Date());
+    let none = !P.cmp && P.prevTotal.prod <= 0.01 && P.total.prod > 0.01;
     const L = { jour: { unit: "heure", per: "par heure" }, semaine: { unit: "jour", per: "par jour" }, mois: { unit: "jour", per: "par jour" }, annee: { unit: "mois", per: "par mois" } }[P.kind];
     if (P.kind === "jour") {
       const pd = new Date(P.date); pd.setDate(pd.getDate() - 1);
@@ -168,15 +215,29 @@
         ? { title: String(Y), compare: `vs ${Y - 1} à la même date`, cur: String(Y), prev: `${Y - 1} à date`, vs: `vs ${Y - 1} à date` }
         : { title: String(Y), compare: `vs ${Y - 1}`, cur: String(Y), prev: String(Y - 1), vs: `vs ${Y - 1}` });
     }
-    if (none) L.compare = `panneaux posés en ${monthOf(START)} ${START.getFullYear()}`;
+    if (P.cmp) {
+      // Home Assistant : rien de comparable (panneaux pas encore posés, ou compteurs pas encore là) ; ou comparaison
+      // réduite aux jours connus des deux côtés
+      const c = P.cmp, from = c.from ? new Date(`${c.from}T12:00:00`) : null;
+      none = !!c.none;
+      const pn = { jour: "de la veille", semaine: "des 7 jours d'avant", mois: P.pFirst ? `de ${monthOf(P.pFirst)}` : "d'avant", annee: String(P.year - 1) }[P.kind];
+      if (c.none) { L.compare = c.before ? `panneaux posés en ${monthOf(START)} ${START.getFullYear()}` : `pas de comparaison : historique ${pn} incomplet`; L.vs = c.before ? "rien à comparer" : "historique incomplet"; }
+      else if (c.partial) { L.compare += `, dès le ${sh(from)}`; L.vs += `, dès le ${sh(from)}`; L.cur = `${L.cur} dès le ${sh(from)}`; L.prev = `${L.prev} dès le ${sh(new Date(`${c.pfrom}T12:00:00`))}`; }
+    } else if (none) L.compare = `panneaux posés en ${monthOf(START)} ${START.getFullYear()}`;
     L.none = none;
+    // Home Assistant : heures ou jours sans aucune statistique (HA arrêté) — ils comptent pour 0 dans les totaux
+    const gaps = P.kind === "jour" ? P.total.gapHours : P.total.gaps;
+    if (BZ.hist && gaps > 0) L.gaps = P.kind === "jour" ? ` · ${gaps} heure${gaps > 1 ? "s" : ""} sans données` : P.kind === "annee" ? " · données incomplètes" : ` · ${gaps} jour${gaps > 1 ? "s" : ""} sans données`;
+    // Jours d'avant le premier relevé d'un compteur : comptés à part (« — »), dit dans le sous-titre
+    const cs = BZ.hist && P.total.nocov ? BZ.hist.coverStart() : null;
+    if (cs && cs > "0000-01-01" && cs < "9999") L.gaps = `${L.gaps || ""} · historique dès le ${fmt.date(new Date(`${cs}T12:00:00`), { day: "numeric", month: "long", year: "numeric" })}`;
     return L;
   }
 
   /* ─── Petits calculs et utilitaires ───────────────────────────────── */
   const aut = (x) => (x && x.cons ? BZ.clamp(1 - x.imp / x.cons, 0, 1) : 0);          // part de la conso sans réseau
   const selfUse = (x) => (x && x.prod ? BZ.clamp(1 - x.exp / x.prod, 0, 1) : 0);      // part de la production gardée
-  const bill = (x) => TAR.reduce((a, k) => a + (x[k] || 0) * BZ.TARIFS[k].price(), 0);
+  const bill = (x) => TAR.reduce((a, k) => a + (BZ.hist ? x[k] : x[k] || 0) * BZ.TARIFS[k].price(), 0);   // HA : inconnue tant que la répartition manque
   // Variation : « 1 pt » au singulier
   const dl = (cur, prev, o = {}) => { const s = BZ.delta(cur, prev, o); return o.unit === "pts" && Math.round(Math.abs(cur - prev) * 100) === 1 ? s.replace(" pts</span>", " pt</span>") : s; };
   const monthName = (P, i) => fmt.cap(BZ.MONTHS_LONG[i]);
@@ -228,7 +289,7 @@
     const bw = Math.max(4, Math.min(28, slot * (n > 20 ? 0.62 : 0.46)));
     const tot = buckets.map((b) => (b.forecast ? b.prod || 0 : SER.reduce((a, [k]) => a + (b[k] || 0), 0)));
     const rest = buckets.map((b) => (b.current && b.fcRest > 0.05 ? b.fcRest : 0));   // case en cours : ce qui reste prévu
-    const cons = buckets.map((b) => (b.forecast || b.cons == null ? null : b.cons));
+    const cons = buckets.map((b) => (b.forecast || b.cons == null || !Number.isFinite(b.cons) ? null : b.cons));
     const end = buckets.map((b, i) => (b.current && cons[i] != null && b.consEnd > cons[i] ? b.consEnd : null));   // projection de la case en cours
     const shown = cons.map((v, i) => (end[i] != null ? end[i] : v));
     const max = niceTop(Math.max(...tot.map((v, i) => v + rest[i]), ...shown.filter((v) => v != null), 0.1) * 1.06);
@@ -265,7 +326,7 @@
   function dayLines({ P, buckets: B, label }) {
     const id = `bi${++seq}`, n = B.length, slot = W / n, cx = (i) => slot * i + slot / 2;
     const idx = B.map((_, i) => i), past = idx.filter((i) => !B[i].future), fut = idx.filter((i) => B[i].future), last = past[past.length - 1];
-    const prod = B.map((b) => b.prod || 0), cons = B.map((b) => b.cons);
+    const prod = B.map((b) => b.prod || 0), cons = B.map((b) => (Number.isFinite(b.cons) ? b.cons : null));
     const max = niceTop(Math.max(...prod, ...cons.filter((v) => v != null), 0.1) * 1.1);
     const y = (v) => 4 + (1 - v / max) * (H - 4), pt = (i, v) => [cx(i), y(v)];
     const pP = past.map((i) => pt(i, prod[i])), fP = (last != null ? [last, ...fut] : fut).map((i) => pt(i, prod[i]));
@@ -303,10 +364,10 @@
     let rows;
     if (c.type === "lines") {
       const T = BZ.TARIFS[b.tariff];
-      rows = h`${row(b.future ? "Prévision" : "Production", c.tot[i], "solar", b.future ? "bi-tip-f" : "", " kWh", 2)}${c.cons[i] != null ? row("Consommation", c.cons[i], "neutral", "bi-tip-c", " kWh", 2) : ""}
+      rows = h`${row(b.future ? (b.fcEst ? "Prévision (selon tes 7 derniers jours)" : "Prévision") : "Production", c.tot[i], "solar", b.future ? "bi-tip-f" : "", " kWh", 2)}${c.cons[i] != null ? row("Consommation", c.cons[i], "neutral", "bi-tip-c", " kWh", 2) : ""}
         <div class="tip-r bi-tip-tar"><i data-tone="${b.tariff}"></i><span>${T.label}</span><b>${fmt.n(T.price(), 4)} €/kWh</b></div>`;
-    } else if (b.forecast) rows = row("Production prévue", c.tot[i], "solar", "bi-tip-f");
-    else if (b.pre) rows = h`<div class="tip-r bi-tip-n"><span>Panneaux pas encore posés</span></div>${row("Consommation", c.cons[i] || 0, "neutral", "bi-tip-c")}`;
+    } else if (b.forecast) rows = c.tot[i] > 0 ? row("Production prévue", c.tot[i], "solar", "bi-tip-f") : h`<div class="tip-r bi-tip-n"><span>Pas de prévision</span></div>`;   // HA : rien d'inventé
+    else if (b.pre) rows = h`<div class="tip-r bi-tip-n"><span>Panneaux pas encore posés</span></div>${row("Consommation", BZ.hist ? c.cons[i] ?? NaN : c.cons[i] || 0, "neutral", "bi-tip-c")}`;
     else rows = h`${SER.map(([k, l, tone]) => row(l, b[k] || 0, tone))}${row("Production", c.tot[i], null, "bi-tip-t")}${c.rest[i] ? row("Encore prévu", c.rest[i], "solar", "bi-tip-f") : ""}
       ${c.cons[i] != null ? row(b.current ? b.consLbl : "Consommation", c.cons[i], "neutral", "bi-tip-c") : ""}${c.end[i] != null ? row(b.projLbl, c.end[i], null, "bi-tip-p") : ""}`;
     const t = tipEl();
@@ -364,26 +425,34 @@
       ${body}</section>`;
 
   /* ─── Blocs de la page ────────────────────────────────────────────── */
-  function header(P, L) {
+  function header(P, L, wait = false) {
     const id = P.kind === "annee" ? String(P.year) : P.kind === "mois" ? iso(P.first).slice(0, 7) : iso(P.kind === "jour" ? P.date : P.to);
     const nav = (dir) => {
       const to = P.off + dir, ok = dir < 0 ? to >= P.min : to <= 0;
       return h`<button type="button" class="bi-nav" data-act="set" data-k="biOff" data-value="${P.kind}:${to}" aria-label="${dir < 0 ? "Période précédente" : "Période suivante"}" ${ok ? "" : "disabled"}>${icon(dir < 0 ? "left" : "chevron")}</button>`;
     };
     return h`<header class="ph">
-      <div><p class="ph-hi">Historique</p><h1>Bilan</h1><p class="ph-sub" aria-live="polite">${L.title} · ${L.compare}</p></div>
+      <div><p class="ph-hi">Historique</p><h1>Bilan</h1><p class="ph-sub" aria-live="polite">${L.title} · ${L.compare}${L.gaps || ""}</p></div>
       <div class="ph-a">
         <div class="bi-per" role="group" aria-label="Période du bilan">${icon("calendar")}${pills({ name: "period", label: "Durée", value: P.kind, options: [["jour", "Jour"], ["semaine", "7 jours"], ["mois", "Mois"], ["annee", "Année"]] })}
           <span class="bi-sep" aria-hidden="true"></span>${nav(-1)}${nav(1)}</div>
-        ${document.documentElement.dataset.hosted ? "" : h`<a class="btn btn-primary bi-exp" href="${csvHref(P)}" ${SAVE_AS}="breezy-bilan-${P.kind}-${id}.csv" aria-label="Exporter le bilan de la période en CSV">${DL}<span>Exporter</span></a>`}
+        ${wait || document.documentElement.dataset.hosted ? "" : h`<a class="btn btn-primary bi-exp" href="${csvHref(P)}" ${SAVE_AS}="breezy-bilan-${P.kind}-${id}.csv" aria-label="Exporter le bilan de la période en CSV">${DL}<span>Exporter</span></a>`}
       </div></header>`;
   }
 
   // Mini-courbes : les cases de la période. Jour : heures écoulées (autosuffisance cumulée depuis 0 h, économies par heure).
   // Année : moyenne par jour de chaque mois, pour que le mois en cours ne « s'effondre » pas.
+  // Home Assistant : autosuffisance cumulée et économies de chaque heure, lues dans l'historique (rien de réparti)
+  const realHourly = (B) => {
+    let si = 0, sc = 0;
+    return {
+      aut: B.map((b) => { if (Number.isFinite(b.imp) && Number.isFinite(b.cons)) { si += b.imp; sc += b.cons; } return sc > 0 ? BZ.clamp(1 - si / sc, 0, 1) : null; }),
+      eco: B.map((b) => (Number.isFinite(b.savings) ? b.savings : null)),
+    };
+  };
   function sparks(P, T) {
     if (P.kind === "jour") {
-      const B = P.buckets.filter((b) => !b.future), A = hourly(B, T);
+      const B = P.buckets.filter((b) => !b.future), A = BZ.hist ? realHourly(B) : hourly(B, T);
       return { prod: B.map((b) => b.prod), cons: B.map((b) => b.cons), aut: A.aut, eco: A.eco };
     }
     const real = P.buckets.filter((b) => !b.forecast && !b.pre), per = (b) => (P.kind === "annee" ? b.days || 1 : 1);
@@ -392,14 +461,16 @@
 
   function kpis(P, T, Q, L) {
     const S = sparks(P, T), sp = (vals, tone) => (vals.filter((v) => v != null).length > 1 ? BZ.spark(vals, tone) : null);
+    const Tc = P.cmpTotal || T;   // Home Assistant : la part de la période comparable (démo : la période entière)
     const vs = (d) => (d || !L.none ? L.vs : "rien à comparer");
     const k = [
-      { label: "Produit", ic: "sun", tone: "solar", value: val(fmt.kwh(T.prod)), delta: dl(T.prod, Q.prod), spark: sp(S.prod, "solar") },
-      { label: "Consommé", ic: "home", tone: "battery", value: val(fmt.kwh(T.cons)), delta: dl(T.cons, Q.cons, { invert: true }), spark: sp(S.cons, "battery") },
-      { label: "Autosuffisance", ic: "leaf", tone: "good", value: val([fmt.n(aut(T) * 100), "%"]), delta: L.none ? "" : dl(aut(T), aut(Q), { unit: "pts" }), spark: sp(S.aut, "good") },
-      { label: "Économisé", ic: "euro", tone: "accent", value: val([fmt.n(T.savings, T.savings >= 100 ? 0 : 2), "€"]), delta: dl(T.savings, Q.savings), spark: sp(S.eco, "accent") },
+      { label: "Produit", ic: "sun", tone: "solar", value: val(fmt.kwh(T.prod)), delta: dl(Tc.prod, Q.prod), spark: sp(S.prod, "solar") },
+      { label: "Consommé", ic: "home", tone: "battery", value: val(fmt.kwh(T.cons)), delta: dl(Tc.cons, Q.cons, { invert: true }), spark: sp(S.cons, "battery") },
+      { label: "Autosuffisance", ic: "leaf", tone: "good", value: val([fmt.n(aut(T) * 100), "%"]), delta: L.none ? "" : dl(aut(Tc), aut(Q), { unit: "pts" }), spark: sp(S.aut, "good") },
+      { label: "Économisé", ic: "euro", tone: "accent", value: val([fmt.n(T.savings, T.savings >= 100 ? 0 : 2), "€"]), delta: dl(Tc.savings, Q.savings), spark: sp(S.eco, "accent"), est: T.est, estHp: T.estHp },
     ];
-    return h`<div class="kpis bi-kpis">${k.map((x) => kpi({ ...x, vs: vs(x.delta) }))}</div>`;
+    // Home Assistant sans statistique d'économies : calculées avec les tarifs, et dit comme tel
+    return h`<div class="kpis bi-kpis">${k.map((x) => kpi({ ...x, vs: x.est ? (x.estHp ? "estimé au prix des heures pleines" : "estimé avec tes tarifs") : vs(x.delta) }))}</div>`;
   }
 
   function chartCard(P, T) {
@@ -415,7 +486,7 @@
     // la consommation est projetée à la fin de la case, au rythme habituel des heures et des jours qui restent
     let restToday = 0, restMonth = 0;
     if (P.live) {
-      restToday = todayHours().reduce((a, b) => a + (b.future ? b.prod : 0), 0);
+      restToday = (BZ.hist ? BZ.hours() : todayHours()).reduce((a, b) => a + (b.future ? b.prod || 0 : 0), 0);
       if (P.kind === "annee") restMonth = BZ.period("mois").buckets.reduce((a, b) => a + (b.forecast ? b.prod : 0), 0);
     }
     const uShare = Math.max(0.05, share(USE, P.H)), t = fmt.time(new Date());
@@ -425,7 +496,7 @@
       return { ...b, fcRest: restToday + restMonth, consEnd: yr ? (b.cons / (b.days || 1)) * daysIn(D12(P.year, b.i, 1)) : b.cons / uShare,
         consLbl: yr ? `Consommé au ${sh(new Date())}` : `Consommé à ${t}`, projLbl: yr ? "Projection fin de mois" : "Projection fin de journée" };
     });
-    const hasFc = buckets.some((b) => b.forecast || b.fcRest > 0.05);
+    const hasFc = buckets.some((b) => (b.forecast && b.prod > 0) || b.fcRest > 0.05);
     return card({ cls: "bi-main", title: P.kind === "annee" ? "Production et consommation" : "Où va ta production", ic: "chart", tone: "accent",
       aside: legendRow([
         ["Utilisé", "solar", "bar", fmt.kwhText(T.self)], ["Stocké", "battery", "bar", fmt.kwhText(T.chg)], ["Revendu", "grid", "bar", fmt.kwhText(T.exp)],
@@ -475,19 +546,32 @@
     const parts = [{ label: "Soleil direct", v: T.self, tone: "solar" }, { label: "Batterie", v: T.dch, tone: "battery" }, { label: "Réseau", v: T.imp, tone: "neutral" }];
     const cons = parts.reduce((a, p) => a + p.v, 0) || 1;
     const tar = TAR.map((k) => ({ k, label: BZ.TARIFS[k].label, v: T[k] || 0, eur: (T[k] || 0) * BZ.TARIFS[k].price() }));
+    const wait = BZ.hist && !Number.isFinite(T.hp);   // Home Assistant : achat par tarif pas encore lu (heures du mois)
     return card({ cls: "bi-org", title: "D'où vient ta consommation", ic: "leaf", tone: "accent", link: { label: "Tarifs", to: "energy" }, body: h`
-      <div class="bi-mixr">${donut({ parts, size: 128, stroke: 15, center: fmt.n(T.cons, T.cons < 100 ? 1 : 0), sub: "kWh", label: `${fmt.kwhText(T.cons)} consommés : ${parts.map((p) => `${p.label} ${Math.round((p.v / cons) * 100)} %`).join(", ")}` })}
+      <div class="bi-mixr">${donut({ parts, size: 128, stroke: 15, center: fmt.n(T.cons, T.cons < 100 ? 1 : 0), sub: "kWh", label: `${fmt.kwhText(T.cons)} consommés : ${parts.map((p) => `${p.label} ${Number.isFinite(p.v) ? Math.round((p.v / cons) * 100) : "—"} %`).join(", ")}` })}
         <ul class="bi-keys">${parts.map((p) => h`<li data-tone="${p.tone}"><i></i><span>${p.label}</span><em>${fmt.n((p.v / cons) * 100)} %</em><b>${fmt.kwhText(p.v)}</b></li>`)}</ul></div>
       <div class="bi-tar">
         <div class="bi-tar-h"><strong>Réseau par tarif</strong><span><b>${fmt.eur(bill(T))}</b> payés</span></div>
-        ${BZ.split(tar.map((t) => ({ label: t.label, v: t.v, tone: t.k })), { label: `Achat réseau par tarif : ${tar.map((t) => `${t.label} ${fmt.kwhText(t.v)}`).join(", ")}` })}
-        <ul class="bi-tl">${tar.map((t) => h`<li data-tone="${t.k}"><i></i><span>${t.label}<em>${BZ.rangeLabel(t.k)}</em></span><span class="bi-tl-k">${fmt.kwhText(t.v)}</span><b>${fmt.eur(t.eur, 2)}</b></li>`)}</ul>
+        ${wait ? h`<p class="ha-hint">${T.splitLoading ? "Répartition par tarif en cours de chargement…" : "Répartition par tarif indisponible pour le moment."}</p>` : BZ.split(tar.map((t) => ({ label: t.label, v: t.v, tone: t.k })), { label: `Achat réseau par tarif : ${tar.map((t) => `${t.label} ${fmt.kwhText(t.v)}`).join(", ")}` })}
+        ${wait ? "" : h`<ul class="bi-tl">${tar.map((t) => h`<li data-tone="${t.k}"><i></i><span>${t.label}<em>${BZ.rangeLabel(t.k)}</em></span><span class="bi-tl-k">${fmt.kwhText(t.v)}</span><b>${fmt.eur(t.eur, 2)}</b></li>`)}</ul>`}
       </div>` });
   }
 
   // Rentabilité : compteur cumulé (BZ.roi), rythme des 12 derniers mois, date d'amortissement à ce rythme
   function roiData() {
-    const R = BZ.roi(), now = new Date(), y = now.getFullYear();
+    const R = BZ.roi(), now = new Date(), y = now.getFullYear(), HB = BZ.hist;
+    if (HB) {
+      // Home Assistant : économies des 365 derniers jours et depuis le 1er janvier (statistiques) ;
+      // tant qu'elles manquent, le rythme moyen depuis la mise en service (compteur cumulé)
+      // Économies des 365 derniers jours, sur les seuls jours connus (pics écartés) ; moins d'un an connu : ramenées à l'année ;
+      // presque rien de connu : le rythme moyen depuis la mise en service (compteur cumulé)
+      const W = HB.savingsWindow("365d"), Y = HB.savingsWindow("ytd"), ok = Number.isFinite(W.v) && W.days >= 28;
+      const perYear = !ok ? R.perYear : W.days >= 365 ? W.v : (W.v * 365) / W.days;
+      const payback = new Date(now.getTime() + (R.remaining / (perYear || 1)) * 365.25 * 864e5);
+      const mo = ok && W.days < 365 ? Math.max(1, Math.round(W.days / 30.44)) : 0;
+      return { ...R, perYear, ytd: Y.v, ytdFrom: Y.full === false && Y.from ? new Date(`${Y.from}T12:00:00`) : null, payback, totalYears: (payback - R.start) / (365.25 * 864e5),
+        avg: !ok, perLabel: !ok ? "Par an (moy.)" : mo ? `Par an (sur ${mo} mois)` : "Sur 12 mois" };
+    }
     const year = sum(span(D12(y - 1, now.getMonth(), now.getDate() + 1), 365).map(dayX)).savings;
     const months = (now - START) / (30.44 * 864e5);
     const perYear = months < 12 ? (year * 12) / Math.max(1, months) : year;     // moins d'un an de recul : ramené à l'année
@@ -499,28 +583,46 @@
   function roiCard(P) {
     const R = roiData(), y = new Date().getFullYear();
     // En vue « Année » en cours, l'économie de l'année est déjà dans les indicateurs : on montre la durée d'amortissement
-    const first = P.kind === "annee" && P.live ? ["Amortie en", `${fmt.n(R.totalYears, 1)} ans`] : [`En ${y}`, fmt.eur(R.ytd, 0)];
+    const first = P.kind === "annee" && P.live ? ["Amortie en", `${fmt.n(R.totalYears, 1)} ans`] : [R.ytdFrom ? `Dès le ${sh(R.ytdFrom)}` : `En ${y}`, fmt.eur(R.ytd, 0)];
     return card({ cls: "bi-roi", title: "Rentabilité solaire", ic: "sun", tone: "accent", aside: pill(h`${fmt.n(R.progress * 100)} %<span class="bi-rx"> remboursé</span>`, "accent"), body: h`
       <div class="bi-roi-v">${val([fmt.n(R.total), "€"], "bi-roi-big")}<span>économisés sur ${fmt.eur(R.inv, 0)} investis</span></div>
       <div class="bi-roi-m">${meter({ value: R.progress * 100, tone: "accent", size: "lg", label: "Part de l'installation remboursée" })}
         <div class="bi-roi-ax"><span class="bi-roi-from">Depuis ${fmt.date(R.start, { month: "short", year: "numeric" })}</span><span>Amortie vers <b>${fmt.date(R.payback, { month: "long", year: "numeric" })}</b></span></div></div>
       <div class="bi-roi-kv">
         <div><span>${first[0]}</span><b>${first[1]}</b></div>
-        <div><span>Sur 12 mois</span><b>${fmt.eur(R.perYear, 0)}</b></div>
+        <div><span>${R.perLabel || (R.avg ? "Par an (moy.)" : "Sur 12 mois")}</span><b>${fmt.eur(R.perYear, 0)}</b></div>
         <div><span>Reste</span><b>${fmt.eur(R.remaining, 0)}</b></div>
       </div>` });
   }
 
+  // Home Assistant : historique absent, en échec ou en chargement → on le dit à la place des graphiques (jamais de NaN dessiné)
+  function waitState(T, Q) {
+    const HB = BZ.hist; if (!HB) return null;
+    if (HB.has("energie") === false) return { title: "Historique indisponible", text: "Un compteur d'énergie n'a pas de statistiques dans Home Assistant. Ouvre le diagnostic pour savoir lequel.",
+      action: btn({ label: "Diagnostic", ic: "alert", act: "open-sheet", args: { sheet: "diag" }, size: "sm" }) };
+    if (T.error || Q.error) return { title: "Home Assistant n'a pas répondu", text: "Réessaie dans un instant.", action: btn({ label: "Réessayer", ic: "refresh", act: "hist-retry", size: "sm" }) };
+    if (T.loading || Q.loading) return { title: "Chargement de l'historique", text: "Les statistiques de Home Assistant arrivent…" };
+    return null;
+  }
+  function waitCards(P, w) {
+    return h`<div class="layout bi-grid bi-wait">
+      <div class="col bi-l">${card({ cls: "bi-main", title: "Où va ta production", ic: "chart", tone: "accent", body: BZ.empty({ ic: "chart", ...w }) })}</div>
+      <div class="col bi-r">${card({ cls: "bi-org", title: "D'où vient ta consommation", ic: "leaf", tone: "accent", body: BZ.empty({ ic: "leaf", title: w.title, text: "La répartition s'affichera avec l'historique." }) })}${roiCard(P)}</div>
+    </div>`;
+  }
+
   BZ.pages.insights = () => {
     REG.clear();
-    F = rescale();
+    F = BZ.hist ? 1 : rescale();   // recalage des économies : démo seulement
     const kind = ["jour", "semaine", "mois", "annee"].includes(BZ.ui.period) ? BZ.ui.period : "semaine";
     const [k, n] = String(BZ.ui.biOff || "").split(":");
     const off = k === kind ? BZ.clamp(Math.round(+n) || 0, minOff(kind), 0) : 0;
     const P = build(kind, off), T = P.total, Q = P.prevTotal, L = labels(P);
+    const w = waitState(T, Q);
+    if (w) return h`${header(P, L, true)}${waitCards(P, w)}`;
     return h`${header(P, L)}${kpis(P, T, Q, L)}
       <div class="layout bi-grid">
-        <div class="col bi-l">${chartCard(P, T)}<div class="bi-pair">${compareCard(T, Q, L)}${bestCard(P, L)}</div></div>
+        <div class="col bi-l">${chartCard(P, T)}<div class="bi-pair">${compareCard(P.cmpTotal || T, Q, L)}${bestCard(P, L)}</div></div>
         <div class="col bi-r">${originCard(T)}${roiCard(P)}</div>
       </div>`;
   };

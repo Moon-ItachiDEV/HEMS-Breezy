@@ -6,14 +6,15 @@
 
   /* ─── Suggestions : déduites de l'état, triées par utilité ──────────── */
   BZ.alerts = () => {
-    const L = BZ.live(), t = BZ.tariffNow(), out = [];
+    // Home Assistant : le diagnostic (entités introuvables…) passe en premier
+    const L = BZ.live(), t = BZ.tariffNow(), out = BZ.haAlerts ? BZ.haAlerts() : [];
     const boost = num(C.ballon_boost) === 1;
     if (L.grid < -300 && !boost) out.push({ id: "surplus", tone: "grid", ic: "drop", title: `${fmt.powerText(-L.grid)} partent sur le réseau`, text: "Chauffer le ballon maintenant utilise ce surplus gratuit.", act: "boiler-boost", cta: "Chauffer le ballon" });
     const tremie = num(C.tremie_kg), days = tremie / num(C.conso_jour_kg);
     if (days < 2) out.push({ id: "pellets", tone: "warn", ic: "sack", title: `Trémie : ${fmt.n(tremie, 1)} kg`, text: `Environ ${fmt.n(days * 24)} h d'autonomie au rythme actuel.`, act: "open-sheet", args: { sheet: "poele" }, cta: "Ouvrir le poêle" });
     if (L.plugged && !L.charging && num(C.voiture_soc) < num(C.voiture_limite_pct)) out.push({ id: "car", tone: "ev", ic: "car", title: "e-Niro branchée, pas en charge", text: `${fmt.n(num(C.voiture_soc))} % · limite ${fmt.n(num(C.voiture_limite_pct))} %.`, act: "car-charge", cta: "Charger" });
     if (t.nextKey === "hsc" || t.key === "hsc") { const hrs = Math.max(0, Math.round((t.changeAt - Date.now()) / 36e5)); out.push({ id: "hsc", tone: "hsc", ic: "moon", title: t.key === "hsc" ? "Super creuses en cours" : `Super creuses dans ${hrs} h`, text: `${fmt.n(num(C.tarif_hsc), 4)} €/kWh de ${BZ.rangeLabel("hsc")}.` }); }
-    const due = new Date(st(C.poele_entretien)); due.setMonth(due.getMonth() + C.poele_entretien_mois);
+    const due = BZ.dt(C.poele_entretien); due.setMonth(due.getMonth() + C.poele_entretien_mois);
     const dj = fmt.inDays(due);
     if (dj < 45) out.push({ id: "stove-care", tone: "warn", ic: "wrench", title: `Entretien du poêle dans ${dj} j`, text: "Pense à prendre rendez-vous avant les grands froids." });
     return out;
@@ -25,9 +26,16 @@
   BZ.dayView = (offset = 0) => {
     const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + offset);
     const at = (k) => { const x = new Date(d); x.setDate(x.getDate() + k); return BZ.day(x); };
-    const cur = at(0), prev = at(-1), week = Array.from({ length: 7 }, (_, i) => at(i - 6));
-    const aut = (x) => (x.cons ? 1 - x.imp / x.cons : 0);
-    return { date: d, offset, isToday: offset === 0, cur, prev, week, autonomy: aut(cur), prevAutonomy: aut(prev), autWeek: week.map(aut) };
+    const cur = at(0), week = Array.from({ length: 7 }, (_, i) => at(i - 6));
+    // Home Assistant : aujourd'hui (jusqu'à maintenant) est comparé à hier à la même heure, et seulement si hier est connu
+    // (panneaux posés, compteurs existants) ; démo : la veille entière
+    const HB = BZ.hist, cmp = HB && (() => { const k = HB.key(d), p = new Date(d); p.setDate(p.getDate() - 1); return HB.like({ a: k, b: k, pa: HB.key(p), pb: HB.key(p), live: offset === 0, shift: HB.shifts.days(1) }); })();
+    const prev = cmp ? cmp.prevTotal : at(-1);
+    // Historique Home Assistant pas encore arrivé (NaN) : autosuffisance inconnue, pas 100 %
+    const aut = (x) => (x.cons ? 1 - x.imp / x.cons : Number.isFinite(x.cons) ? 0 : NaN);
+    const V = { date: d, offset, isToday: offset === 0, cur, prev, week, autonomy: aut(cur), prevAutonomy: aut(prev), autWeek: week.map(aut) };
+    if (HB) Object.assign(V, { loading: [cur, prev, ...week].some((x) => x.loading) || !!cmp.loading, absent: cur.absent || null, sameHour: offset === 0 && !cmp.none });
+    return V;
   };
 
   /* ─── Appareils qui comptent maintenant (tableau de l'Aperçu) ─────────
@@ -42,7 +50,7 @@
     rows.push({ k: "sun", cat: "energy", ic: "sun", tone: "solar", name: "Panneaux solaires", sub: `3 onduleurs · ${fmt.kwhText(BZ.today().prod)} aujourd'hui`,
       type: ["Production", "solar"], value: fmt.powerText(L.solar), status: L.solar > 30 ? ["Produit", "good", true] : ["Nuit", "neutral"], to: "energy" });
     const stoveOn = st(C.poele) !== "off";
-    rows.push({ k: "stove", cat: "heat", ic: "flame", tone: "heat", name: "Poêle à granulés", sub: stoveOn ? `${st(C.poele_statut)} · P${st(C.poele_puissance)} · trémie ${fmt.n(num(C.tremie_kg))} kg` : "Éteint",
+    rows.push({ k: "stove", cat: "heat", ic: "flame", tone: "heat", name: "Poêle à granulés", sub: stoveOn ? `${st(C.poele_statut)} · P${fmt.n(num(C.poele_puissance))} · trémie ${fmt.n(num(C.tremie_kg))} kg` : "Éteint",
       type: ["Chauffage", "heat"], value: `${fmt.n(attr(C.poele, "current_temperature"), 1)} °C`, status: stoveOn ? ["Allumé", "heat", true] : ["Éteint", "neutral"], sheet: "poele" });
     const boil = isOn(C.ballon_chauffe) || num(C.ballon_boost) === 1;
     rows.push({ k: "boiler", cat: "heat", ic: "drop", tone: "battery", name: "Ballon d'eau chaude", sub: `Consigne ${fmt.n(attr(C.ballon, "temperature"))} °C${num(C.ballon_boost) === 1 ? " · chauffe forcée" : ""}`,

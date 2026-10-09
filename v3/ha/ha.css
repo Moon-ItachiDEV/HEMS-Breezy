@@ -1,0 +1,63 @@
+/* Breezy HEMS — styles propres au panneau Home Assistant (chargés après ceux de la V3 ; jamais par la démo). */
+
+/* Le document du cadre est vide au départ : il prend toute la hauteur */
+html, body { min-height: 100%; }
+
+/* ─── Bouton menu de Home Assistant (écran étroit) ───────────────────────
+   HA ne dessine aucune barre au-dessus d'un panneau : sans ce bouton, on ne pourrait plus quitter Breezy sur téléphone */
+.ha-menu { display: none; }
+:root[data-ha-menu] .ha-menu { display: grid; flex: none; margin-left: calc(-1 * var(--s-2)); }
+
+/* ─── Hors ligne : les valeurs restent (dernières connues), une pastille le signale ─
+   Téléphone étroit (≤ 400 px) : un simple point, pour que la barre du haut ne déborde pas */
+:root[data-ha-offline] .top-a::before {
+  content: "Hors ligne"; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; margin-right: var(--s-1);
+  border-radius: 7px; font-size: var(--fs-12); font-weight: 600; white-space: nowrap; color: var(--warn-t); background: var(--warn-s);
+}
+@media (max-width: 400px) {
+  /* le point garde « Hors ligne » comme texte de remplacement pour les lecteurs d'écran (sans support : un simple point) */
+  :root[data-ha-offline] .top-a::before { content: ""; content: "" / "Hors ligne"; width: 10px; height: 10px; padding: 0; border-radius: 50%; background: var(--warn-t); flex: none; }
+}
+
+/* ─── Historique en chargement : un trait animé sous la barre du haut, et une phrase à la place d'un détail ─ */
+:root[data-hist-loading] .top::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent); background-size: 40% 100%; background-repeat: no-repeat;
+  animation: bz-hist 1.2s linear infinite;
+}
+@keyframes bz-hist { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+@media (prefers-reduced-motion: reduce) { :root[data-hist-loading] .top::after { animation: none; background-size: 100% 100%; opacity: .5; } }
+.ha-hint { margin: var(--s-2) 0 0; font-size: var(--fs-13); color: var(--text-3); }
+
+/* ─── Panneau Diagnostic ─────────────────────────────────────────────── */
+.ha-diag { display: flex; flex-direction: column; gap: var(--s-5); min-height: 0; overflow-y: auto; }
+.ha-diag-list { display: flex; flex-direction: column; gap: var(--s-5); }
+.ha-diag-list:empty { display: none; }
+.ha-diag-sum { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-radius: var(--r-md); background: var(--surface-2); font-size: var(--fs-13); color: var(--text-2); }
+.ha-diag-g h3 { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-13); font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+.ha-diag-g h3 em { font-style: normal; font-size: var(--fs-12); color: var(--text-3); }
+.ha-diag-r strong { font-weight: 500; overflow-wrap: anywhere; }
+.ha-diag-r span { display: block; overflow-wrap: anywhere; }
+.ha-diag code { font: 500 .92em/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: 1px 5px; border-radius: 5px; background: var(--surface-2); }
+.ha-diag-copy { display: flex; flex-direction: column; gap: var(--s-2); font-size: var(--fs-13); color: var(--text-2); }
+.ha-diag-copy textarea { width: 100%; resize: vertical; padding: var(--s-3); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); color: var(--text);
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.ha-diag .btn-row > .btn { flex: 1 1 200px; }
+
+/* ─── Zones sûres (encoche, barre d'accueil) ─────────────────────────────
+   HA 2026.9 et plus rembourre le cadre lui-même et env() vaut 0 dedans : rien ne change. Avec handle_safe_area
+   (HA 2026.9 et plus), HA écrit --safe-area-inset-* sur la racine du cadre. HA 2025.7 à 2026.8 ne rembourre pas le cadre :
+   panel-core.js mesure ce que l'encoche et la barre d'accueil recouvrent (--bz-host-sat / --bz-host-sab). On prend le
+   plus grand, là où la V3 utilise env() (jamais additionnés : rien en double) */
+:root {
+  --bz-sat: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px), var(--bz-host-sat, 0px));
+  --bz-sab: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px), var(--bz-host-sab, 0px));
+}
+.tabs { bottom: calc(12px + var(--bz-sab)); }
+@media (max-width: 1199px) { .toast { bottom: calc(88px + var(--bz-sab)); } }
+@media (max-width: 767px) {
+  .view { padding-bottom: calc(96px + var(--bz-sab)); }
+  .sheet-p { padding-bottom: calc(var(--s-6) + var(--bz-sab)); }
+  .top { height: calc(60px + var(--bz-sat)); padding-top: var(--bz-sat); }
+  html { scroll-padding: calc(68px + var(--bz-sat)) 0 calc(84px + var(--bz-sab)); }
+}

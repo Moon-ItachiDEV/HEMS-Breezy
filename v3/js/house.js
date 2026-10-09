@@ -571,7 +571,7 @@
     const label = `Ta maison en direct : ${sum.who.toLowerCase()}${sum.a ? `, ${sum.a}` : ""}. Soleil : ${W.sun} ; maison : ${W.home} ; batterie ${W.bat} ; réseau : ${W.grid} ; e-Niro ${W.car} ; ballon ${W.boil}.`;
     const flags = `data-run="${running() ? 1 : 0}" style="--glow:${S.glow.toFixed(2)}" data-sky="${S.night ? "night" : "day"}" data-sun="${S.sunOn ? 1 : 0}" data-heat="${S.heat ? 1 : 0}" data-smoke="${S.smoke ? 1 : 0}" data-car="${S.carOn ? "charging" : S.L.plugged ? "plugged" : "off"}" data-bat="${!(Math.abs(S.L.bat) >= IDLE) ? "idle" : S.L.bat > 0 ? "in" : "out"}"`;
     const chip = (c) => {
-      const attrs = c.act === "nav" ? `href="#/${c.to}" ${c.spot ? `data-spot="${c.spot}"` : ""}` : `type="button" data-act="${c.act}" ${c.spot ? `data-spot="${c.spot}"` : ""} ${c.sheet ? `data-sheet="${c.sheet}"` : ""}`;
+      const attrs = c.act === "nav" ? `href="${BZ.href(c.to)}" ${c.spot ? `data-spot="${c.spot}"` : ""}` : `type="button" data-act="${c.act}" ${c.spot ? `data-spot="${c.spot}"` : ""} ${c.sheet ? `data-sheet="${c.sheet}"` : ""}`;
       const tag = c.act === "nav" ? "a" : "button";
       const seen = `${c.l}${c.x ? ` ${c.x}` : ""} ${c.v}${c.sub ? ` ${c.sub}` : ""}`;
       return h`<${tag} class="hh-chip hh-c-${c.k} is-${c.side} ${c.x ? "has-x" : ""} ${c.idle ? "is-idle" : ""}" data-tone="${c.tone}" ${attrs} aria-label="${esc(`${seen}${c.say ? `, ${c.say}` : ""}. ${c.go}`)}">
@@ -583,7 +583,7 @@
     // répète, on la tait. Sans aucune mesure, l'étiquette « En direct » se met en veille (point gris immobile).
     return h`<section class="hh ${cp ? "is-compact" : ""}" ${flags} aria-labelledby="hh-t">
       <h2 class="sr" id="hh-t">Ta maison en direct</h2>
-      ${cp ? h`<a class="hh-go" href="#/energy" aria-label="${esc(`${label} Voir le détail sur la page Énergie.`)}"></a>` : ""}
+      ${cp ? h`<a class="hh-go" href="${BZ.href("energy")}" aria-label="${esc(`${label} Voir le détail sur la page Énergie.`)}"></a>` : ""}
       <div class="hh-stage">
         <div class="hh-sky" aria-hidden="true"><i class="hh-sun"></i><i class="hh-moon"></i><i class="hh-stars"></i></div>
         <div class="hh-scene">

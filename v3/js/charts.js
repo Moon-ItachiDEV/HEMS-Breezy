@@ -21,6 +21,9 @@
 
   /* ─── Mini-courbe ─────────────────────────────────────────────────── */
   const spark = (data, tone = "solar", { w = 120, h: hh = 36, area = true } = {}) => {
+    // Valeurs inconnues (NaN : historique en chargement) traitées comme des trous ; moins de 2 points : pas de courbe
+    if (data.some((x) => x != null && !Number.isFinite(x))) data = data.map((x) => (Number.isFinite(x) ? x : null));
+    if (data.filter((x) => x != null).length < 2) return "";
     const v = data.filter((x) => x != null), max = Math.max(...v, 0.0001), min = Math.min(...v, 0);
     const pts = data.map((x, i) => (x == null ? null : [(i / (data.length - 1)) * w, hh - 2 - ((x - min) / (max - min || 1)) * (hh - 6)])).filter(Boolean);
     const d = smooth(pts);
@@ -133,7 +136,7 @@
   /* ─── Barre empilée 100 % (répartition) ───────────────────────────── */
   const split = (parts, { label } = {}) => {
     const t = parts.reduce((a, p) => a + p.v, 0) || 1;
-    return h`<div class="split" role="img" aria-label="${esc(label || parts.map((p) => `${p.label} ${Math.round((p.v / t) * 100)} %`).join(", "))}">
+    return h`<div class="split" role="img" aria-label="${esc(label || parts.map((p) => `${p.label} ${Number.isFinite(p.v) ? Math.round((p.v / t) * 100) : "—"} %`).join(", "))}">
       ${parts.filter((p) => p.v > 0).map((p) => h`<span data-tone="${p.tone}" style="--w:${(p.v / t) * 100}%" title="${esc(p.label)}"></span>`)}</div>`;
   };
 

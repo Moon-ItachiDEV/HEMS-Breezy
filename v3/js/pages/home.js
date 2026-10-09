@@ -67,7 +67,10 @@
     const tMin = Math.min(...temps), tMax = Math.max(...temps), heatOn = heat.filter((a) => a.on).length;
     const activeDev = devices.filter((a) => a.on), watts = isOn(C.prise_chambre) ? num(C.prise_chambre_w) : 0;
     const locked = st(C.voiture_verrou) === "locked", armed = BZ.ui.armed === "unlock";
-    const meteo = { sunny: "ensoleillé", cloudy: "nuageux", rainy: "pluie", partlycloudy: "éclaircies", clear: "dégagé" }[st(C.meteo)] || st(C.meteo);
+    // États météo de Home Assistant (tous), en clair
+    const meteo = { sunny: "ensoleillé", cloudy: "nuageux", rainy: "pluie", partlycloudy: "éclaircies", clear: "dégagé", "clear-night": "nuit claire", fog: "brouillard", hail: "grêle",
+      lightning: "orage", "lightning-rainy": "orage et pluie", pouring: "averses", snowy: "neige", "snowy-rainy": "pluie et neige", windy: "venteux", "windy-variant": "venteux",
+      exceptional: "exceptionnel", unavailable: "météo indisponible", unknown: "météo inconnue" }[st(C.meteo)] || st(C.meteo);
     const tremieH = (num(C.tremie_kg) / num(C.conso_jour_kg)) * 24;
     const coversBusy = C.volets.some(BZ.isPending);
 
@@ -96,7 +99,7 @@
     return h`
       <header class="ph ma-ph">
         <div><p class="ph-hi">${fmt.n(attr(C.meteo, "temperature"))}° dehors · ${meteo}</p><h1>Maison</h1>
-          <p class="ph-sub">Humidité ${fmt.n(attr(C.meteo, "humidity"))} % · vent ${fmt.n(attr(C.meteo, "wind_speed"))} km/h</p></div>
+          <p class="ph-sub">Humidité ${fmt.n(attr(C.meteo, "humidity"))} % · vent ${fmt.n(attr(C.meteo, "wind_speed"))} ${esc(attr(C.meteo, "wind_speed_unit") || "km/h")}</p></div>
         <div class="ph-a">${nowPlaying()}</div>
       </header>
 

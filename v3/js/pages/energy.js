@@ -73,8 +73,10 @@
      Production : profil horaire partagé (BZ.hours). Batterie et réseau : les compteurs du jour
      sont répartis sur les heures écoulées au prorata du surplus (charge, revente) ou du manque
      (décharge, achat) de chaque heure, puis le niveau de batterie est retracé à rebours depuis
-     la valeur actuelle. Branché sur Home Assistant, ces séries viendront de l'historique des capteurs. */
+     la valeur actuelle. Home Assistant : les heures écrites dans ses statistiques (production, achat et revente
+     de chaque heure, niveau moyen de la batterie), sans rien répartir ni retracer. */
   function dayModel(L) {
+    if (BZ.hist) return BZ.hist.dayModel(L);
     const H = nowH(), cur = Math.floor(H), T = BZ.today(), cap = capKwh(), frac = H - cur;
     const past = BZ.hours().filter((x) => x.h < cur);
     const sur = past.map((x) => Math.max(0, x.prod - (x.cons || 0))), lack = past.map((x) => Math.max(0, (x.cons || 0) - x.prod));
@@ -128,7 +130,8 @@
   function kpis(L) {
     const T = BZ.today(), hrs = BZ.hours(), cur = Math.floor(nowH()), M = dayModel(L);
     // Production : heures écoulées + valeur en direct au bout ; écart avec la prévision de l'heure en cours
-    const expected = hrs[cur] ? hrs[cur].prod : 0;
+    // (Home Assistant : la case de l'heure en cours porte sa prévision à part, fc, et sa production réelle partielle)
+    const expected = hrs[cur] ? (hrs[cur].fc ?? hrs[cur].prod) : 0;
     const prodD = expected > 0.1 && L.solar > 30 ? BZ.delta(L.solar / 1000, expected) : "";
     const prodS = daySpark(M.prod, "solar", { live: [1, L.solar / 1000] });
     // Batterie : niveau heure par heure ; puissance + heure pleine (ou réserve), seulement l'heure quand la place manque

@@ -129,4 +129,27 @@ window.VOLTIA_CONFIG = {
 
   // ─── Météo
   meteo: "weather.homelyvibes_sa",
+
+  // ─── Home Assistant (panneau intégré) — tout est facultatif ─────────────────────
+  // Breezy lit l'historique long terme (statistiques) de Home Assistant pour le Bilan, l'Aperçu et la Voiture.
+  // Par défaut il prend les compteurs ci-dessus ; remplis une clé seulement pour en choisir un autre.
+  // Un compteur n'a d'historique que s'il a un state_class (total_increasing ou total) : voir le Diagnostic.
+  stat_production: "",          // défaut : production_jour_kwh
+  stat_import: "",              // défaut : import_jour_kwh
+  stat_export: "",              // défaut : export_jour_kwh
+  stat_batterie_charge: "",     // défaut : batterie_total_charge_kwh, sinon batterie_charge_jour_kwh
+  stat_batterie_decharge: "",   // défaut : batterie_total_decharge_kwh, sinon batterie_decharge_jour_kwh
+  stat_ve_solaire: "",          // défaut : ve_solaire_kwh
+  stat_ve_reseau: "",           // défaut : ve_reseau_kwh
+  stat_economies: "",           // défaut : economies_total_eur, sinon economies_jour_eur
+  stat_import_hp: "", stat_import_hc: "", stat_import_hsc: "",   // compteurs d'achat par tarif (utility_meter) ; sinon calcul heure par heure
+  prevision_jours_kwh: [],      // prévisions des jours suivants, dans l'ordre : [demain, jour 3, …]
+  tarif_hp_defaut: 0.2302, tarif_hc_defaut: 0.1576, tarif_hsc_defaut: 0.1335,   // si les input_number des tarifs sont indisponibles (€/kWh)
+  prix_revente_kwh: 0,          // prix de revente du surplus (€/kWh), seulement pour les économies estimées
+  historique_debut: "",         // AAAA-MM-JJ ; défaut : solaire_mise_en_service
+  historique_rafraichir_min: 10,
+  voiture_delai_confirmation_s: 120,     // attente max de la confirmation d'une commande Kia
+  voiture_releve_apres_commande_s: 0,    // 0 = non ; ex. 30 : demande un relevé si la voiture n'a pas confirmé après 30 s
+  police_externe: true,         // false : n'utilise jamais Google Fonts (police du système)
+  utilisateur_nom: "",          // défaut : ton nom dans Home Assistant
 };

@@ -3,13 +3,16 @@
 (() => {
   const BZ = window.BZ;
   const { h, fmt, icon, avatar, C, num, st, attr, isOn, call, esc } = BZ;
+  const HA = BZ.ha;   // pont Home Assistant (v3/ha/panel-core.js) ; null en démo
 
   /* ─── État d'interface (pas d'état métier ici) ─────────────────────── */
   const saved = (() => { try { return JSON.parse(localStorage.getItem("bz3") || "{}"); } catch { return {}; } })();
-  BZ.ui = { period: "semaine", carPeriod: "mois", homeFilter: "all", devFilter: "all", carArt: "roadster", dayOffset: 0, armed: null, sheet: null, pop: null, theme: saved.theme || "light", ...saved.ui };
+  BZ.ui = { period: "semaine", carPeriod: "mois", homeFilter: "all", devFilter: "all", carArt: "roadster", dayOffset: 0, armed: null, sheet: null, pop: null, theme: saved.theme || (HA ? "auto" : "light"), ...saved.ui };
   BZ.ui.dayOffset = 0; BZ.ui.pop = null; BZ.ui.homeFilter = "all";
   const persist = () => { try { localStorage.setItem("bz3", JSON.stringify({ theme: BZ.ui.theme, ui: { period: BZ.ui.period, carPeriod: BZ.ui.carPeriod, devFilter: BZ.ui.devFilter, carArt: BZ.ui.carArt } })); } catch {} };
-  BZ.user = C.utilisateur_nom || "Breezy";
+  // Home Assistant : le nom de la personne connectée, sauf si config.js en impose un
+  const userName = () => C.utilisateur_nom || (HA && HA.userName) || "Breezy";
+  BZ.user = userName();
 
   const ROUTES = [
     { id: "overview", label: "Aperçu", ic: "overview" },
@@ -21,13 +24,23 @@
   // Route courante : gardée en mémoire (l'adresse n'est qu'un reflet), pour fonctionner aussi
   // dans un cadre isolé où les liens d'ancre ne naviguent pas.
   const fromHash = () => { const r = location.hash.replace("#/", ""); return ROUTES.some((x) => x.id === r) ? r : null; };
-  let current = fromHash() || "overview";
+  // Home Assistant : la page vient de l'adresse du panneau (/breezy/energy) ; un ancien lien /breezy#/energy marche aussi
+  // (le cadre ne voit pas le # de la page principale : on le lit chez elle, même origine)
+  const routeOf = (r) => { const id = ((r && r.path) || "").replace(/^\//, "").split("/")[0]; return ROUTES.some((x) => x.id === id) ? id : null; };
+  const parentHash = () => { try { const r = parent.location.hash.replace("#/", ""); return ROUTES.some((x) => x.id === r) ? r : null; } catch { return null; } };
+  // Un # valide l'emporte : un lien ouvert dans un nouvel onglet depuis le cadre garde l'adresse du panneau au moment de
+  // son ouverture (/breezy/insights#/vehicle) ; on y montre la page du #, puis l'adresse est corrigée
+  const haStart = HA ? routeOf(HA.route) : null, haLegacy = HA ? parentHash() : null;
+  let current = (HA ? haLegacy || haStart : fromHash()) || "overview";
   const route = () => current;
   BZ.routes = ROUTES;
   function go(id, push = true) {
     if (!ROUTES.some((x) => x.id === id)) return;
+    const prev = current;
     current = id; BZ.ui.sheet = null; BZ.ui.pop = null;
-    if (push) try { if (location.hash !== `#/${id}`) history.pushState(null, "", `#/${id}`); } catch {}
+    // Home Assistant : l'adresse de la page principale suit (/breezy/energy), un seul « Retour » pour revenir ;
+    // la page déjà affichée n'ajoute rien à l'historique du navigateur
+    if (push) { if (HA) { if (id !== prev) HA.navigate(id); } else try { if (location.hash !== `#/${id}`) history.pushState(null, "", `#/${id}`); } catch {} }
     render();
   }
   BZ.go = go;
@@ -43,29 +56,30 @@
       { label: "Kia e-Niro", ic: "car", tone: "ev", v: `${fmt.n(num(C.voiture_soc))} %`, to: "vehicle" },
     ];
     return h`
-      <a class="brand" href="#/overview" aria-label="Breezy HEMS, aperçu"><span class="brand-m">${icon("energy")}</span><span class="brand-t">Breezy <em>HEMS</em></span></a>
-      <ul class="nav-l">${ROUTES.map((r) => h`<li><a href="#/${r.id}" class="nav-i" ${r.id === cur ? 'aria-current="page"' : ""} title="${r.label}">${icon(r.ic)}<span>${r.label}</span>${badge[r.id] || ""}</a></li>`)}</ul>
+      <a class="brand" href="${BZ.href("overview")}" aria-label="Breezy HEMS, aperçu"><span class="brand-m">${icon("energy")}</span><span class="brand-t">Breezy <em>HEMS</em></span></a>
+      <ul class="nav-l">${ROUTES.map((r) => h`<li><a href="${BZ.href(r.id)}" class="nav-i" ${r.id === cur ? 'aria-current="page"' : ""} title="${r.label}">${icon(r.ic)}<span>${r.label}</span>${badge[r.id] || ""}</a></li>`)}</ul>
       <p class="nav-g favs-h">Favoris</p>
       <ul class="favs">${favs.map((f) => h`<li>${f.to
-        ? h`<a class="fav" href="#/${f.to}"><span class="dt-ic" data-tone="${f.tone}">${icon(f.ic)}</span><span>${f.label}</span><span class="fav-v">${f.v}</span></a>`
+        ? h`<a class="fav" href="${BZ.href(f.to)}"><span class="dt-ic" data-tone="${f.tone}">${icon(f.ic)}</span><span>${f.label}</span><span class="fav-v">${f.v}</span></a>`
         : h`<button type="button" class="fav" data-act="open-sheet" data-sheet="${f.sheet}"><span class="dt-ic" data-tone="${f.tone}">${icon(f.ic)}</span><span>${f.label}</span><span class="fav-v">${f.v}</span></button>`}</li>`)}</ul>
       <div class="promo-s">
         <span class="card-i" data-tone="${exp ? "good" : imp ? "bad" : "neutral"}">${icon("grid")}</span>
         <strong>Réseau en direct</strong>
         <div class="promo-v"><b class="${exp ? "is-good" : imp ? "is-bad" : ""}">${exp ? "−" : imp ? "+" : ""}${fmt.powerText(Math.abs(g))}</b><span>${exp ? "revente" : imp ? "achat" : "équilibre"}</span></div>
         <p>Compteur L3 · ${t.label.toLowerCase()} à ${fmt.n(t.price, 4)} €/kWh jusqu'à ${fmt.time(t.changeAt)}.</p>
-        ${cur === "energy" ? h`<a class="btn btn-primary btn-sm" href="#/insights"><span>Voir le bilan</span>${icon("arrow")}</a>` : h`<a class="btn btn-primary btn-sm" href="#/energy"><span>Voir l'énergie</span>${icon("arrow")}</a>`}
+        ${cur === "energy" ? h`<a class="btn btn-primary btn-sm" href="${BZ.href("insights")}"><span>Voir le bilan</span>${icon("arrow")}</a>` : h`<a class="btn btn-primary btn-sm" href="${BZ.href("energy")}"><span>Voir l'énergie</span>${icon("arrow")}</a>`}
       </div>
       <button type="button" class="side-me" data-act="pop" data-pop="me-side" aria-haspopup="menu" aria-expanded="${String(BZ.ui.pop === "me-side")}">
-        ${avatar(BZ.user, "lg")}<span><b>${esc(BZ.user)}</b><small>Mode démo</small></span>${icon("down")}
+        ${avatar(BZ.user, "lg")}<span><b>${esc(BZ.user)}</b><small>${HA ? (HA.connected ? "Home Assistant" : "Hors ligne") : "Mode démo"}</small></span>${icon("down")}
       </button>
       <div class="pop pop-up ${BZ.ui.pop === "me-side" ? "is-open" : ""}" role="menu">${profileMenu()}</div>`;
   }
 
   /* ─── Barre du haut : construite une fois (le champ de recherche garde son état) ─ */
   function topInit() {
+    // Home Assistant sur téléphone : pas de barre HA au-dessus du panneau, ce bouton ouvre son menu (barre latérale)
     document.getElementById("top").innerHTML = h`
-      <a class="top-brand" href="#/overview" aria-label="Breezy HEMS, aperçu"><span class="brand-m">${icon("energy")}</span><span class="brand-t">Breezy <em>HEMS</em></span></a>
+      ${HA ? h`<button type="button" class="icon-btn ha-menu" data-act="ha-menu" aria-label="Ouvrir le menu Home Assistant">${icon("menu")}</button>` : ""}<a class="top-brand" href="${BZ.href("overview")}" aria-label="Breezy HEMS, aperçu"><span class="brand-m">${icon("energy")}</span><span class="brand-t">Breezy <em>HEMS</em></span></a>
       <div class="search" role="search">
         <label class="search-f">${icon("search")}<span class="sr">Rechercher</span>
           <input id="q" type="search" placeholder="Rechercher un appareil, une page…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="q-pop" aria-autocomplete="list"><kbd>/</kbd></label>
@@ -100,9 +114,15 @@
   function profileMenu() {
     const t = BZ.ui.theme;
     return h`<p class="pop-h">Apparence</p>
-      ${[["light", "Clair", "sun"], ["dark", "Sombre", "moon"], ["auto", "Automatique", "contrast"]].map(([k, l, ic]) => h`<button type="button" class="pop-i" role="menuitemradio" aria-checked="${String(t === k)}" data-act="theme-set" data-value="${k}">${icon(ic)}<span>${l}</span></button>`)}
+      ${[["light", "Clair", "sun"], ["dark", "Sombre", "moon"], ["auto", HA ? "Comme Home Assistant" : "Automatique", "contrast"]].map(([k, l, ic]) => h`<button type="button" class="pop-i" role="menuitemradio" aria-checked="${String(t === k)}" data-act="theme-set" data-value="${k}">${icon(ic)}<span>${l}</span></button>`)}
       <p class="pop-h">Connexion</p>
-      <div class="pop-i">${icon("plug")}<span><strong>Données de démonstration</strong><small>Les valeurs sont des exemples tant que Home Assistant n'est pas branché.</small></span></div>`;
+      ${HA ? haConnection() : h`<div class="pop-i">${icon("plug")}<span><strong>Données de démonstration</strong><small>Les valeurs sont des exemples tant que Home Assistant n'est pas branché.</small></span></div>`}`;
+  }
+  // Home Assistant : état de la connexion, version, et le diagnostic (entités introuvables…) à portée de main
+  function haConnection() {
+    const n = BZ.diagCount ? BZ.diagCount() : 0;
+    return h`<div class="pop-i">${icon("plug")}<span><strong>${HA.connected ? "Connecté à Home Assistant" : "Connexion perdue, reconnexion…"}</strong><small>Breezy ${esc(HA.version)}</small></span></div>
+      <button type="button" class="pop-i" role="menuitem" data-act="open-sheet" data-sheet="diag">${icon("alert")}<span><strong>Diagnostic${n ? ` (${n})` : ""}</strong><small>${n ? `${n} point${n > 1 ? "s" : ""} à vérifier` : "Rien à corriger"}</small></span></button>`;
   }
   function topActions() {
     const al = BZ.alerts(), dark = document.documentElement.dataset.theme === "dark";
@@ -128,7 +148,7 @@
     const cur = route(), L = BZ.live(), lights = C.lumieres.filter(isOn).length, idx = ROUTES.findIndex((r) => r.id === cur);
     const mark = { vehicle: L.charging ? h`<i class="tab-live" data-tone="ev" aria-hidden="true"></i>` : "", home: lights ? h`<em class="tab-n" aria-hidden="true">${lights}</em>` : "" };
     return h`<span class="tabs-ind" style="--i:${idx}" aria-hidden="true"></span>${ROUTES.map((r) => h`
-      <a href="#/${r.id}" ${r.id === cur ? 'aria-current="page"' : ""} aria-label="${r.label}${r.id === "home" && lights ? `, ${lights} lumière${lights > 1 ? "s" : ""} allumée${lights > 1 ? "s" : ""}` : ""}${r.id === "vehicle" && L.charging ? ", en charge" : ""}">
+      <a href="${BZ.href(r.id)}" ${r.id === cur ? 'aria-current="page"' : ""} aria-label="${r.label}${r.id === "home" && lights ? `, ${lights} lumière${lights > 1 ? "s" : ""} allumée${lights > 1 ? "s" : ""}` : ""}${r.id === "vehicle" && L.charging ? ", en charge" : ""}">
         <span class="tab-ic">${icon(r.ic)}${mark[r.id] || ""}</span><span class="tab-l">${r.label}</span></a>`)}`;
   }
 
@@ -136,6 +156,8 @@
   const view = document.getElementById("view");
   let lastRoute = null;
   function render() {
+    // Panneau Home Assistant quitté : la page est détachée du document, son retour la redessine (rien à faire ici)
+    if (!view.isConnected) return;
     const cur = route();
     BZ.resetCharts();
     const html = BZ.pages[cur]();
@@ -192,7 +214,8 @@
     armTimer = setTimeout(() => { BZ.ui.armed = null; render(); }, 4000); render();
   };
   // Message affiché une fois la commande appliquée (msg peut être une fonction : lue après coup)
-  const done = (msg) => () => BZ.toast(typeof msg === "function" ? msg() : msg, "good");
+  // Home Assistant : une commande refusée renvoie false (le message d'erreur est déjà affiché)
+  const done = (msg) => (ok) => { if (ok === false) return; BZ.toast(typeof msg === "function" ? msg() : msg, "good"); };
   // Commande voiture : une à la fois ; le message part quand la voiture a confirmé (ou l'échec).
   // Pupitre de la page Voiture à l'écran : sa ligne le dit déjà (et sur mobile le toast couvrirait les tuiles) ;
   // page défilée plus bas ou autre page : toast
@@ -206,6 +229,13 @@
   };
   // Cible explicite (d.to) : « Réessayer » relance la commande échouée telle quelle, sans basculer l'état actuel
   const aim = (d, now) => (d.to != null ? d.to === "true" : !now);
+  // Volet : position en % ; Home Assistant, volet sans réglage de position (ouvert / fermé seulement) : ouvrir ou fermer
+  const coverTo = (ids, pos) => {
+    const all = [].concat(ids), plain = HA ? all.filter((id) => !(attr(id, "supported_features") & 4)) : [];
+    if (!plain.length) return call("cover.set_cover_position", ids, { position: pos });
+    const rest = all.filter((id) => !plain.includes(id));
+    return Promise.all([call(`cover.${pos > 0 ? "open" : "close"}_cover`, plain), rest.length ? call("cover.set_cover_position", rest, { position: pos }) : true]).then((r) => (r.includes(false) ? false : true));
+  };
   const nameOf = (id) => { const i = C.lumieres.indexOf(id); if (i >= 0) return `Lumière ${C.lumieres_noms[i]}`; const k = C.multiprise.indexOf(id); if (k >= 0) return C.multiprise_noms[k]; return id === C.prise_chambre ? "Prise chambre" : ""; };
   const A = {
     nav: (d) => go(d.to),
@@ -225,17 +255,19 @@
       // Le titre de la carte porte tabindex="-1" dans son gabarit (card({ target: true })) : le focus survit aux rendus
       (el.querySelector("h3[tabindex]") || el).focus({ preventScroll: true });
     },
-    toggle: (d) => call("switch.toggle", d.entity).then(done(() => `${nameOf(d.entity) || "Appareil"} ${isOn(d.entity) ? "allumé" : "éteint"}`.replace(/^(Lumière .*) (allumé|éteint)$/, "$1 $2e"))),
+    // Service du domaine de l'entité (light.toggle, switch.toggle…) : switch.toggle n'agit pas sur une lumière
+    toggle: (d) => call(`${d.entity.split(".")[0]}.toggle`, d.entity).then(done(() => `${nameOf(d.entity) || "Appareil"} ${isOn(d.entity) ? "allumé" : "éteint"}`.replace(/^(Lumière .*) (allumé|éteint)$/, "$1 $2e"))),
     // Maison
     "lights-off": () => call("light.turn_off", C.lumieres.filter(isOn)).then(done("Toutes les lumières sont éteintes")),
-    "covers-all": (d) => call("cover.set_cover_position", C.volets, { position: +d.pos }).then(done(+d.pos ? "Volets ouverts" : "Volets fermés")),
-    "cover-flip": (d) => { const id = C.volets[d.i], p = attr(id, "current_position") > 0 ? 0 : 100; return call("cover.set_cover_position", id, { position: p }).then(done(`${C.volets_noms[d.i]} ${p ? "ouvert" : "fermé"}`)); },
-    "cover-set": (d) => call("cover.set_cover_position", C.volets[d.i], { position: +d.pos }),
+    "covers-all": (d) => coverTo(C.volets, +d.pos).then(done(+d.pos ? "Volets ouverts" : "Volets fermés")),
+    "cover-flip": (d) => { const id = C.volets[d.i], p = BZ.coverPos(id) > 0 ? 0 : 100; return coverTo(id, p).then(done(`${C.volets_noms[d.i]} ${p ? "ouvert" : "fermé"}`)); },
+    "cover-set": (d) => coverTo(C.volets[d.i], +d.pos),
     "rad-power": (d) => { const id = C.radiateurs[d.i]; return call("climate.set_hvac_mode", id, { hvac_mode: st(id) === "off" ? "heat" : "off" }).then(done(() => `Radiateur ${C.radiateurs_noms[d.i]} ${st(id) === "off" ? "éteint" : "allumé"}`)); },
     // Poêle : une seconde touche dans les 4 s confirme (évite d'allumer ou d'éteindre par erreur)
     "stove-power": () => { const on = st(C.poele) !== "off";
       return confirm2("stove", () => call("climate.set_hvac_mode", C.poele, { hvac_mode: on ? "off" : "heat" }).then(done(on ? "Poêle éteint" : "Poêle allumé")), on ? "Appuie encore pour éteindre le poêle" : "Appuie encore pour allumer le poêle"); },
-    "boiler-boost": () => call("number.set_value", C.ballon_boost, { value: num(C.ballon_boost) === 1 ? 0 : 1 }).then(() => { BZ.ent(C.ballon_chauffe).state = num(C.ballon_boost) === 1 ? "on" : "off"; BZ.toast(num(C.ballon_boost) === 1 ? "Chauffe du ballon forcée" : "Ballon en mode normal", "good"); }),
+    // Démo : la chauffe suit le forçage ; Home Assistant : c'est le ballon qui le dit (son état n'est jamais modifié ici)
+    "boiler-boost": () => call("number.set_value", C.ballon_boost, { value: num(C.ballon_boost) === 1 ? 0 : 1 }).then((ok) => { if (ok === false) return; if (!HA) BZ.ent(C.ballon_chauffe).state = num(C.ballon_boost) === 1 ? "on" : "off"; BZ.toast(num(C.ballon_boost) === 1 ? "Chauffe du ballon forcée" : "Ballon en mode normal", "good"); }),
     "pellet-fill": () => confirm2("fill", () => call("script.turn_on", C.script_remplir).then(done("Sac versé : trémie mise à jour")), "Appuie encore pour confirmer le sac versé"),
     "pellet-buy": () => call("script.turn_on", C.script_achat).then(done("Un sac ajouté au stock")),
     robot: (d) => call(`vacuum.${d.cmd}`, C.robot).then(done({ start: `Nettoyage lancé : ${(st(C.robot_scene) || "").toLowerCase()}`, pause: "Nettoyage en pause", return_to_base: "L'aspirateur retourne à sa base", locate: "L'aspirateur émet un bip pour se signaler" }[d.cmd] || "Commande envoyée")),
@@ -261,13 +293,34 @@
     "car-limdc": (d) => call("number.set_value", C.voiture_limite_dc_pct, { value: step(C.voiture_limite_dc_pct, +d.d, 10, 50, 100) }),
     "car-service": () => confirm2("service", () => call("input_number.set_value", C.entretien_dernier_km, { value: num(C.voiture_odometre) }).then(done("Révision enregistrée au compteur actuel")), "Appuie encore pour remettre le compteur de révision à zéro"),
     "car-service-km": () => { const v = parseInt(prompt("Kilométrage de la révision :", num(C.entretien_dernier_km)), 10); if (Number.isFinite(v)) call("input_number.set_value", C.entretien_dernier_km, { value: v }).then(done("Révision enregistrée")); },
+    "ha-menu": () => HA && HA.toggleMenu(),
   };
+  // Actions des fichiers propres à Home Assistant (diagnostic, historique), chargés avant celui-ci
+  Object.assign(A, BZ.extraActions || {});
   BZ.actions = A;
+  // Page visée par un lien interne : « #/energy » (démo) ; Home Assistant : l'adresse du panneau (/breezy/energy)
+  const linkTo = (a) => {
+    const href = a.getAttribute("href") || "";
+    if (href.startsWith("#/")) return href.slice(2);
+    if (!HA || !href.startsWith("/")) return null;
+    const id = HA.idOf(href);
+    return ROUTES.some((x) => x.id === id) ? id : null;
+  };
+  // Home Assistant écoute les clics sur les liens du cadre (sur body) et les envoie à la page principale : on garde pour
+  // nous les clics simples sur nos liens dès la phase de capture (le gestionnaire ci-dessous fait la navigation). Ctrl,
+  // Cmd, Maj, clic du milieu : le navigateur ouvre la vraie adresse de la page (/breezy/energy) dans un nouvel onglet
+  if (HA) document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest("a[href]");
+    if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    const href = a.getAttribute("href");
+    if (href.startsWith("#") && !href.startsWith("#/")) { e.preventDefault(); const t = document.getElementById(href.slice(1)); if (t) t.focus(); return; }   // lien d'évitement « #view »
+    if (linkTo(a)) e.preventDefault();
+  }, true);
   document.addEventListener("click", (e) => {
-    // Liens internes « #/page » : navigation gérée ici
-    const a = e.target.closest('a[href^="#/"]');
+    // Liens internes vers une page : navigation gérée ici
+    const a = e.target.closest("a[href]"), to = a && linkTo(a);
     // data-spot : une fois sur la page, on va jusqu'à la carte visée (pastilles de la maison de l'Aperçu)
-    if (a && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); go(a.getAttribute("href").slice(2)); if (a.dataset.spot) A.spot({ spot: a.dataset.spot }); return; }
+    if (to && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); go(to); if (a.dataset.spot) A.spot({ spot: a.dataset.spot }); return; }
     const el = e.target.closest("[data-act]");
     // Clic hors d'un menu ouvert : on le ferme
     if (BZ.ui.pop && !e.target.closest(".pop, [data-act=pop]")) { BZ.ui.pop = null; render(); }
@@ -289,7 +342,7 @@
 
   /* ─── Curseur vertical (panneaux) : pointeur et clavier ───────────── */
   const VS = {
-    cover: (i, v) => call("cover.set_cover_position", C.volets[i], { position: v }),
+    cover: (i, v) => coverTo(C.volets[i], v),
     rad: (i, v) => call("climate.set_temperature", C.radiateurs[i], { temperature: v }),
     stove: (i, v) => call("climate.set_temperature", C.poele, { temperature: v }),
     volume: (i, v) => call("media_player.volume_set", C.homepod, { volume_level: v / 100 }),
@@ -320,11 +373,14 @@
     clearTimeout(el._t); el._t = setTimeout(() => VS[el.dataset.vs](+el.dataset.i, v), 450);
   });
 
-  /* ─── Thème : clair par défaut (comme la maquette), sombre, ou automatique ─ */
+  /* ─── Thème : clair par défaut (comme la maquette), sombre, ou automatique ─
+     Home Assistant : automatique par défaut, et « automatique » suit le thème choisi dans HA (pas celui du système) */
   function applyTheme() {
-    const t = BZ.ui.theme, dark = t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+    const t = BZ.ui.theme, auto = HA ? HA.darkMode : matchMedia("(prefers-color-scheme: dark)").matches;
+    const dark = t === "dark" || (t === "auto" && auto);
     document.documentElement.dataset.theme = dark ? "dark" : "light";
-    document.querySelector('meta[name="theme-color"]').content = dark ? "#0e0f12" : "#e9ebef";
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = dark ? "#0e0f12" : "#e9ebef";
   }
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (BZ.ui.theme === "auto") { applyTheme(); render(); } });
 
@@ -333,13 +389,27 @@
   const applyFit = () => document.body.classList.toggle("fit", fitQ.matches);
   fitQ.addEventListener("change", applyFit);
 
+  /* ─── Home Assistant : menu, connexion, page affichée ─────────────────── */
+  // Bouton menu : mêmes règles que celui de HA (écran étroit ou barre latérale masquée, hors mode kiosque)
+  const haChrome = () => {
+    const root = document.documentElement;
+    root.toggleAttribute("data-ha-menu", HA.showMenu);
+    root.toggleAttribute("data-ha-offline", !HA.connected);
+  };
+  if (HA) {
+    HA.on("theme", () => { if (BZ.ui.theme === "auto") { applyTheme(); render(); } });
+    // « Retour » du navigateur ou lien vers /breezy/vehicle : HA nous donne la nouvelle adresse
+    HA.on("route", (r) => { const id = routeOf(r) || "overview"; if (id !== current) go(id, false); });
+    ["narrow", "meta", "connection"].forEach((type) => HA.on(type, () => { BZ.user = userName(); haChrome(); render(); }));
+  }
+
   /* ─── Démarrage ────────────────────────────────────────────────────── */
   applyFit();
   applyTheme();
   topInit();
+  if (HA) { haChrome(); if (haLegacy) HA.navigate(current, { replace: true }); }   // ancien lien « #/page » : l'adresse devient /breezy/page
   const sync = () => { const r = fromHash(); if (r && r !== current) go(r, false); };
-  window.addEventListener("hashchange", sync);
-  window.addEventListener("popstate", sync);
+  if (!HA) { window.addEventListener("hashchange", sync); window.addEventListener("popstate", sync); }
   BZ.subscribe(render);
   setTimeout(() => { document.body.classList.remove("is-loading"); render(); }, 400);
 })();

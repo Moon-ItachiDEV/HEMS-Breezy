@@ -61,6 +61,7 @@
     users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M21.5 20a6.5 6.5 0 0 0-4-6"/>',
     chart: '<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 16v-4M12 16V8M16 16v-6"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>',
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
     target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
   };
   const icon = (name, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[name] || ""}</svg>`;
@@ -83,7 +84,7 @@
 
   // Lien d'action discret « Voir tout → » (navigation ou action)
   const more = ({ label, to, act, args = {} }) => to
-    ? h`<a class="more" href="#/${to}">${label}${icon("arrow")}</a>`
+    ? h`<a class="more" href="${BZ.href(to)}">${label}${icon("arrow")}</a>`
     : h`<button type="button" class="more" data-act="${act}" ${dataArgs(args)}>${label}${icon("arrow")}</button>`;
 
   // Pastille d'état teintée (statut, type, priorité)
@@ -96,7 +97,7 @@
       <span class="kpi-v">${value}</span>
       <span class="kpi-d">${d}${vs ? h`<span class="kpi-vs">${vs}</span>` : ""}</span>
       ${spark ? h`<span class="kpi-s" data-tone="${tone}">${spark}</span>` : ""}`;
-    return to ? h`<a class="kpi" href="#/${to}">${inner}</a>` : act ? h`<button type="button" class="kpi" data-act="${act}">${inner}</button>` : h`<div class="kpi">${inner}</div>`;
+    return to ? h`<a class="kpi" href="${BZ.href(to)}">${inner}</a>` : act ? h`<button type="button" class="kpi" data-act="${act}">${inner}</button>` : h`<div class="kpi">${inner}</div>`;
   };
 
   // Pastilles de filtre séparées (style maquette) : la sélection est teintée d'accent
@@ -114,7 +115,7 @@
       const len = (p.v / tot) * c, seg = h`<circle data-tone="${p.tone}" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${stroke}" stroke-dasharray="${Math.max(0.01, len - gap)} ${c}" stroke-dashoffset="${-acc}"/>`;
       acc += len; return seg;
     });
-    return h`<div class="donut" style="--s:${size}px" role="img" aria-label="${esc(label || parts.map((p) => `${p.label} ${Math.round((p.v / tot) * 100)} %`).join(", "))}">
+    return h`<div class="donut" style="--s:${size}px" role="img" aria-label="${esc(label || parts.map((p) => `${p.label} ${Number.isFinite(p.v) ? Math.round((p.v / tot) * 100) : "—"} %`).join(", "))}">
       <svg viewBox="0 0 ${size} ${size}"><circle class="donut-b" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${stroke}"/>${segs}</svg>
       <div class="donut-c"><b>${center}</b>${sub ? h`<span>${sub}</span>` : ""}</div></div>`;
   };
@@ -124,7 +125,7 @@
 
   const badge = (text, tone = "neutral", live = false) => h`<span class="badge ${live ? "is-live" : ""}" data-tone="${tone}">${text}</span>`;
   const delta = (cur, prev, { invert = false, unit = "%" } = {}) => {
-    if (!prev) return "";
+    if (!prev || !Number.isFinite(cur)) return "";   // valeur inconnue (historique en chargement) : pas de variation
     const d = unit === "pts" ? (cur - prev) * 100 : ((cur - prev) / prev) * 100;
     if (!Number.isFinite(d) || Math.abs(d) < 0.5) return h`<span class="delta">=</span>`;
     const good = invert ? d < 0 : d > 0;
