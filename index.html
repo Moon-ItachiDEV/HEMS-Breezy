@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#a0acbc">
+  <title>HEMS Breezy</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #b3b9c3;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+
+    /* Mobile first : hero pleine largeur, collé en haut, 75 % de la hauteur d'écran */
+    .hero {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 75vh;
+      height: 75svh;
+      overflow: hidden;
+    }
+
+    .hero img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: 50% 50%;
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <img src="assets/maison.svg" alt="Maison solaire avec batterie domestique">
+  </header>
+</body>
+</html>
