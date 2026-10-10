@@ -11,8 +11,16 @@
   const BZ = window.BZ;
   const { h, esc, fmt, icon, num } = BZ;
   const IDLE = BZ.FLOW_IDLE || 15, has = Number.isFinite, pw = (w) => (has(w) ? fmt.powerText(w) : "—");
-  const W = 1179, H = 779, TOP = 112, BOT = 108, VB = `0 ${-TOP} ${W} ${H + TOP + BOT}`;
-  const rowY = { top: -TOP / 2 + 4, bot: H + BOT / 2 - 6 };
+  const W = 1179, H = 779;
+  // Plein écran : la scène prend la taille que lui donne la page (mesurée), la maison occupe toute la largeur ;
+  // la hauteur en plus va aux repères en pointillé, les pastilles se posent en haut et en bas de la scène.
+  let box = { w: 390, h: 560 };
+  function geom() {
+    // Cadre utile : la maison entière, sans les bords vides de la photo (un peu plus grande à l'écran)
+    const CX0 = 28, CX1 = 1155, { w, h } = box, k = Math.max((CX1 - CX0) / w, (H + 280) / h);   // unités du dessin par pixel
+    const vw = w * k, vh = h * k, x0 = (CX0 + CX1 - vw) / 2, y0 = -(vh - H) * 0.5;
+    return { k, x0, y0, vw, vh, vb: `${r1(x0)} ${r1(y0)} ${r1(vw)} ${r1(vh)}`, row: { top: y0 + 32 * k, bot: y0 + vh - 32 * k }, minX: x0 + 52 * k, maxX: x0 + vw - 52 * k };
+  }
   const r1 = (v) => Math.round(v * 10) / 10;
 
   /* ─── Trajets : ils suivent les gaines du dessin, dans le sens « aller » ─── */
@@ -134,17 +142,18 @@
   let inView = true;
   const running = () => inView && !document.hidden;
   function hero() {
-    const { S, sum, W: Wd } = BZ.houseLive(), CH = chips(S, Wd), LK = links(S);
+    const { S, sum, W: Wd } = BZ.houseLive(), CH = chips(S, Wd), LK = links(S), G = geom();
+    for (const c of CH) c.x = BZ.clamp(c.x, G.minX, G.maxX);   // une pastille reste entière à l'écran
     const label = `Ta maison en direct : ${sum.who.toLowerCase()}${sum.a ? `, ${sum.a}` : ""}. Soleil : ${Wd.sun} ; maison : ${Wd.home} ; batterie ${Wd.bat} ; réseau : ${Wd.grid} ; e-Niro ${Wd.car}.`;
     const chip = (c) => h`<a class="mh-chip ${c.idle ? "is-idle" : ""}" data-tone="${c.tone}" href="${BZ.href(c.to)}" ${c.spot ? `data-spot="${c.spot}"` : ""}
-        style="left:${pct(c.x, W)};top:${pct(rowY[c.row] + TOP, H + TOP + BOT)}" aria-label="${esc(`${c.l}${c.x2 ? ` ${c.x2}` : ""} ${c.v}${c.sub ? ` ${c.sub}` : ""}, ${c.say}. ${c.go}`)}">
+        style="left:${pct(c.x - G.x0, G.vw)};top:${pct(G.row[c.row] - G.y0, G.vh)}" aria-label="${esc(`${c.l}${c.x2 ? ` ${c.x2}` : ""} ${c.v}${c.sub ? ` ${c.sub}` : ""}, ${c.say}. ${c.go}`)}">
         <span class="mh-cl">${icon(c.ic)}${c.l}${c.x2 ? h`<em>${c.x2}</em>` : ""}</span><b class="mh-cv">${c.v}${c.sub ? h`<small> ${c.sub}</small>` : ""}</b></a>`;
     return h`<section class="mh" data-run="${running() ? 1 : 0}" style="--P:${LK.P}s" aria-labelledby="mh-t">
       <h2 class="sr" id="mh-t">Ta maison en direct</h2>
       <a class="mh-go" href="${BZ.href("energy")}" aria-label="${esc(`${label} Voir le détail sur la page Énergie.`)}"></a>
       <div class="mh-stage" aria-hidden="true">
-        <svg class="mh-art" data-static="mh-art" viewBox="${VB}" preserveAspectRatio="xMidYMid slice" focusable="false"></svg>
-        <svg class="mh-fx" viewBox="${VB}" preserveAspectRatio="xMidYMid slice" focusable="false">
+        <svg class="mh-art" viewBox="${G.vb}" focusable="false"><g data-static="mh-art"></g></svg>
+        <svg class="mh-fx" viewBox="${G.vb}" focusable="false">
           <defs>
             <mask id="mh-fx-pm"><g fill="#fff">${(BZ.HERO_PANELS || []).map((p) => h`<polygon points="${p}"/>`)}</g></mask>
             <filter id="mh-fx-blur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"/></filter>
@@ -161,7 +170,7 @@
             ${LK.all.map(flow)}
             <g class="mh-hub" transform="translate(${HUB[0]} ${HUB[1]})"><circle class="mh-hub-glow" r="58" fill="url(#mh-fx-hub)"/><circle class="mh-hub-ring" r="26"/><circle class="mh-hub-ring is-2" r="26"/></g>
           </g>
-          <g class="mh-leads">${CH.map((c) => h`<g data-tone="${c.tone}" class="${c.idle ? "is-idle" : ""}"><path d="M${c.x},${rowY[c.row]}L${c.at[0]},${c.at[1]}"/><circle cx="${c.at[0]}" cy="${c.at[1]}" r="7"/></g>`)}</g>
+          <g class="mh-leads">${CH.map((c) => h`<g data-tone="${c.tone}" class="${c.idle ? "is-idle" : ""}"><path d="M${r1(c.x)},${r1(G.row[c.row])}L${c.at[0]},${c.at[1]}"/><circle cx="${c.at[0]}" cy="${c.at[1]}" r="7"/></g>`)}</g>
         </svg>
         <div class="mh-chips">${CH.map(chip)}</div>
       </div>
@@ -178,12 +187,22 @@
   }) : null;
   function sync() { const root = document.querySelector(".mh"); if (root) root.dataset.run = running() ? 1 : 0; }
   document.addEventListener("visibilitychange", sync);
+  // Taille de la scène : mesurée, et suivie (rotation, barre d'adresse du téléphone) ; un écart redessine la page
+  const ro = "ResizeObserver" in window ? new ResizeObserver(([e]) => measure(e.target)) : null;
+  let sized = null;
+  function measure(stage) {
+    const w = Math.round(stage.clientWidth), h = Math.round(stage.clientHeight);
+    if (!w || !h || (Math.abs(w - box.w) < 2 && Math.abs(h - box.h) < 2)) return;
+    box = { w, h };
+    requestAnimationFrame(() => BZ.render && BZ.render());
+  }
   function after() {
     const root = document.querySelector(".mh");
     if (!root) return;
-    const svg = root.querySelector(".mh-art");
-    if (svg && !svg.firstChild && root.offsetParent && BZ.HERO_ART) svg.innerHTML = BZ.HERO_ART;   // bureau : jamais construit
+    const art = root.querySelector(".mh-art [data-static]"), stage = root.querySelector(".mh-stage");
+    if (art && !art.firstChild && root.offsetParent && BZ.HERO_ART) art.innerHTML = BZ.HERO_ART;   // bureau : jamais construit
     if (io && watched !== root) { if (watched) io.unobserve(watched); io.observe((watched = root)); }
+    if (stage && root.offsetParent) { if (ro && sized !== stage) { if (sized) ro.unobserve(sized); ro.observe((sized = stage)); } measure(stage); }
     sync();
   }
   const schedule = () => Promise.resolve().then(after);

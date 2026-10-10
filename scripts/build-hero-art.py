@@ -3,7 +3,7 @@
 Fabrique v3/js/hero-art.js (le décor du héros de l'Aperçu) à partir de v3/art/maison.svg :
 - garde l'intérieur du SVG, sans titre, description ni repères ;
 - préfixe tous les identifiants par « mh- » (aucune collision avec les autres SVG de la page) ;
-- prolonge le fond et le sol au-dessus et au-dessous du dessin (bandes des pastilles) ;
+- retire le fond et le sol gris de la photo : la maison se pose sur le fond de la page ;
 - ajoute la gaine du coffret vers le garage (recharge de la voiture).
 Les chemins des flux restent dans hero.js : ils suivent les gaines du dessin."""
 import json, pathlib, re
@@ -17,9 +17,10 @@ body = re.sub(r'<path id="gaine-[a-z-]+-flux"[^>]*/>', "", body)          # chem
 body = re.sub(r'\bid="([^"]+)"', r'id="mh-\1"', body)
 body = re.sub(r"url\(#([^)]+)\)", r"url(#mh-\1)", body)
 body = re.sub(r'href="#([^"]+)"', r'href="#mh-\1"', body)
-# Fond et sol prolongés (leurs dégradés sont en coordonnées absolues : ils se prolongent sans couture)
-body = body.replace('<rect x="0" y="0" width="1179" height="779" fill="url(#mh-gFond)"/>', '<rect x="0" y="-260" width="1179" height="1400" fill="url(#mh-gFond)"/>', 1)
-body = body.replace('<polygon points="0,560 1179,560 1179,779 0,779" fill="url(#mh-gSol)"/>', '<polygon points="0,560 1179,560 1179,1100 0,1100" fill="url(#mh-gSol)"/>', 1)
+# Ni fond ni sol gris : la maison se pose sur le fond de la page (seules ses ombres douces restent)
+for gone in ('<rect x="0" y="0" width="1179" height="779" fill="url(#mh-gFond)"/>', '<polygon points="0,560 1179,560 1179,779 0,779" fill="url(#mh-gSol)"/>'):
+    assert gone in body, gone
+    body = body.replace(gone, "", 1)
 # Gaine coffret → garage, dans le même style que les autres gaines
 garage = ('<g id="mh-gaine-garage"><path d="M787,552 L897,537" stroke="#7d7e84" stroke-width="4" opacity="0.4" filter="url(#mh-fFlouG)" transform="translate(1.5 2)"/>'
           '<path d="M787,552 L897,537" stroke="#78797e" stroke-width="6"/><path d="M787,550 L897,535" stroke="#9a9ba0" stroke-width="1" opacity="0.6"/></g>')
