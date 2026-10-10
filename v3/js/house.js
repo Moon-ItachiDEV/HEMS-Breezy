@@ -676,4 +676,6 @@
   matchMedia("(max-width: 767px) and (min-height: 501px), (max-width: 767px) and (orientation: portrait)").addEventListener?.("change", schedule);
 
   BZ.house = (...a) => { schedule(); return house(...a); };
+  // État en direct partagé avec le héros de l'Aperçu (hero.js) : mêmes chiffres, même phrase, mêmes mots
+  BZ.houseLive = () => { const S = state(); return { S, sum: summary(S), W: words(S) }; };
 })();
