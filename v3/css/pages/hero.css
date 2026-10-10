@@ -30,8 +30,14 @@
 .mh-ln { transition: opacity .6s var(--ease); }
 .mh-ln[data-on="0"] { opacity: 0; }
 .mh-ln path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.mh-tube { stroke: var(--c); stroke-width: 24; opacity: calc(var(--i) * .3); }
-.mh-core { stroke: var(--c); stroke-width: 3; opacity: calc(.2 + var(--i) * .3); }
+/* Le trajet lui-même est coloré : gaine teintée en permanence, puis remplie par le paquet qui passe
+   (elle reste allumée jusqu'au cycle suivant) */
+.mh-tube { stroke: var(--c); stroke-width: 26; opacity: calc(var(--i) * .38); }
+.mh-core { stroke: var(--c); stroke-width: 6; opacity: .5; }
+.mh-fill { stroke: color-mix(in srgb, var(--c) 82%, #fff); stroke-width: 6.5; stroke-dasharray: 100 100; stroke-dashoffset: 0; animation: mh-fill-src var(--P) linear infinite; }
+[data-role="snk"] .mh-fill { animation-name: mh-fill-snk; }
+@keyframes mh-fill-src { 0% { stroke-dashoffset: 100; opacity: 1; } 38% { stroke-dashoffset: 0; } 82% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: .25; } }
+@keyframes mh-fill-snk { 0% { stroke-dashoffset: 0; opacity: 1; } 30% { stroke-dashoffset: 0; opacity: .25; } 30.1%, 52% { stroke-dashoffset: 100; opacity: 1; } 90%, 100% { stroke-dashoffset: 0; opacity: 1; } }
 .mh-halo, .mh-body, .mh-head { stroke-dashoffset: var(--a); animation: mh-src var(--P) linear infinite; }
 [data-role="snk"] .mh-halo, [data-role="snk"] .mh-body, [data-role="snk"] .mh-head { animation-name: mh-snk; }
 .mh-halo { stroke: var(--c); stroke-width: calc(26px * var(--k)); opacity: .45; filter: url(#mh-fx-blur); }
@@ -148,5 +154,6 @@
 @media (prefers-reduced-motion: reduce) {
   .mh-fx *, .mh-live i::after { animation: none !important; }
   .mh-halo, .mh-body, .mh-head, .mh-ring, .mh-spark, .mh-hub-ring, .mh-sweep, .mh-led-scan { display: none; }
+  .mh-fill { stroke-dashoffset: 0; opacity: 1; }
   .mh-arrow { display: block; }
 }

@@ -87,6 +87,7 @@
     return h`<g class="mh-ln mh-l-${x.k}" data-tone="${x.tone}" data-on="${x.on ? 1 : 0}" data-role="${x.src ? "src" : "snk"}" style="--k:${k};--i:${(0.45 + 0.55 * x.share).toFixed(2)}">
       <path class="mh-tube" d="${d}" filter="url(#mh-fx-blur)"/>
       <path class="mh-core" d="${d}"/>
+      <path class="mh-fill" d="${d}" pathLength="100"/>
       ${seg("mh-halo", L)}${seg("mh-body", L)}${seg("mh-head", Lc)}
       <g class="mh-hit" transform="translate(${far[0]} ${far[1]})"><circle class="mh-ring" r="16"/><circle class="mh-spark" r="6"/></g>
       <path class="mh-arrow" d="M-8,-8L3,0L-8,8" transform="translate(${m.x} ${m.y}) rotate(${m.a})"/>
