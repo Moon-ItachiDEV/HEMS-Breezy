@@ -250,6 +250,14 @@ a { color: inherit; }
 .note-v { display: block; margin-top: 2px; font: 650 .9375rem/1.2 var(--font-text); font-variant-numeric: tabular-nums; }
 .note-s { display: block; margin-top: 1px; font: 550 .75rem/1.25 var(--font-text); color: var(--chip-muted); }
 .hero.serre .note-s { display: none; }
+/* Variante étroite, essayée quand la place manque : « vente » passe sous le chiffre, en petit */
+.note.compact .note-v { display: flex; flex-direction: column; }
+.note.compact .nv-mot { order: 1; margin-top: 1px; font: 550 .75rem/1.25 var(--font-text); color: var(--chip-muted); }
+.note.compact .note-s { display: none; }
+/* Héros bas : la variante étroite se resserre en hauteur pour tenir entre deux gaines */
+.hero.serre:not(.court) .note.compact { padding-top: 5px; padding-bottom: 6px; }
+.hero.serre:not(.court) .note.compact .note-v { margin-top: 1px; line-height: 1.15; }
+.hero.serre:not(.court) .note.compact .nv-mot { margin-top: 0; line-height: 1.15; }
 /* Héros très bas (téléphone à l'horizontale) : étiquettes sur une ligne */
 .hero.court .note { display: flex; align-items: baseline; gap: 8px; padding: 4px 9px 5px; }
 .hero.court .note-v { margin-top: 0; }
@@ -418,6 +426,7 @@ a { color: inherit; }
 .legend i { display: inline-block; width: 16px; height: 0; border-top: 2px solid var(--c); border-radius: 2px; }
 .legend i.aire { height: 10px; border: 0; border-radius: 3px; background: linear-gradient(to bottom, color-mix(in srgb, var(--c-sun) 55%, transparent), color-mix(in srgb, var(--c-sun) 15%, transparent)); border-top: 2px solid var(--c-sun); }
 .legend i.tirets { border-top-style: dashed; }
+.legend span[hidden] { display: none; }
 .chart { position: relative; margin: 0; touch-action: pan-y; }
 .chart:focus-visible { outline-offset: 6px; }
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
@@ -493,8 +502,10 @@ a { color: inherit; }
 .conseil blockquote { margin: 10px 0 0; }
 .conseil blockquote p { max-width: 34em; font: italic 400 1.1875rem/1.4 var(--font-display); font-variation-settings: "SOFT" 100, "opsz" 24, "WONK" 0; letter-spacing: -.005em; text-wrap: pretty; }
 .creneau { margin-top: 18px; }
-.creneau-barre { position: relative; height: 32px; border-radius: 8px; background: color-mix(in srgb, currentColor 9%, transparent); overflow: hidden; }
-.creneau-barre span { position: absolute; top: 0; bottom: 0; border-radius: 8px; background: var(--creneau); display: grid; place-items: center; font: 650 .75rem/1 var(--font-text); color: inherit; white-space: nowrap; }
+/* Trois pistes : avant, créneau, après (en fr, proportionnelles aux heures). Le créneau ne descend jamais sous
+   la largeur de son texte + marges : sur écran étroit il s'élargit et les deux autres pistes se partagent le reste. */
+.creneau-barre { display: grid; height: 32px; border-radius: 8px; background: color-mix(in srgb, currentColor 9%, transparent); overflow: hidden; }
+.creneau-barre span { grid-column: 2; padding: 0 10px; border-radius: 8px; background: var(--creneau); display: grid; place-items: center; font: 650 .75rem/1 var(--font-text); color: inherit; white-space: nowrap; }
 .creneau-heures { display: flex; justify-content: space-between; margin-top: 7px; font: 500 .75rem/1.2 var(--font-text); opacity: .85; font-variant-numeric: tabular-nums; }
 
 .colophon { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: .875rem; line-height: 1.5; color: var(--muted); display: grid; gap: 4px; }
@@ -603,20 +614,29 @@ a { color: inherit; }
   .section { margin-top: 68px; }
   .demain { padding: 32px 32px 28px; }
 }
-/* Fenêtre très basse (zoom 200–400 % sur ordinateur, petit téléphone à l'horizontale) :
-   la barre d'onglets ne flotte plus, elle se range en fin de page au lieu de masquer le contenu */
-@media (max-height: 26.25em) and (max-width: 43.6875em) {
-  body { display: flex; flex-direction: column; }
-  .tabbar { position: relative; order: 1; }
+/* Héros bas (téléphone à l'horizontale, zoom 200 % et plus) : le texte remonte moins sur l'illustration
+   et le fondu raccourcit, pour laisser à la maison toute la hauteur disponible */
+@media (max-height: 26.25em) {
+  :root { --overlap: 28px; --fade: 72px; }
+}
+@media (max-height: 22em) {
+  :root { --overlap: 0px; --fade: 44px; }
+}
+/* Fenêtre très basse ET étroite (zoom 300–400 %) : la barre d'onglets ne flotte plus (elle masquerait le
+   contenu) ; elle suit l'en-tête dans le flux, là où le code la place : l'ordre de tabulation reste l'ordre visuel */
+@media (max-height: 26.25em) and (max-width: 29.9375em) {
+  :root { --overlap: 0px; --fade: 44px; }
+  .tabbar { position: relative; border-top: 0; border-bottom: 1px solid var(--rule); }
   .tabbar::before { display: none; }
-  .page { padding-bottom: 32px; }
+  .page { padding-top: 20px; padding-bottom: 32px; }
   html { scroll-padding-bottom: 0; }
+  .brand-sub { display: none; }
 }
 
-/* Navigation en pilule de verre en haut du héros : bureau, et téléphone à l'horizontale.
+/* Navigation en pilule de verre en haut du héros : bureau, téléphone à l'horizontale et zoom 200 %.
    Seuils en em (16 px = 1 em à 100 %) : ils suivent la taille de texte réglée dans le navigateur,
    donc un texte agrandi rebascule vers la mise en page mobile au lieu de faire chevaucher la pilule. */
-@media (min-width: 60em), (max-height: 32.5em) and (min-width: 43.75em) {
+@media (min-width: 60em), (max-height: 32.5em) and (min-width: 30em) {
   .tabbar {
     position: absolute; z-index: 21;
     top: calc(env(safe-area-inset-top) + 12px); bottom: auto; left: 50%; right: auto;
@@ -635,9 +655,15 @@ a { color: inherit; }
   .page { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
   html { scroll-padding-bottom: 0; }
 }
-@media (max-height: 32.5em) and (min-width: 43.75em) and (max-width: 59.9375em) {
+@media (max-height: 32.5em) and (min-width: 30em) and (max-width: 59.9375em) {
   .tab { padding: 0 11px; gap: 6px; font-size: .75rem; }
   .brand-sub { display: none; }
+}
+/* Pilule sur fenêtre étroite (petit téléphone à l'horizontale, zoom 200 % d'un portable) : icônes seules,
+   nom accessible conservé, pour ne jamais toucher la marque ni les boutons */
+@media (max-height: 32.5em) and (min-width: 30em) and (max-width: 43.6875em) {
+  .tab { padding: 0 12px; }
+  .tab-t { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 @media (min-width: 60em) {
   :root { --col: 56.25rem; --fade: 132px; --overlap: 56px; }
@@ -674,6 +700,24 @@ a { color: inherit; }
     .figures { margin-top: 30px; }
   }
 }
+
+/* Couleurs forcées (contraste élevé de Windows) : les fonds deviennent « Canvas ». Ce qui ne tient qu'à un fond
+   (onglet courant, niveau de batterie, créneau, pastille d'alerte) reçoit une couleur système ; les petites clés
+   de couleur gardent la teinte de leur série (elles renvoient aux courbes et aux gaines, qui la gardent aussi). */
+@media (forced-colors: active) {
+  .m-label { position: relative; z-index: 1; }      /* la plaque du grand chiffre ne recouvre plus l'étiquette */
+  .tab[aria-current="page"]::before { forced-color-adjust: none; background: Highlight; top: -2px; width: 28px; height: 3px; }
+  .soc-barre { forced-color-adjust: none; background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; }
+  .soc-plein { forced-color-adjust: none; background: Highlight; }
+  .soc-reserve { forced-color-adjust: none; background: CanvasText; }
+  .creneau-barre { forced-color-adjust: none; background: Canvas; color: CanvasText; box-shadow: inset 0 0 0 1px CanvasText; }
+  .creneau-barre span { background: Highlight; color: HighlightText; }
+  .icon-btn .pastille { forced-color-adjust: none; background: Highlight; box-shadow: 0 0 0 2px Canvas; }
+  .legend i, .bulle span i, .total dt .m, .m-label i, .note-k i, .ancre::before { forced-color-adjust: none; }
+  @media (min-width: 60em), (max-height: 32.5em) and (min-width: 30em) {
+    .tab[aria-current="page"] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+  }
+}
 </style>
 </head>
 <body>
@@ -685,14 +729,22 @@ a { color: inherit; }
   <!-- Calque des impulsions et de la LED : même viewBox que l'illustration -->
   <svg class="hero-flux" id="hero-flux" viewBox="0 0 1179 779" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
     <defs>
-      <clipPath id="cpSoc" clipPathUnits="userSpaceOnUse"><rect id="soc-rect" x="490" y="650" width="34" height="80"/></clipPath>
+      <clipPath id="cpSoc" clipPathUnits="userSpaceOnUse"><rect id="soc-rect" x="490" y="610" width="34" height="122"/></clipPath>
       <!-- Bande LED : vert opaque sur toute la hauteur (le dégradé du dessin s'éteint en haut et masquait le niveau) -->
-      <linearGradient id="gLedNiveau" x1="0" y1="656" x2="0" y2="718" gradientUnits="userSpaceOnUse">
+      <linearGradient id="gLedNiveau" x1="0" y1="617" x2="0" y2="718" gradientUnits="userSpaceOnUse">
         <stop offset="0" stop-color="#3fae35"/><stop offset=".55" stop-color="#62c84a"/><stop offset="1" stop-color="#9be37a"/>
       </linearGradient>
+      <!-- Arêtes éclairées de la vitre, allumées sur toute la hauteur comme la bande (le dessin ne les éclairait qu'en bas) -->
+      <linearGradient id="gLedArG" x1="0" y1="617" x2="0" y2="712" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#4a5d47"/><stop offset=".62" stop-color="#4e6249"/><stop offset=".86" stop-color="#697c64"/><stop offset="1" stop-color="#7f8a7f"/>
+      </linearGradient>
+      <linearGradient id="gLedArD" x1="0" y1="623" x2="0" y2="716" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#3f5e3c"/><stop offset=".62" stop-color="#4c7344"/><stop offset="1" stop-color="#5d8a4a"/>
+      </linearGradient>
     </defs>
-    <!-- Piste éteinte sous la bande : la partie vide se lit comme « vide », pas comme une ombre -->
-    <path id="led-piste" d="M500.6,656 L515.2,660.5 L515.2,715.8 Q515.2,718.4 512.8,717.8 L502.8,713.4 Q500.8,712.4 500.8,709.5 Z" fill="#142211"/>
+    <!-- Piste éteinte sous la bande, sur toute la vitre noire du flanc (y 617 → 718) : sinon le haut de la vitre
+         se lisait comme une partie vide de la jauge et 91 % ressemblait à 60 %. La partie vide se lit « vide ». -->
+    <path id="led-piste" d="M500.6,617 L515.2,623.3 L515.2,715.8 Q515.2,718.4 512.8,717.8 L502.8,713.4 Q500.8,712.4 500.8,709.5 Z" fill="#142211"/>
     <g id="calque-led" clip-path="url(#cpSoc)"></g>
     <g id="calque-flux"></g>
   </svg>
@@ -708,9 +760,9 @@ a { color: inherit; }
         <svg class="i-pause" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6.5v11M15 6.5v11"/></svg>
         <svg class="i-lecture" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 6.3v11.4l9.2-5.7z"/></svg>
       </button>
-      <a class="icon-btn" href="#" aria-label="Alertes : 1 nouvelle">
+      <a class="icon-btn" id="btn-alertes" href="#" aria-label="Alertes">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2H4.5z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg>
-        <span class="pastille"></span>
+        <span class="pastille" id="pastille" hidden></span>
       </a>
     </div>
   </div>
@@ -800,11 +852,13 @@ a { color: inherit; }
           <div class="legend" aria-hidden="true">
             <span style="--c:var(--c-sun)"><i class="aire"></i>Production</span>
             <span style="--c:var(--c-home)"><i></i>Maison</span>
-            <span style="--c:var(--c-sun)"><i class="tirets"></i>Prévision</span>
+            <span style="--c:var(--c-sun)" id="lg-prev"><i class="tirets"></i>Prévision</span>
           </div>
           <figure class="chart" id="chart" tabindex="0" role="group" aria-roledescription="graphique interactif" aria-label="Courbe de la journée : production solaire et consommation de la maison" aria-describedby="chart-desc">
             <div id="chart-svg"></div>
-            <div class="bulle" id="bulle" aria-live="polite"></div>
+            <!-- Bulle visuelle (survol et clavier) ; seule la navigation au clavier est annoncée, par #chart-annonce -->
+            <div class="bulle" id="bulle" aria-hidden="true"></div>
+            <p class="sr-only" id="chart-annonce" aria-live="polite"></p>
             <div class="sr-only"><table id="chart-table"></table></div>
             <figcaption class="sr-only" id="chart-desc"></figcaption>
           </figure>
@@ -884,16 +938,21 @@ const ETAT = {
   meteo: {
     demain: { date: '2026-10-11', ciel: 'Grand soleil', production_kWh: 21.6, creneau: ['12:00', '15:30'] }
   },
+  alertes: { nouvelles: 1 },                     // notifications non lues (pastille de la cloche)
 
   /* Aperçus de développement uniquement (index.html?apercu=midi | soir | nuit), à retirer
      au branchement de Home Assistant. Chaque aperçu ne remplace que l'heure, les puissances et
      des compteurs cohérents (mêmes bilans que ci-dessus) ; ses courbes sont tirées de ce même
-     objet : production mesurée + prévision ci-dessus, et la soirée de la maison ci-dessous. */
+     objet : production mesurée + prévision ci-dessus, et la soirée de la maison ci-dessous.
+     Une seule journée : 58 % à 13 h 24 (charge 0,9 kW), 91 % à 17 h 12 (+3,3 kWh chargés entre les deux,
+     comme les compteurs). La charge culmine vers 18 h, quand le toit ne couvre plus la maison (la page
+     annonce « jusqu’à ≈ 96 % vers 18 h 15 » à midi, « ≈ 95 % vers 18 h 20 » à 17 h 12, à consommation
+     constante), puis la batterie redescend : ≈ 83 % au coucher (19 h 13), 76 % à 19 h 34, 45 % à 22 h 36. */
   apercus: {
     maison_soiree: [0.62,0.9,1.24,1.58,1.79,1.49,1.08,0.88,0.81,0.74,0.68,0.57,0.4],   // de 17 h 30 à 23 h 30
     midi: {
       horodatage: '2026-10-10T13:24:00+02:00',
-      instantane: { production: 3.36, maison: 0.66, batterie: 1.98, reseau: -0.72, batterie_pct: 58 },
+      instantane: { production: 3.36, maison: 0.66, batterie: 0.9, reseau: -1.8, batterie_pct: 58 },
       jour: { production: 9.0, maison: 8.6, autoconso_directe: 5.0, charge_batterie: 3.6, decharge_batterie: 1.9, export: 0.4, import: 1.7 },
       mois: { economies_eur: 22.87, depuis: '2026-10-01' }
     },
@@ -979,43 +1038,54 @@ function deriver(e) {
   const surplus = soleil && p >= m - 0.02;
   // moment de la journée, pour les textes : avant l'aube, le jour, le soir (le soleil couché)
   const moment = h < lever ? (h < 5 ? 'nuit' : 'matin') : h < coucher ? 'jour' : 'soir';
-  let pleine = null, socFin = null, tenue = null;
-  if (b > 0.02 && soc < 100) ({ pleine, socFin } = finDeCharge(e, h, soleil));
+  let pleine = null, socFin = null, finCharge = null, tenue = null;
+  if (b > 0.02 && soc < 100) ({ pleine, socFin, finCharge } = finDeCharge(e, h, soleil));
   if (b < -0.02) tenue = Math.max(0, (soc - inst.reserve_pct) / 100 * inst.batterie_kWh) / -b;
-  // partages en % (somme exacte de 100) : où va la production, d'où vient l'énergie de la maison
-  const bSol = Math.max(0, Math.min(b, p - m));                     // part de la charge venue du toit
-  const partsProd = repartir([m, bSol, -r]);                        // maison, batterie, réseau
-  const partsBesoins = repartir([p, -b, r]);                        // soleil, batterie, réseau
-  return { date, h, lever, coucher, scene, moment, soleil, surplus, economies, autonomie, autoconso, pleine, socFin, tenue, bSol, partsProd, partsBesoins };
+  // partages en % (somme exacte de 100) : où va la production, d'où vient l'énergie de la maison.
+  // Priorités usuelles (tableau Énergie de HA) : le toit sert d'abord la maison, puis la batterie, puis le réseau ;
+  // une batterie qui se décharge sert d'abord la maison. Ainsi une vente au réseau alimentée en partie par la
+  // batterie ne compte pas comme de la production, et une batterie qui vend ne compte pas dans les besoins.
+  const solMaison = Math.max(0, Math.min(p, m));
+  const bSol = Math.max(0, Math.min(b, p - solMaison));             // part de la charge venue du toit
+  const solReseau = Math.max(0, p - solMaison - bSol);              // production vendue
+  const battMaison = b < 0 ? Math.min(-b, Math.max(0, m - solMaison)) : 0;
+  const reseauMaison = Math.max(0, m - solMaison - battMaison);
+  const partsProd = repartir([solMaison, bSol, solReseau]);         // maison, batterie, réseau
+  const partsBesoins = repartir([solMaison, battMaison, reseauMaison]);   // soleil, batterie, réseau
+  const battReseau = Math.max(0, -b - battMaison);                 // batterie qui vend au réseau
+  return { date, h, lever, coucher, scene, moment, soleil, surplus, economies, autonomie, autoconso, pleine, socFin, finCharge, tenue, bSol, battReseau, partsProd, partsBesoins };
 }
 
 /* Fin de charge de la batterie. Le jour, on suit la prévision solaire : la batterie ne reçoit que
    l'excédent sur la consommation actuelle (plafonné au rythme de charge actuel, plus l'appoint du
    réseau s'il y en a un). Sans soleil (charge sur le réseau) ou sans prévision : rythme constant.
-   Renvoie { pleine: heure } si elle se remplit, sinon { socFin: % atteint quand la prévision s'arrête }. */
+   Renvoie { pleine: heure } si elle se remplit, sinon { socFin, finCharge } : le niveau le plus haut, atteint
+   quand l'excédent prévu ne couvre plus la maison (finCharge, souvent bien avant le coucher du soleil ;
+   ensuite la batterie redescend). */
 function finDeCharge(e, h, soleil) {
   const i = e.instantane, inst = e.installation, b = i.batterie;
   const besoin = (100 - i.batterie_pct) / 100 * inst.batterie_kWh;
   const c = e.courbe || {}, pas_h = c.pas_h || 0.5;
   const prev = (c.prevision || []).map((v, k) => v == null ? null : [k * pas_h, v]).filter(x => x && x[0] > h);
-  if (!soleil || !prev.length) return { pleine: h + besoin / b, socFin: null };
+  if (!soleil || !prev.length) return { pleine: h + besoin / b, socFin: null, finCharge: null };
   const pts = [[h, i.production], ...prev], appoint = Math.max(0, i.reseau), dt = 1 / 12;
-  let kwh = 0;
+  let kwh = 0, finCharge = h;
   for (let k = 0; k < pts.length - 1; k++) {
     const [t0, p0] = pts[k], [t1, p1] = pts[k + 1];
     for (let t = t0; t < t1 - 1e-9; t += dt) {
       const d = Math.min(dt, t1 - t), pr = p0 + (p1 - p0) * (t + d / 2 - t0) / (t1 - t0);
       const charge = Math.min(b, Math.max(0, pr - i.maison) + appoint);
-      if (charge > 0 && kwh + charge * d >= besoin) return { pleine: t + (besoin - kwh) / charge, socFin: null };
+      if (charge > 0 && kwh + charge * d >= besoin) return { pleine: t + (besoin - kwh) / charge, socFin: null, finCharge: null };
       kwh += charge * d;
+      if (charge > 0) finCharge = t + d;
     }
   }
-  return { pleine: null, socFin: Math.min(100, i.batterie_pct + 100 * kwh / inst.batterie_kWh) };
+  return { pleine: null, socFin: Math.min(100, i.batterie_pct + 100 * kwh / inst.batterie_kWh), finCharge };
 }
 /* Texte de fin de charge, partagé par le chapô et le registre */
 function texteCharge(d, soc) {
   if (d.pleine != null && d.pleine < 24) return `pleine vers ${heureTxt(arrondi5(d.pleine))}`;
-  if (d.socFin != null && Math.round(d.socFin) > Math.round(soc)) return `≈${NBSP}${pct(d.socFin)}${NNBSP}% au coucher du soleil`;
+  if (d.socFin != null && Math.round(d.socFin) > Math.round(soc)) return `jusqu’à ≈${NBSP}${pct(d.socFin)}${NNBSP}% vers ${heureTxt(arrondi5(d.finCharge))}`;
   return '';
 }
 const arrondi5 = h => Math.round(h * 12) / 12;
@@ -1029,6 +1099,15 @@ function rendre(e) {
   rendreTotaux(e, d);
   rendreDemain(e, d);
   rendreMaison(e, d);
+  rendreAlertes(e);
+}
+
+/* --- Cloche de l'en-tête : nombre d'alertes non lues, tiré de l'état --- */
+function rendreAlertes(e) {
+  const n = Math.max(0, Math.round(e.alertes?.nouvelles ?? 0));
+  const txt = n ? `Alertes${NBSP}: ${n} nouvelle${n > 1 ? 's' : ''}` : `Alertes${NBSP}: aucune nouvelle`;
+  $('btn-alertes').setAttribute('aria-label', txt);
+  $('pastille').hidden = !n;
 }
 
 /* --- L'essentiel : le chiffre, l'arc du soleil, la phrase, les deux chiffres du jour --- */
@@ -1077,7 +1156,8 @@ function rendreUne(e, d) {
         : d.moment === 'jour' ? `Les panneaux ne produisent pas pour l’instant${NBSP}: la batterie alimente la maison.`
         : 'La batterie, remplie hier, alimente la maison.';
       const avantLever = d.h < d.lever ? d.h + d.tenue >= d.lever : d.moment === 'soir' && d.h + d.tenue >= 24 + d.lever - 1;
-      chapo = `${source} Il lui reste ${pct(i.batterie_pct)}${NNBSP}%${NBSP}: ${avantLever ? 'de quoi tenir jusqu’au lever du soleil' : `environ ${duree(d.tenue)} à ce rythme`}.` + (r > 0.05 ? ` Le réseau complète.` : ` Le réseau se repose.`);
+      chapo = `${source} Il lui reste ${pct(i.batterie_pct)}${NNBSP}%${NBSP}: ${avantLever ? 'de quoi tenir jusqu’au lever du soleil' : `environ ${duree(d.tenue)} à ce rythme`}.` +
+        (r > 0.05 ? ` Le réseau complète.` : r < -0.05 ? ` Elle vend aussi ${kW(-r)}${NBSP}kW au réseau.` : ` Le réseau se repose.`);
     } else {
       titre = d.moment === 'jour' ? `Ciel couvert, <em>le réseau prend le relais</em>.` : `${quand}, <em>le réseau prend le relais</em>.`;
       const panneaux = d.moment === 'jour' ? 'Le ciel est trop couvert pour les panneaux' : 'Les panneaux dorment';
@@ -1172,7 +1252,7 @@ function rendreRegistre(e, d) {
     L.push({ c: '--c-home', ico: 'maison', nom: 'Maison', v: m, sub: `${partP(0)}<br>entièrement couverte` });
     const bRes = b - d.bSol;                                             // part de la charge venue du réseau
     L.push({ ...batt, sub: (d.bSol > 0.02 ? `${partP(1)}<br>` : '') + (bRes > 0.02 ? `+${NBSP}${kW(bRes)}${NBSP}kW du réseau<br>` : '') + battSub });
-    L.push({ ...res, sub: r < -0.02 ? `${partP(2)}<br>revendue ${nombre(inst.tarifRevente_eur_kWh, 2)}${NBSP}€/kWh`
+    L.push({ ...res, sub: r < -0.02 ? (d.partsProd[2] > 0 ? `${partP(2)}<br>` : '') + (d.battReseau > 0.02 ? `+${NBSP}${kW(d.battReseau)}${NBSP}kW de la batterie<br>` : '') + `revendue ${nombre(inst.tarifRevente_eur_kWh, 2)}${NBSP}€/kWh`
       : r > 0.02 ? `Complète la charge de la batterie<br>${coutHeure}` : auRepos });
   } else {
     const ici = { soir: 'ce soir', nuit: 'cette nuit', matin: 'ce matin' }[d.moment];
@@ -1182,7 +1262,9 @@ function rendreRegistre(e, d) {
       sub: d.soleil ? partM(0) : d.moment === 'jour' ? `Ciel trop couvert<br>pour produire` : `Les panneaux dorment<br>lever ${leverProchain}`,
       etat: d.soleil ? null : 'repos' });
     L.push({ ...batt, sub: (b < -0.02 ? `${partM(1)}<br>` : '') + battSub });
-    L.push({ ...res, sub: r > 0.02 ? `${partM(2)}<br>${coutHeure}` : r < -0.02 ? 'Vente du surplus' : auRepos });
+    // sans surplus du toit, une vente ne peut venir que de la batterie
+    const vente = `${d.battReseau > 0.02 ? 'Vente depuis la batterie' : 'Vente du surplus'}<br>revendue ${nombre(inst.tarifRevente_eur_kWh, 2)}${NBSP}€/kWh`;
+    L.push({ ...res, sub: r > 0.02 ? `${partM(2)}<br>${coutHeure}` : r < -0.02 ? vente : auRepos });
   }
   $('t-live').innerHTML = titre;
 
@@ -1289,24 +1371,46 @@ function rendreCourbe(e, d) {
     </g>
   </svg>`;
 
+  // la légende ne montre « Prévision » que si la courbe prévue est tracée (rien après le coucher du soleil)
+  $('lg-prev').hidden = !prevPath;
+  // étiquettes directes : jamais à cheval sur le trait « maintenant » (chaque matin, le pic de production est
+  // le point actuel) ; elles passent juste à côté du trait, toujours au-dessus de leur pic
+  const etiqs = [...box.querySelectorAll('text.etiq')];
+  etiqs.forEach(t => {
+    const bb = t.getBBox();
+    if (bb.x - 4 >= nowX || bb.x + bb.width + 4 <= nowX) return;
+    const gauche = nowX - 6 - bb.width >= 0;
+    t.setAttribute('text-anchor', gauche ? 'end' : 'start');
+    t.setAttribute('x', (gauche ? nowX - 6 : nowX + 6).toFixed(1));
+  });
+  // deux étiquettes qui se touchent : « Production » prime
+  if (etiqs.length === 2) {
+    const [a, b] = etiqs.map(t => t.getBBox());
+    if (a.x < b.x + b.width + 6 && b.x < a.x + a.width + 6 && a.y < b.y + b.height && b.y < a.y + a.height) etiqs[1].remove();
+  }
+
   // points interrogeables (mesures uniquement)
   const pts = mesProd.map(([t, v]) => { const q = mesMaison.find(mm => Math.abs(mm[0] - t) < 1e-6); return { t, p: v, m: q ? q[1] : null }; });
   COURBE = { W, H, X, Y, pts };
   if (curseurIdx >= pts.length) curseurIdx = -1;
+  if (curseurIdx >= 0) montrerCurseur(curseurIdx, true);           // graphique redessiné : le curseur ouvert suit
+  else $('bulle').classList.remove('on');
 
   $('chart-desc').textContent = `Courbe de la journée : production solaire et consommation de la maison, de minuit à ${heureTxt(now)}. ` +
     (pic[1] > 0.3 ? `Pic de production à ${heureTxt(pic[0])} avec ${kW(pic[1])}${NBSP}kW. ` : '') +
-    `Flèches gauche et droite, Début et Fin pour parcourir les mesures.`;
+    `Flèches gauche et droite, Début et Fin pour parcourir les mesures, Échap pour fermer la bulle.`;
   $('chart-table').innerHTML = `<caption>Mesures au pas de 30 minutes</caption><thead><tr><th scope="col">Heure</th><th scope="col">Production (kW)</th><th scope="col">Maison (kW)</th></tr></thead><tbody>` +
     pts.map(q => `<tr><th scope="row">${heureTxt(q.t)}</th><td>${kW(q.p)}</td><td>${q.m == null ? '—' : kW(q.m)}</td></tr>`).join('') + '</tbody>';
 }
 
 let curseurIdx = -1;
-function montrerCurseur(idx) {
+let masqueIdx = null;   // point dont la bulle de survol a été fermée par Échap : elle reste fermée tant que le pointeur y reste
+function montrerCurseur(idx, force) {
   if (!COURBE) return;
   const g = document.getElementById('curseur'), bulle = $('bulle');
   if (idx < 0) { g.style.display = 'none'; bulle.classList.remove('on'); curseurIdx = -1; return; }
   idx = Math.max(0, Math.min(COURBE.pts.length - 1, idx));
+  if (idx === curseurIdx && !force && bulle.classList.contains('on')) return;   // même point : rien à réécrire
   curseurIdx = idx;
   const q = COURBE.pts[idx], x = COURBE.X(q.t);
   g.style.display = '';
@@ -1346,16 +1450,27 @@ function brancherCourbe() {
     COURBE.pts.forEach((q, k) => { const dd = Math.abs(COURBE.X(q.t) - x); if (dd < bd) { bd = dd; best = k; } });
     return best;
   };
-  fig.addEventListener('pointermove', ev => montrerCurseur(idxDe(ev)));
-  fig.addEventListener('pointerdown', ev => montrerCurseur(idxDe(ev)));
-  fig.addEventListener('pointerleave', () => montrerCurseur(-1));
+  // survol : bulle visuelle seulement (rien n'est annoncé à chaque mouvement de souris)
+  fig.addEventListener('pointermove', ev => { const k = idxDe(ev); if (k === masqueIdx) return; masqueIdx = null; montrerCurseur(k); });
+  fig.addEventListener('pointerdown', ev => { masqueIdx = null; montrerCurseur(idxDe(ev)); });
+  fig.addEventListener('pointerleave', () => { masqueIdx = null; montrerCurseur(-1); });
   fig.addEventListener('blur', () => montrerCurseur(-1));
+  // Échap ferme la bulle où que soit le focus (bulle ouverte au survol comme au clavier : WCAG 1.4.13)
+  document.addEventListener('keydown', ev => {
+    if (ev.key !== 'Escape' || curseurIdx < 0) return;
+    masqueIdx = curseurIdx;
+    montrerCurseur(-1);
+  });
+  // clavier : la bulle suit le point choisi, et une phrase complète est annoncée
   fig.addEventListener('keydown', ev => {
     const n = COURBE.pts.length;
-    const cible = { ArrowLeft: curseurIdx < 0 ? n - 1 : curseurIdx - 1, ArrowRight: curseurIdx < 0 ? n - 1 : curseurIdx + 1, Home: 0, End: n - 1 }[ev.key];
-    if (cible == null) { if (ev.key === 'Escape') montrerCurseur(-1); return; }
+    const cible = { ArrowLeft: curseurIdx < 0 ? n - 1 : Math.max(0, curseurIdx - 1), ArrowRight: curseurIdx < 0 ? n - 1 : curseurIdx + 1, Home: 0, End: n - 1 }[ev.key];
+    if (cible == null) return;
     ev.preventDefault();
+    masqueIdx = null;
     montrerCurseur(cible);
+    const q = COURBE.pts[curseurIdx];
+    $('chart-annonce').textContent = `${heureTxt(q.t)}${NBSP}: production ${kW(q.p)}${NBSP}kW` + (q.m == null ? '' : `, maison ${kW(q.m)}${NBSP}kW`);
   });
 }
 
@@ -1389,8 +1504,9 @@ function rendreDemain(e, d) {
   const [a, b] = dm.creneau.map(hDe);
   $('conseil').innerHTML = `«${NNBSP}Lancez le <span class="nw">lave-linge</span> et le <span class="nw">lave-vaisselle</span> entre ${heureTxt(a)} et ${heureTxt(b)}${NBSP}: ils tourneront au soleil, sans rien coûter.${NNBSP}»`;
   const L = hDe(e.soleil.lever_demain), C = hDe(e.soleil.coucher_demain || e.soleil.coucher);
-  const g = v => 100 * (v - L) / (C - L);
-  $('creneau').innerHTML = `<div class="creneau-barre" aria-hidden="true"><span style="left:${g(a).toFixed(1)}%;width:${(g(b) - g(a)).toFixed(1)}%">${heureTxt(a)} – ${heureTxt(b)}</span></div>
+  const g = v => Math.max(0, Math.min(100, 100 * (v - L) / (C - L)));
+  const pistes = `minmax(0, ${g(a).toFixed(1)}fr) minmax(max-content, ${(g(b) - g(a)).toFixed(1)}fr) minmax(0, ${(100 - g(b)).toFixed(1)}fr)`;
+  $('creneau').innerHTML = `<div class="creneau-barre" aria-hidden="true" style="grid-template-columns:${pistes}"><span>${heureTxt(a)} – ${heureTxt(b)}</span></div>
     <p class="creneau-heures"><span>Lever ${heureTxt(L)}</span><span class="sr-only">Meilleur créneau de ${heureTxt(a)} à ${heureTxt(b)}.</span><span>Coucher ${heureTxt(C)}</span></p>`;
   $('colophon-install').textContent = `${e.lieu} · ${kWc(e.installation.puissanceCrete_kWc)}${NBSP}kWc · batterie ${nombre(e.installation.batterie_kWh, 0)}${NBSP}kWh · achat ${nombre(e.installation.tarifAchat_eur_kWh, 4)}${NBSP}€/kWh`;
 }
@@ -1416,12 +1532,12 @@ function preparerSvg() {
     <linearGradient id="gBordsInv" x1="0" y1="0" x2="1179" y2="0" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#000"/><stop offset=".11" stop-color="#fff"/><stop offset=".89" stop-color="#fff"/><stop offset="1" stop-color="#000"/>
     </linearGradient>
-    <mask id="mBords" maskUnits="userSpaceOnUse" x="-6000" y="-3000" width="13179" height="7000"><rect x="-6000" y="-3000" width="13179" height="7000" fill="url(#gBords)"/></mask>
-    <mask id="mBordsInv" maskUnits="userSpaceOnUse" x="-6000" y="-3000" width="13179" height="7000"><rect x="-6000" y="-3000" width="13179" height="7000" fill="url(#gBordsInv)"/></mask>
+    <mask id="mBords" maskUnits="userSpaceOnUse" x="-30000" y="-15000" width="61179" height="31000"><rect x="-30000" y="-15000" width="61179" height="31000" fill="url(#gBords)"/></mask>
+    <mask id="mBordsInv" maskUnits="userSpaceOnUse" x="-30000" y="-15000" width="61179" height="31000"><rect x="-30000" y="-15000" width="61179" height="31000" fill="url(#gBordsInv)"/></mask>
     <filter id="fFen" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="0.8"/></filter>
     <!-- Fenêtres découpées dans les voiles (heure bleue, nuit) : seules celles dont la lumière est allumée -->
-    <mask id="mFenetres" maskUnits="userSpaceOnUse" x="-6000" y="-3000" width="13179" height="7000">
-      <rect x="-6000" y="-3000" width="13179" height="7000" fill="#fff"/>
+    <mask id="mFenetres" maskUnits="userSpaceOnUse" x="-30000" y="-15000" width="61179" height="31000">
+      <rect x="-30000" y="-15000" width="61179" height="31000" fill="#fff"/>
       <g filter="url(#fFen)">
         <polygon id="fen-pignon" fill="url(#gBords)" fill-opacity="0" points="77,243 160,161 255,322.7 255,463 77,368"/>
         <g id="fen-baies" fill="url(#gBords)" fill-opacity="0">
@@ -1449,19 +1565,30 @@ function preparerSvg() {
       <stop offset="0" stop-color="#28324e"/><stop offset=".55" stop-color="#3a4462"/><stop offset="1" stop-color="#3f4559"/>
     </linearGradient>`);
 
-  // Prolonge le ciel et le sol au-delà de l'image pour cadrer librement (aucune bande vide)
-  const ext = `<g id="ext-fond"><rect x="-6000" y="-3000" width="13179" height="7000" fill="url(#gExt)"/><g id="ext-ciel"></g></g>`;
+  // Prolonge le ciel et le sol au-delà de l'image pour cadrer librement (aucune bande vide) ; les rectangles
+  // prolongés (ici, voiles et masques) sont assez grands pour couvrir le héros même très réduit (zoom 400 %)
+  const ext = `<g id="ext-fond"><rect x="-30000" y="-15000" width="61179" height="31000" fill="url(#gExt)"/><g id="ext-ciel"></g></g>`;
   svg.querySelector('#fond').insertAdjacentHTML('beforebegin', ext);
   svg.querySelector('#fond').insertAdjacentHTML('afterend', '<g id="ciel-scene"></g>');
   // Fondu des bords (écrans larges), teinte d'ambiance, voile du thème sombre — sous les lumières
   svg.querySelector('#lumieres').insertAdjacentHTML('beforebegin',
     `<use id="bords" href="#ext-fond" mask="url(#mBords)"/><g id="teinte-scene"></g>` +
-    `<g id="voile-sombre"><rect x="-6000" y="-3000" width="13179" height="7000" fill="url(#gVoile)" mask="url(#mFenetres)" style="mix-blend-mode:multiply" opacity=".9"/></g>`);
+    `<g id="voile-sombre"><rect x="-30000" y="-15000" width="61179" height="31000" fill="url(#gVoile)" mask="url(#mFenetres)" style="mix-blend-mode:multiply" opacity=".9"/></g>`);
   // La LED de la batterie rejoint le calque animé (au-dessus des voiles), découpée selon la charge.
   // Elle garde son id : document.getElementById('led-batterie') la trouve toujours.
   $('calque-led').appendChild(svg.querySelector('#led-batterie'));
-  // Corps de la bande : remplissage opaque défini par la page, le bord du découpage marque nettement le niveau
-  $('led-batterie').querySelector('path')?.setAttribute('fill', 'url(#gLedNiveau)');
+  // Corps de la bande : remplissage opaque défini par la page, le bord du découpage marque nettement le niveau.
+  // Elle reprend la forme de sa piste, qui couvre toute la vitre du flanc (le dessin ne l'allumait qu'en bas).
+  const bande = $('led-batterie').querySelector('path');
+  bande?.setAttribute('fill', 'url(#gLedNiveau)');
+  bande?.setAttribute('d', $('led-piste').getAttribute('d'));
+  // Ses arêtes éclairées et son reflet montent aussi jusqu'en haut de la piste : le découpage les rogne avec la
+  // bande, sans marche ni encoche à mi-hauteur
+  const [areteG, areteD] = $('led-batterie').querySelectorAll('line');
+  areteG?.setAttribute('y1', '617'); areteG?.setAttribute('stroke', 'url(#gLedArG)');
+  areteD?.setAttribute('y1', '623.3'); areteD?.setAttribute('stroke', 'url(#gLedArD)');
+  const reflet = $('led-batterie').querySelector('rect');
+  reflet?.setAttribute('y', '628'); reflet?.setAttribute('height', '82');
   svg.querySelector('#reperes')?.setAttribute('display', 'none');
   preparerFlux();
 }
@@ -1475,14 +1602,17 @@ function cadrer() {
   if (!W || !H) return;
   const mast = $('masthead');
   const haut = mast.offsetTop + mast.offsetHeight - 6;
-  const ov = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--overlap')) || 50;
-  const bas = ov + 18;                                    // le texte remonte de --overlap px sur le fondu
+  // recouvrement réel du texte sur le bas du héros (--overlap ; 0 quand la barre d'onglets suit le héros)
+  const ov = Math.max(0, Math.min(H / 2, hero.getBoundingClientRect().bottom - $('contenu').getBoundingClientRect().top));
+  const bas = ov + 18;
   const A = W / H;
   let F;
   if (A < 0.9)       F = { x0: 448, x1: 968, y0: 8, y1: 742 };
   else if (A < 1.45) F = { x0: 330, x1: 1040, y0: 0, y1: 748 };
   else               F = { x0: 0, x1: 1179, y0: 0, y1: 756 };
-  const dispo = H - haut - bas;
+  // jamais une vignette : si l'en-tête (texte très agrandi) mange la place, la maison garde au moins 40 % de la
+  // hauteur visible et passe sous l'en-tête plutôt que de rétrécir
+  const dispo = Math.max(H - haut - bas, .4 * (H - bas));
   const s = Math.min(W / (F.x1 - F.x0), dispo / (F.y1 - F.y0));
   const vw = W / s, vh = H / s;
   const cx = (F.x0 + F.x1) / 2;
@@ -1521,8 +1651,8 @@ function preparerFlux() {
   for (const [nom, f] of Object.entries(FLUX)) {
     const src = svg.querySelector('#' + f.id);
     f.src = src; f.len = src.getTotalLength();
-    f.echant = [];                                      // points du tracé tous les 8 unités : obstacles pour les étiquettes
-    for (let l = 0; l <= f.len; l += 8) { const q = src.getPointAtLength(l); f.echant.push([q.x, q.y]); }
+    f.echant = []; f.fin = [];                          // points du tracé tous les 8 / 4 unités : obstacles pour les étiquettes
+    for (let l = 0; l <= f.len; l += 4) { const q = src.getPointAtLength(l); f.fin.push([q.x, q.y]); if (l % 8 === 0) f.echant.push([q.x, q.y]); }
     const d = src.getAttribute('d');
     const g = document.createElementNS(SVGNS, 'g');
     g.setAttribute('class', 'flux flux-' + nom);
@@ -1624,11 +1754,11 @@ function rendreMaison(e, d) {
   // --- ambiance : ciel et teinte selon le moment de la journée
   const ciel = svg.querySelector('#ciel-scene'), teinte = svg.querySelector('#teinte-scene'), extCiel = svg.querySelector('#ext-ciel');
   ciel.innerHTML = ''; teinte.innerHTML = ''; extCiel.innerHTML = '';
-  const R = (fill, mode, op, mask) => `<rect x="-6000" y="-3000" width="13179" height="7000" fill="${fill}" style="mix-blend-mode:${mode}" opacity="${op}"${mask ? ' mask="url(#mFenetres)"' : ''}/>`;
+  const R = (fill, mode, op, mask) => `<rect x="-30000" y="-15000" width="61179" height="31000" fill="${fill}" style="mix-blend-mode:${mode}" opacity="${op}"${mask ? ' mask="url(#mFenetres)"' : ''}/>`;
   if (d.scene === 'doree') {
     // une lueur sur le dessin, une sur le décor prolongé (jamais les deux au même endroit)
     ciel.innerHTML = `<rect x="0" y="0" width="1179" height="779" fill="url(#gSoleilCiel)" style="mix-blend-mode:screen"/>`;
-    extCiel.innerHTML = `<rect x="-6000" y="-3000" width="13179" height="7000" fill="url(#gSoleilCiel)" style="mix-blend-mode:screen"/>`;
+    extCiel.innerHTML = `<rect x="-30000" y="-15000" width="61179" height="31000" fill="url(#gSoleilCiel)" style="mix-blend-mode:screen"/>`;
     teinte.innerHTML = R('url(#gTeinteDoree)', 'soft-light', .42);
   } else if (d.scene === 'aube') {
     teinte.innerHTML = R('url(#gTeinteAube)', 'soft-light', .55);
@@ -1645,11 +1775,12 @@ function rendreMaison(e, d) {
     m.content = soir ? '#232a3c' : m.dataset.jour;
   });
 
-  // --- batterie : la bande LED suit l'état de charge et respire en charge
+  // --- batterie : la bande LED suit l'état de charge et respire en charge.
+  // Elle occupe toute la vitre du flanc (bas 718 → haut 617) : 91 % se lit presque plein, 45 % à mi-hauteur.
   const soc = Math.max(0, Math.min(100, i.batterie_pct)) / 100;
   const r = $('soc-rect');
-  const yHaut = 718 - 62 * soc;
-  r.setAttribute('y', (yHaut - 2).toFixed(1)); r.setAttribute('height', (732 - yHaut).toFixed(1));
+  const yHaut = 718 - 101 * soc;
+  r.setAttribute('y', yHaut.toFixed(1)); r.setAttribute('height', (732 - yHaut).toFixed(1));
   const halo = svg.querySelector('#lueur-led');
   if (halo) halo.style.opacity = (0.25 + .75 * soc).toFixed(2);
   const led = $('led-batterie');
@@ -1676,15 +1807,19 @@ function rendreMaison(e, d) {
     (allumees.length ? `. Lumière allumée dans ${allumees.join(', ')}.` : '.'));
 
   // --- annotations : ancres en coordonnées du dessin, positions candidates par ordre de préférence
+  // « mot » : le premier mot de la valeur (« vente », « lever »), qui passe sous le chiffre dans la variante étroite
   const battVal = b > 0.02 ? `charge ${kW(b)}${NBSP}kW` : b < -0.02 ? `décharge ${kW(-b)}${NBSP}kW` : 'au repos';
-  const soleilVal = d.soleil ? `${kW(i.production)}${NBSP}kW`
-    : d.moment === 'jour' ? 'au repos' : `lever ${heureTxt(d.h > d.coucher ? hDe(e.soleil.lever_demain) : d.lever)}`;
+  const soleil = d.soleil ? { v: `${kW(i.production)}${NBSP}kW` }
+    : d.moment === 'jour' ? { v: 'au repos' } : { mot: 'lever', v: heureTxt(d.h > d.coucher ? hDe(e.soleil.lever_demain) : d.lever) };
+  const reseau = rs < -0.02 ? { mot: 'vente', v: `${kW(rs)}${NBSP}kW` } : rs > 0.02 ? { mot: 'achat', v: `${kW(rs)}${NBSP}kW` } : { v: 'au repos' };
+  // cote : colonne préférée quand les étiquettes se rangent de part et d'autre de la maison (héros très bas)
   NOTES = [
-    { k: 'Soleil', c: 'var(--c-sun)', v: soleilVal, ax: 612, ay: 176, pos: ['n', 'w', 's'] },
-    { k: 'Maison', c: 'var(--c-home)', v: `${kW(i.maison)}${NBSP}kW`, ax: 760, ay: 352, pos: ['w', 'n', 'e'] },
-    { k: 'Batterie', c: 'var(--c-batt)', v: `${pct(i.batterie_pct)}${NNBSP}%`, s: battVal, ax: 556, ay: 612, pos: ['n', 'w', 'e'] },
+    // soi : la pièce ou la gaine que l'étiquette commente (elle peut la frôler, pas les autres)
+    { k: 'Soleil', c: 'var(--c-sun)', ...soleil, ax: 612, ay: 176, pos: ['n', 'w', 's'], cote: 'W', soi: ['pv'] },
+    { k: 'Maison', c: 'var(--c-home)', v: `${kW(i.maison)}${NBSP}kW`, ax: 760, ay: 352, pos: ['w', 'n', 'e'], cote: 'E', soi: ['lucarne'] },
+    { k: 'Batterie', c: 'var(--c-batt)', v: `${pct(i.batterie_pct)}${NNBSP}%`, s: battVal, ax: 556, ay: 612, pos: ['n', 'w', 'e'], cote: 'W', soi: ['batterie'] },
     // ancre plus loin sur la tranchée : l'étiquette (étroite : « Réseau » / « vente 0,36 kW ») laisse voir la gaine
-    { k: 'Réseau', c: 'var(--c-grid)', v: rs < -0.02 ? `vente ${kW(rs)}${NBSP}kW` : rs > 0.02 ? `achat ${kW(rs)}${NBSP}kW` : 'au repos', ax: 880, ay: 733, pos: ['n', 'e', 'w', 'nn', 's'] }
+    { k: 'Réseau', c: 'var(--c-grid)', ...reseau, ax: 880, ay: 733, pos: ['n', 'e', 'w', 'nn', 's'], cote: 'E', soi: ['sol'] }
   ];
   placerNotes();
 }
@@ -1734,6 +1869,10 @@ const A_EVITER = [   // [x0, y0, x1, y1, poids] en coordonnées du dessin
   [654, 560, 668, 692, .7], [606, 676, 668, 696, .7],                            // batterie
   [748, 578, 763, 672, .7], [760, 664, 925, 758, .35]                            // réseau, tranchée
 ];
+const MARGE = 6;                            // dégagement minimal (px) entre une étiquette et les pièces ou gaines du dessin
+const PIECES = { coffret: [728, 490, 790, 586], coffret2: [643, 535, 676, 570], batterie: [494, 598, 614, 722] };
+const MAISON_BOITE = [60, 20, 1110, 750];   // emprise de la maison dessinée (héros très bas : les étiquettes se rangent à côté)
+let observateur = null;                      // ResizeObserver du héros, de l'en-tête et des étiquettes (voir DÉMARRAGE)
 function placerNotes() {
   if (!CADRE || !NOTES.length) return;
   const { x0, y0, s, W, H, haut, bas, ov } = CADRE;
@@ -1742,62 +1881,145 @@ function placerNotes() {
   lead.setAttribute('viewBox', `0 0 ${W} ${H}`);
   if (notes.querySelectorAll('.note').length !== NOTES.length) {
     notes.innerHTML = NOTES.map(() => '<span class="ancre"></span><div class="note"><span class="note-k"><i></i><span></span></span><span class="note-v"></span></div>').join('');
+    notes.querySelectorAll('.note').forEach(el => observateur?.observe(el));   // texte agrandi ou espacé : on replace
   }
   const els = notes.querySelectorAll('.note'), ancres = notes.querySelectorAll('.ancre');
   const k0 = Math.max(.75, Math.min(1.2, s / .66));
   const L = 26 * k0;                                         // longueur du filet
   const pts = NOTES.map(n => ({ x: (n.ax - x0) * s, y: (n.ay - y0) * s }));
+  // les étiquettes respectent la gouttière de la page (16 ou 20 px, encoches comprises), comme la marque
+  const gout = parseFloat(getComputedStyle($('contenu')).paddingLeft) || 20;
   // héros très court : les étiquettes peuvent descendre dans le haut du fondu (jamais sous le texte)
-  const zone = { l: 10, r: W - 10, t: haut + 4, b: court ? H - ov - 10 : H - bas - 4 };
+  const zone = { l: gout, r: W - gout, t: haut + 4, b: court ? H - ov - 10 : H - bas - 4 };
+  const maison = { l: (MAISON_BOITE[0] - x0) * s, t: (MAISON_BOITE[1] - y0) * s, r: (MAISON_BOITE[2] - x0) * s, b: (MAISON_BOITE[3] - y0) * s };
   // flux actifs = obstacles : une étiquette ne doit pas cacher le trajet d'une impulsion
   const fluxPts = Object.values(FLUX).filter(f => f.g && !f.g.hasAttribute('display') && f.echant)
     .map(f => f.echant.map(([x, y]) => [(x - x0) * s, (y - y0) * s]));
+  // obstacles « durs » : coffrets, batterie et toutes les gaines (actives ou au repos), gonflés d'une marge à
+  // l'écran ; une place qui les touche n'est retenue que si aucune autre ne convient
+  const pieces = Object.entries(PIECES).map(([nom, [zx0, zy0, zx1, zy1]]) =>
+    ({ nom, l: (zx0 - x0) * s, t: (zy0 - y0) * s, r: (zx1 - x0) * s, b: (zy1 - y0) * s }));
+  const gaines = Object.entries(FLUX).filter(([, f]) => f.fin).map(([nom, f]) => {
+    const pts = f.fin.map(([x, y]) => [(x - x0) * s, (y - y0) * s]), paquets = [];
+    for (let k = 0; k < pts.length; k += 10) {                // paquets de points et leur boîte : on saute les lointains
+      const q = pts.slice(k, k + 11), xs = q.map(v => v[0]), ys = q.map(v => v[1]);
+      paquets.push({ pts: q, l: Math.min(...xs), r: Math.max(...xs), t: Math.min(...ys), b: Math.max(...ys) });
+    }
+    return { nom, paquets, hw: (f.g && !f.g.hasAttribute('display') ? 5 : 3.2) * s };   // demi-largeur : halo et chevrons d'un flux actif, gaine seule sinon
+  });
+  // distance (px) d'un point ou d'une boîte à l'étiquette, négative quand ils se chevauchent
+  const ecartPt = (box, px, py) => {
+    const dx = Math.max(box.l - px, px - box.r), dy = Math.max(box.t - py, py - box.b);
+    return dx > 0 || dy > 0 ? Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) : Math.max(dx, dy);
+  };
+  const ecartBoite = (box, z) => {
+    const dx = Math.max(z.l - box.r, box.l - z.r), dy = Math.max(z.t - box.b, box.t - z.b);
+    return dx > 0 || dy > 0 ? Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) : Math.max(dx, dy);
+  };
+  const ecarts = box => {                                    // [obstacle, distance] ; au-delà de MARGE, la valeur exacte importe peu
+    const out = pieces.map(z => [z.nom, ecartBoite(box, z)]);
+    for (const g of gaines) {
+      let m = Infinity;
+      for (const c of g.paquets) {
+        if (ecartBoite(box, c) - g.hw >= Math.min(m, MARGE)) continue;
+        for (const [px, py] of c.pts) m = Math.min(m, ecartPt(box, px, py) - g.hw);
+      }
+      out.push([g.nom, m]);
+    }
+    return out;
+  };
   const boites = [];
   let svgOut = '';
   NOTES.forEach((n, k) => {
     const el = els[k], an = ancres[k];
     el.style.setProperty('--c', n.c); an.style.setProperty('--c', n.c); an.style.setProperty('--d', `${k * .7}s`);
     el.querySelector('.note-k span').textContent = n.k;
-    el.querySelector('.note-v').innerHTML = `<span>${n.v}</span>` + (n.s ? `<span class="note-s">${n.s}</span>` : '');
-    const w = el.offsetWidth, h = el.offsetHeight, a = pts[k];
-    const ancreVisible = a.x > 8 && a.x < W - 8 && a.y > zone.t && a.y < H - 24;
-    // positions candidates : au-dessus / en dessous (glissées latéralement), à gauche / à droite
-    const cands = [];
-    const glisse = (l0, l1, t, rang) => { for (let k = 0; k <= 6; k++) cands.push({ l: l0 + (l1 - l0) * k / 6, t, rang, ecart: Math.abs(k - 3) / 3 }); };
-    const vertical = (t0, t1, l, rang) => { for (let k = 0; k <= 4; k++) cands.push({ l, t: t0 + (t1 - t0) * k / 4, rang, ecart: Math.abs(k - 2) / 2 }); };
-    const positions = court ? [...new Set([...n.pos, 'e', 'w', 's', 'n'])] : n.pos;
-    positions.forEach((p, rang) => {
-      if (p === 'n') glisse(a.x - w + 16, a.x - 16, a.y - L - h, rang);
-      if (p === 'nn') glisse(a.x - w + 16, a.x - 16, a.y - 2.2 * L - h, rang);   // filet plus long : passe au-dessus d'une gaine
-      if (p === 's') glisse(a.x - w + 16, a.x - 16, a.y + L, rang);
-      if (p === 'w') vertical(a.y - h + 10, a.y - 10, a.x - L - w, rang);
-      if (p === 'e') vertical(a.y - h + 10, a.y - 10, a.x + L, rang);
-    });
-    let choix = null, meilleur = Infinity;
-    if (ancreVisible) for (const c of cands) {
-      const l = Math.max(zone.l, Math.min(zone.r - w, c.l)), t = c.t;
-      if (t < zone.t || t + h > zone.b) continue;
-      const box = { l, r: l + w, t, b: t + h };
-      if (boites.some(o => box.l < o.r + 8 && box.r > o.l - 8 && box.t < o.b + 8 && box.b > o.t - 8)) continue;
-      if (pts.some(q => q.x > box.l - 8 && q.x < box.r + 8 && q.y > box.t - 8 && q.y < box.b + 8)) continue;
-      let gene = 0;
-      for (const [zx0, zy0, zx1, zy1, poids] of A_EVITER) {
-        const ox = Math.min(box.r, (zx1 - x0) * s) - Math.max(box.l, (zx0 - x0) * s);
-        const oy = Math.min(box.b, (zy1 - y0) * s) - Math.max(box.t, (zy0 - y0) * s);
-        if (ox > 0 && oy > 0) gene += poids * ox * oy / (w * h);
+    el.querySelector('.note-v').innerHTML = (n.mot ? `<span class="nv-mot">${n.mot} </span>` : '') + `<span class="nv-val">${n.v}</span>` + (n.s ? `<span class="note-s">${n.s}</span>` : '');
+    el.style.display = '';                                   // mesurable même si elle était masquée au cadrage précédent
+    const a = pts[k];
+    const ancreVisible = a.x > 8 && a.x < W - 8 && a.y > zone.t && a.y < H - (ov ? 24 : 14);
+    // Meilleure place pour une taille d'étiquette donnée.
+    // Positions candidates : au-dessus / en dessous (glissées latéralement), à gauche / à droite ; héros très bas :
+    // d'abord en colonne à côté de la maison (W, E), pour ne pas la recouvrir.
+    const meilleure = (w, h) => {
+      // secours, quand les places usuelles frôlent une pièce ou une gaine (ou n'ont qu'un filet très long) :
+      // filet un peu plus court ou plus long (place étroite entre deux gaines), étiquette glissée presque à son coin
+      const candidats = secours => {
+        const cands = [];
+        const glisse = (l0, l1, t, rang, pen = 0, milieu = !secours) => {
+          if (milieu) for (let k = 0; k <= 6; k++) cands.push({ l: l0 + (l1 - l0) * k / 6, t, rang, ecart: Math.abs(k - 3) / 3 + pen });
+          if (secours) cands.push({ l: l0 - 6, t, rang, ecart: 1.25 + pen }, { l: l1 + 6, t, rang, ecart: 1.25 + pen });
+        };
+        const vertical = (t0, t1, l, rang) => { if (!secours) for (let k = 0; k <= 4; k++) cands.push({ l, t: t0 + (t1 - t0) * k / 4, rang, ecart: Math.abs(k - 2) / 2 }); };
+        const positions = court ? [...new Set([n.cote, n.cote === 'W' ? 'E' : 'W', ...n.pos, 'e', 'w', 's', 'n'])] : n.pos;
+        positions.forEach((p, rang) => {
+          if (p === 'n') glisse(a.x - w + 16, a.x - 16, a.y - L - h, rang);
+          if (p === 'n' && secours) [.85, .7, 1.15, 1.3].forEach((m, j) => glisse(a.x - w + 16, a.x - 16, a.y - m * L - h, rang, 3.5 + j * .5, true));
+          if (p === 'nn') glisse(a.x - w + 16, a.x - 16, a.y - 2.2 * L - h, rang);   // filet plus long : passe au-dessus d'une gaine
+          if (p === 'nn' && secours) [1.6, 1.9].forEach((m, j) => glisse(a.x - w + 16, a.x - 16, a.y - m * L - h, rang, 1 + j * .5, true));
+          if (p === 's') glisse(a.x - w + 16, a.x - 16, a.y + L, rang);
+          if (p === 'w') vertical(a.y - h + 10, a.y - 10, a.x - L - w, rang);
+          if (p === 'e') vertical(a.y - h + 10, a.y - 10, a.x + L, rang);
+          if (p === 'W') vertical(a.y - h + 6, a.y - 6, maison.l - 14 - w, rang);
+          if (p === 'E') vertical(a.y - h + 6, a.y - 6, maison.r + 14, rang);
+        });
+        return cands;
+      };
+      let choix = null, meilleur = Infinity;
+      const essayer = cands => { for (const c of cands) {
+        const l = Math.max(zone.l, Math.min(zone.r - w, c.l)), t = c.t;
+        if (l + w > zone.r + .5 || t < zone.t || t + h > zone.b) continue;   // plus large que la zone : pas de place
+        const box = { l, r: l + w, t, b: t + h };
+        if (boites.some(o => box.l < o.r + 8 && box.r > o.l - 8 && box.t < o.b + 8 && box.b > o.t - 8)) continue;
+        if (pts.some(q => q.x > box.l - 8 && q.x < box.r + 8 && q.y > box.t - 8 && q.y < box.b + 8)) continue;
+        // trop près d'une pièce ou d'une gaine : dernier recours ; posée dessus : pire encore
+        let gene = 0, sur = false;
+        const ec = ecarts(box), nb = d => ec.filter(([, e]) => e < d).length;
+        const dur = nb(MARGE);
+        if (dur) {
+          const contact = nb(1.5);
+          if (contact) gene += 10 + contact + 5 * nb(-2);       // posée dessus : pire encore
+          gene += 10 + dur;
+          sur = ec.some(([nom, e]) => e < 1.5 && !n.soi.includes(nom));   // touche une pièce ou une gaine qu'elle ne commente pas
+        }
+        for (const [zx0, zy0, zx1, zy1, poids] of A_EVITER) {
+          const ox = Math.min(box.r, (zx1 - x0) * s) - Math.max(box.l, (zx0 - x0) * s);
+          const oy = Math.min(box.b, (zy1 - y0) * s) - Math.max(box.t, (zy0 - y0) * s);
+          if (ox > 0 && oy > 0) gene += poids * ox * oy / (w * h);
+        }
+        // chaque point de gaine caché pèse lourd ; au-delà de 10 % d'un flux, la place n'est retenue qu'en dernier recours
+        for (const pts of fluxPts) {
+          let nb = 0;
+          for (const [px, py] of pts) if (px > box.l - 3 && px < box.r + 3 && py > box.t - 3 && py < box.b + 3) nb++;
+          if (nb) gene += nb * .12 + (nb > pts.length * .1 ? 5 : 0);
+        }
+        if (court) {                                         // héros très bas : la maison est petite, ne pas la couvrir
+          const ox = Math.min(box.r, maison.r) - Math.max(box.l, maison.l), oy = Math.min(box.b, maison.b) - Math.max(box.t, maison.t);
+          if (ox > 0 && oy > 0) gene += .6 * ox * oy / (w * h);
+        }
+        const score = gene + c.rang * .06 + c.ecart * .02 + Math.abs(l - c.l) / w * .1;
+        if (score < meilleur) { meilleur = score; choix = box; choix.sur = sur; }
+      } };
+      if (ancreVisible) {
+        essayer(candidats(false));
+        if (meilleur > .15) essayer(candidats(true));         // places usuelles gênées ou lointaines (filet long)
       }
-      // chaque point de gaine caché pèse lourd ; au-delà de 10 % d'un flux, la place n'est retenue qu'en dernier recours
-      for (const pts of fluxPts) {
-        let nb = 0;
-        for (const [px, py] of pts) if (px > box.l - 3 && px < box.r + 3 && py > box.t - 3 && py < box.b + 3) nb++;
-        if (nb) gene += nb * .12 + (nb > pts.length * .1 ? 5 : 0);
-      }
-      const score = gene + c.rang * .06 + c.ecart * .02 + Math.abs(l - c.l) / w * .1;
-      if (score < meilleur) { meilleur = score; choix = box; }
+      return { choix, score: meilleur };
+    };
+    // forme normale, puis forme étroite (« vente » sous le chiffre, sans sous-ligne) si elle dégage mieux le dessin
+    el.classList.remove('compact');
+    let { choix, score } = meilleure(el.offsetWidth, el.offsetHeight);
+    if ((n.mot || n.s) && score > .05) {
+      el.classList.add('compact');
+      const etroite = meilleure(el.offsetWidth, el.offsetHeight);
+      if (etroite.score + .05 < score) ({ choix, score } = etroite);
+      else el.classList.remove('compact');
     }
-    if (!choix) { el.style.display = 'none'; an.style.display = 'none'; return; }
+    // pas de place, ou héros bas où la seule place touche une autre pièce ou gaine : l'étiquette s'efface
+    // (l'état reste dit dans le texte sous le héros) plutôt que de masquer le dessin
+    if (!choix || (choix.sur && H < 500)) { el.style.display = 'none'; an.style.display = 'none'; return; }
     boites.push(choix);
-    el.style.display = ''; an.style.display = '';
+    an.style.display = '';
     el.style.transform = `translate(${choix.l.toFixed(1)}px, ${choix.t.toFixed(1)}px)`;
     an.style.transform = `translate(${a.x.toFixed(1)}px, ${a.y.toFixed(1)}px)`;
     requestAnimationFrame(() => el.classList.add('pret'));
@@ -1853,8 +2075,11 @@ window.Breezy = {
   actualiser(nouvel) { etat = nouvel; rendre(etat); }
 };
 
+/* Recadrage quand le héros change de taille, mais aussi quand l'en-tête ou une étiquette change de taille sans lui :
+   taille du texte ou espacement du texte modifiés après le chargement (réglage du navigateur, extension) */
 let rz = 0;
-new ResizeObserver(() => { cancelAnimationFrame(rz); rz = requestAnimationFrame(cadrer); }).observe($('hero'));
+observateur = new ResizeObserver(() => { cancelAnimationFrame(rz); rz = requestAnimationFrame(cadrer); });
+[$('hero'), $('masthead'), ...document.querySelectorAll('#notes .note')].forEach(el => observateur.observe(el));
 let largeurCourbe = $('chart-svg').clientWidth;
 new ResizeObserver(() => { const w = $('chart-svg').clientWidth; if (Math.abs(w - largeurCourbe) > 2) { largeurCourbe = w; rendreCourbe(etat, deriver(etat)); } }).observe($('chart-svg'));
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { cadrer(); });
