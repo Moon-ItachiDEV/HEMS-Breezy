@@ -4,7 +4,7 @@
 
 Breezy HEMS s'installe comme un panneau de Home Assistant, avec tes vraies données (la démo reste disponible à part).
 
-1. Dézippe `breezy-installation.zip` (envoyé en pièce jointe avec le guide ; sinon fabriqué dans `dist/` par `python3 scripts/build-ha.py`, le dossier `dist/` n'étant pas dans le dépôt) : tu obtiens un dossier `breezy`.
+1. Dézippe `breezy-installation.zip` (dans le dossier [`installation-ha/`](installation-ha/) : [téléchargement direct](https://github.com/Moon-ItachiDEV/HEMS-Breezy/raw/claude/eager-lamport-roaazd/installation-ha/breezy-installation.zip) ; sinon fabriqué dans `dist/` par `python3 scripts/build-ha.py`) : tu obtiens un dossier `breezy`.
 2. Copie-le dans `/config/www/` pour obtenir `/config/www/breezy/breezy-panel.js`.
 3. Ajoute ce bloc dans `configuration.yaml` :
    ```yaml
@@ -22,4 +22,4 @@ Breezy HEMS s'installe comme un panneau de Home Assistant, avec tes vraies donn�
 
 Le guide pas à pas (copie des fichiers, historique, mises à jour, dépannage) : [docs/installation-home-assistant.md](docs/installation-home-assistant.md).
 
-Pour les développeurs : `python3 scripts/build-ha.py` fabrique `dist/breezy/` et les deux zips (installation, mise à jour). La démo (`v3/index.html`, `scripts/build-standalone.py`) n'utilise jamais `v3/ha/`.
+Pour les développeurs : `python3 scripts/build-ha.py` fabrique `dist/breezy/` et les deux zips (installation, mise à jour) ; après un changement, recopie les deux zips dans `installation-ha/`. La démo (`v3/index.html`, `scripts/build-standalone.py`) n'utilise jamais `v3/ha/`.

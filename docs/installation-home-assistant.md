@@ -23,7 +23,7 @@ Compte environ 20 minutes, redémarrage compris.
   - **Studio Code Server** : un éditeur dans le navigateur, avec glisser-déposer ;
   - **File editor** : le plus simple à installer, mais il envoie les fichiers un par un.
 - **Le fichier `breezy-installation.zip`.**
-  - Il t'est envoyé en pièce jointe avec ce guide, avec `breezy-mise-a-jour.zip` (pour les mises à jour, étape 8). Il n'est pas rangé dans le dépôt.
+  - Il est dans le dossier `installation-ha/` du dépôt GitHub, avec `breezy-mise-a-jour.zip` (pour les mises à jour, étape 8). Téléchargement direct : [breezy-installation.zip](https://github.com/Moon-ItachiDEV/HEMS-Breezy/raw/claude/eager-lamport-roaazd/installation-ha/breezy-installation.zip) et [breezy-mise-a-jour.zip](https://github.com/Moon-ItachiDEV/HEMS-Breezy/raw/claude/eager-lamport-roaazd/installation-ha/breezy-mise-a-jour.zip) (connecte-toi à GitHub si le lien demande une connexion).
   - Tu peux aussi le fabriquer depuis le dépôt, sur un ordinateur avec Python 3 : `python3 scripts/build-ha.py`. Les deux zips apparaissent dans le dossier `dist/`.
 
 Le zip contient un dossier `breezy` :
