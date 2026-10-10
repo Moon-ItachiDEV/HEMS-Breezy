@@ -21,11 +21,14 @@ body = re.sub(r'href="#([^"]+)"', r'href="#mh-\1"', body)
 for gone in ('<rect x="0" y="0" width="1179" height="779" fill="url(#mh-gFond)"/>', '<polygon points="0,560 1179,560 1179,779 0,779" fill="url(#mh-gSol)"/>'):
     assert gone in body, gone
     body = body.replace(gone, "", 1)
-# Gaine coffret → garage, dans le même style que les autres gaines
+# Gaines coffret → garage et tranchée → réseau, dans le même style que les autres gaines
+# (au repos, chaque trajet d'énergie se lit comme une gaine grise)
 garage = ('<g id="mh-gaine-garage"><path d="M787,552 L897,537" stroke="#7d7e84" stroke-width="4" opacity="0.4" filter="url(#mh-fFlouG)" transform="translate(1.5 2)"/>'
           '<path d="M787,552 L897,537" stroke="#78797e" stroke-width="6"/><path d="M787,550 L897,535" stroke="#9a9ba0" stroke-width="1" opacity="0.6"/></g>')
 assert '<g id="mh-gaine-sol">' in body
-body = body.replace('<g id="mh-gaine-sol">', garage + '<g id="mh-gaine-sol">', 1)
+tranchee = ('<g id="mh-gaine-tranchee"><path d="M775,679.5 L918,752" stroke="#7d7e84" stroke-width="4" opacity="0.4" filter="url(#mh-fFlouG)" transform="translate(1 2.5)"/>'
+            '<path d="M775,679.5 L918,752" stroke="#78797e" stroke-width="5.6"/><path d="M776,677.6 L919,750.1" stroke="#9a9ba0" stroke-width="1" opacity="0.6"/></g>')
+body = body.replace('<g id="mh-gaine-sol">', garage + tranchee + '<g id="mh-gaine-sol">', 1)
 assert body.count('url(#mh-') > 50 and 'url(#g' not in body and 'url(#f' not in body
 # Contours des panneaux (masque du reflet qui balaie le toit quand le soleil produit)
 pan = body[body.index('<g id="mh-panneaux">'):]

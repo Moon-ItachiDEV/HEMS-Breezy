@@ -17,10 +17,10 @@
   .o-dev .pills { overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--pad)); padding: 0 var(--pad); }
   .o-dev .card-a .more { display: none; }
   .o-dev .dt th:nth-child(2), .o-dev .dt td:nth-child(2), .o-dev .dt th:nth-child(4), .o-dev .dt td:nth-child(4) { display: none; }
-  .o-dev .dt-main small { max-width: 22ch; }
 }
 @media (min-width: 768px) and (max-width: 1199px) { .o-dev .dt th:nth-child(2), .o-dev .dt td:nth-child(2) { display: none; } }
 .o-dev .dt td .icon-btn { width: 34px; height: 34px; margin-right: -8px; }
+.o-dev .dt tbody tr[data-act] { cursor: pointer; }   /* toute la ligne ouvre l'appareil */
 
 /* Répartition : anneau + légende côte à côte */
 .mixr { display: flex; align-items: center; gap: var(--s-6); }
@@ -35,6 +35,7 @@
 .o-roi-t { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); min-width: 0; }
 .o-roi-t h3 { font-size: var(--fs-17); font-weight: 600; letter-spacing: var(--tr-title); line-height: 1.3; }
 .o-roi-t p { font-size: var(--fs-13); color: var(--text-2); line-height: 1.45; }
+.o-roi-t p span { white-space: nowrap; }   /* un montant ou une date ne se coupe pas */
 .o-roi-t .btn { margin-top: var(--s-2); }
 .o-roi-art { width: 100%; height: auto; align-self: center; overflow: visible; }
 .o-roi-m { grid-column: 1 / -1; }
@@ -84,4 +85,88 @@
 @media (max-width: 767px) {
   .o-eq .plist-r { grid-template-columns: auto minmax(0, 1fr) 72px; }
   .o-eq .plist-r > .pill { display: none; }
+}
+
+/* ─── Téléphone : façon application ──────────────────────────────────────
+   Sous la maison : « Aujourd'hui » devient un titre de section (jour, flèches, action de charge), les quatre chiffres
+   du jour sont réunis dans un seul panneau, les listes se lisent en lignes entières cliquables, les titres de carte
+   perdent leur pastille d'icône. */
+@media (max-width: 767px) {
+  .o-ph { margin-bottom: var(--s-2); }
+  .o-ph .ph-a { gap: var(--s-2); }
+  .o-ph .datep { height: 44px; padding: 0 0 0 2px; gap: 6px; background: none; border: 0; box-shadow: none;
+    font-size: var(--fs-17); font-weight: 600; letter-spacing: var(--tr-title); }
+  .o-ph .datep > .ic { display: none; }
+  .o-ph .datep > span { padding-right: 0; }
+  .o-ph .datep button { width: 34px; height: 34px; border-radius: 50%; background: var(--surface); box-shadow: var(--shadow-soft); color: var(--text); }
+  .o-ph .datep button:disabled { opacity: .4; box-shadow: none; background: var(--surface-2); }
+  .o-ph .ph-a > .btn { flex: none; min-height: 40px; padding: 0 16px 0 13px; border-radius: var(--r-pill); }
+  .o-ph .ph-long { display: none; }
+
+  /* Les chiffres du jour : un panneau, quatre cases séparées par de fins traits */
+  .o-kpis { position: relative; gap: 0; grid-auto-rows: 1fr; margin-bottom: var(--gap); border-radius: 20px; background: var(--surface); box-shadow: var(--shadow-soft); overflow: hidden; }
+  .o-kpis::before, .o-kpis::after { content: ""; position: absolute; background: var(--border); pointer-events: none; }
+  .o-kpis::before { left: 50%; top: 16px; bottom: 16px; width: 1px; }
+  .o-kpis::after { top: 50%; left: 16px; right: 16px; height: 1px; }
+  .o-kpis .kpi, .o-kpis a.kpi:hover { border: 0; border-radius: 0; box-shadow: none; background: none; }
+  .o-kpis .kpi { padding: 15px 16px 14px; -webkit-tap-highlight-color: transparent; }
+  .o-kpis a.kpi:active { transform: none; background: var(--hover); }
+  .o-kpis .kpi-i { width: 26px; height: 26px; }
+  .o-kpis .kpi-i .ic { width: 14px; height: 14px; }
+  .o-kpis .kpi-l { font-size: var(--fs-13); color: var(--text-2); }
+  .o-kpis .kpi-v { margin-top: 10px; font-size: 26px; line-height: 1.1; }
+
+  /* Titres de carte : le texte suffit */
+  .o-grid .card-i { display: none; }
+  .o-grid .card { gap: var(--s-3); }
+  .o-grid .card-h { min-height: 28px; }
+
+  /* Mes appareils : une liste, ligne entière cliquable, chevron au bout */
+  /* En-têtes de colonnes : gardés pour les lecteurs d'écran, sans hauteur à l'écran ; colonnes fixes pour que le nom
+     se coupe proprement (…) et que la mesure et le chevron restent visibles, même à 320 px */
+  .o-dev .dt { table-layout: fixed; }
+  .o-dev .dt th { height: 0; padding-top: 0; padding-bottom: 0; border: 0; font-size: 0; line-height: 0; overflow: hidden; }
+  .o-dev .dt :is(th, td):nth-child(3) { width: 78px; padding: 0 4px 0 8px; }
+  .o-dev .dt td:first-child { padding-right: 4px; }
+  .o-dev .dt :is(th, td):last-child { width: calc(28px + var(--pad)); }
+  .o-dev .dt-main small { max-width: none; }
+  .o-dev .dt-wrap { margin-top: calc(-1 * var(--s-1)); margin-bottom: calc(-1 * var(--s-2)); }
+  .o-dev .dt td { height: 64px; border-bottom-color: color-mix(in srgb, var(--border) 80%, transparent); }
+  .o-dev .dt tbody tr { -webkit-tap-highlight-color: transparent; }
+  .o-dev .dt tbody tr:active { background: var(--hover); }
+  .o-dev .dt-ic { width: 40px; height: 40px; border-radius: 12px; }
+  .o-dev .dt-ic .ic { width: 19px; height: 19px; }
+  .o-dev .dt-main { gap: 12px; }
+  .o-dev .dt-main strong { font-size: var(--fs-15); }
+  .o-dev .dt-v { font-size: var(--fs-15); text-align: right; }
+  .o-dev .dt td:last-child { padding-left: 0; }
+  .o-dev .dt td .icon-btn { width: 28px; height: 40px; margin-right: -6px; }
+  .o-dev .dt td .icon-btn .ic { display: none; }
+  .o-dev .dt td .icon-btn::after { content: ""; width: 8px; height: 8px; margin-left: -4px; border: solid var(--text-3); border-width: 2px 2px 0 0; border-radius: 1px; transform: rotate(45deg); }
+
+  /* Réserves */
+  .o-eq .plist-r { padding: 12px 0; }
+  .o-eq .dt-ic { width: 40px; height: 40px; border-radius: 12px; }
+  .o-eq .plist-r strong { font-size: var(--fs-15); }
+
+  /* Raccourcis : de vraies tuiles de commande */
+  .o-ql .qlinks { gap: 10px; grid-auto-rows: auto; }
+  .o-ql .qlink { flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 12px; min-height: 100px; padding: 14px;
+    border: 0; border-radius: 16px; background: var(--surface-2); font-size: var(--fs-14); font-weight: 600; line-height: 1.3; }
+  .o-ql .qlink:hover { background: var(--surface-3); }
+  .o-ql .qlink .dt-ic { width: 36px; height: 36px; border-radius: 50%; background: var(--surface); }
+
+  /* Répartition */
+  .o-mix .mixr { gap: var(--s-5); }
+  .o-mix .donut { --s: 120px !important; }
+}
+@media (max-width: 374px) {
+  .o-dev .dt-ic { width: 34px; height: 34px; border-radius: 10px; }
+  .o-dev .dt-main { gap: 10px; }
+  /* Très petit écran : l'action de charge redevient un bouton rond (son nom reste lu par les lecteurs d'écran) */
+  .o-ph .ph-a > .btn { width: 44px; min-height: 44px; padding: 0; border-radius: 50%; }
+  .o-ph .ph-a > .btn > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .o-ph .datep { font-size: var(--fs-15); }
+  .o-kpis .kpi-i { display: none; }
+  .o-kpis .kpi-l { grid-column: 1 / -1; }
 }

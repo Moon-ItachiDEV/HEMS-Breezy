@@ -66,18 +66,24 @@
 .tabs a[aria-current="page"] .tab-n { background: #fff; color: var(--accent-2); box-shadow: none; }
 .tab-live { position: absolute; top: -2px; right: -4px; width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px var(--surface); animation: ping 2.4s var(--ease) infinite; }
 .tabs a[aria-current="page"] .tab-live { background: #fff; }
-/* Barre du haut mobile : marque + actions, en verre */
+/* Téléphone : pas de barre du haut. La cloche et le profil se posent en haut à droite, sur la ligne du titre de la
+   page, et défilent avec elle (la marque est déjà l'onglet Aperçu du dock). Home Assistant : le bouton de son menu
+   se place à gauche, sur la même ligne, et le titre passe dessous. */
 @media (max-width: 767px) {
-  .top { height: calc(60px + env(safe-area-inset-top, 0px)); padding-top: env(safe-area-inset-top, 0px); top: 0; }
-  /* Focus clavier et défilements « jusqu'à » : l'élément s'arrête entre la barre collante du haut (60 px) et le dock
-     (12 + 64 px), avec 8 px d'air, même s'il était déjà à l'écran mais caché par l'une ou l'autre */
-  html { scroll-padding: calc(68px + env(safe-area-inset-top, 0px)) 0 calc(84px + env(safe-area-inset-bottom, 0px)); }
-  .top-brand .brand-m { width: 32px; height: 32px; border-radius: 10px; }
-  .top-brand .brand-m .ic { width: 18px; height: 18px; }
-  .top-brand .brand-t { font-size: var(--fs-17); }
+  .top { position: absolute; top: 0; left: 0; right: 0; height: auto; align-items: center; padding: calc(16px + env(safe-area-inset-top, 0px)) var(--page-x) 0;
+    background: none; backdrop-filter: none; -webkit-backdrop-filter: none; border: 0; pointer-events: none; }
+  .top > * { pointer-events: auto; }
+  .top-brand { display: none; }
+  .view { padding-top: calc(var(--s-4) + env(safe-area-inset-top, 0px)); }
+  .ph > div:first-child > :nth-child(-n+2) { padding-right: 92px; }   /* la salutation et le titre laissent la place aux deux boutons */
+  :root[data-ha-menu] .view { padding-top: calc(64px + env(safe-area-inset-top, 0px)); }
+  :root[data-ha-menu] .ph > div:first-child > :nth-child(-n+2) { padding-right: 0; }
+  /* Focus clavier et défilements « jusqu'à » : l'élément s'arrête au-dessus du dock (12 + 64 px), avec 8 px d'air */
+  html { scroll-padding: calc(12px + env(safe-area-inset-top, 0px)) 0 calc(84px + env(safe-area-inset-bottom, 0px)); }
   .top .me { padding: 0; margin-left: var(--s-1); }
   .top .me > .ic { display: none; }
-  .top .icon-btn { width: 38px; height: 38px; }
+  .top .icon-btn { width: 40px; height: 40px; border-radius: 50%; }
+  .top .icon-btn .dot { box-shadow: 0 0 0 2px var(--bg); }
 }
 
 /* ─── Barre latérale ──────────────────────────────────────────────────── */
@@ -211,9 +217,6 @@
   .ph-a { flex-wrap: nowrap; gap: var(--s-2); }
   .ph-a > .datep { flex: 1; min-width: 0; }
   .ph-a > .datep > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  /* Action principale : bouton rond à côté du sélecteur (le libellé reste lu par les lecteurs d'écran) */
-  .ph-a > .datep + .btn { flex: none; width: 44px; padding: 0; border-radius: 50%; }
-  .ph-a > .datep + .btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .ph-a > .pills { flex: 1; }
   .ph-a > .pills button { flex: 1; justify-content: center; }
 }

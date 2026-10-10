@@ -45,14 +45,16 @@
   }
 
   /* ─── Le chemin de l'énergie, en deux temps, sur un rythme commun ─────
-     1. Les sources (soleil, réseau quand tu achètes, batterie quand elle se décharge) envoient chacune un paquet
-        d'énergie vers le coffret ; tous y arrivent au même instant, le coffret s'illumine.
-     2. Le coffret redistribue : un paquet part vers chaque destination (maison, batterie qui charge, voiture,
-        réseau quand tu revends) et arrive avec un éclat.
-     La taille et l'éclat d'un paquet suivent sa part de l'énergie ; le rythme s'accélère avec la puissance totale.
+     Au repos, un trajet n'est que sa gaine grise (celle du dessin). Quand l'énergie passe, sa couleur parcourt
+     la gaine de bout en bout, tête lumineuse devant, puis la quitte par l'autre bout : le trajet redevient gris.
+     1. Les sources (soleil, réseau quand tu achètes, batterie quand elle se décharge) partent chacune de leur bout
+        vers le coffret ; toutes y arrivent au même instant, le coffret s'illumine.
+     2. Le coffret redistribue : la couleur repart vers chaque destination (maison, batterie qui charge, voiture,
+        réseau quand tu revends) et y arrive avec un éclat.
+     L'épaisseur et l'éclat suivent la part de l'énergie ; le rythme s'accélère avec la puissance totale.
      Le rythme reste sur un palier tant que la puissance bouge peu (relevés toutes les 5 s) : rien ne saute. */
   const HUB = [760, 538];
-  const PERIODS = [[0, 4.6], [400, 4], [1200, 3.4], [2800, 2.9], [5000, 2.5]];   // W au total → secondes par cycle
+  const PERIODS = [[0, 6], [400, 5.4], [1200, 4.8], [2800, 4.3], [5000, 3.8]];   // W au total → secondes par cycle
   const pick = (tab, w) => tab.reduce((a, [t, v]) => (w >= t ? v : a), tab[0][1]);
   let pace = null;
   function period(total) {
@@ -81,14 +83,14 @@
     // Les trajets sont décrits depuis le coffret (sauf le soleil) : une source les parcourt vers le coffret
     const out = ROUTES[x.k], pts = x.k === "sun" ? out : x.src ? out.slice().reverse() : out;
     const d = dOf(pts), m = mid(pts), far = x.src ? pts[0] : pts[pts.length - 1];
-    // Paquet : traîne de 20 à 46 % du trajet selon sa part, cœur blanc à l'avant
-    const L = r1(20 + 26 * Math.sqrt(x.share)), Lc = r1(Math.max(5, L * 0.3)), k = (0.7 + 0.7 * Math.sqrt(x.share)).toFixed(2);
-    const seg = (cls, len) => h`<path class="${cls}" d="${d}" pathLength="100" stroke-dasharray="${len} 400" style="--a:${len};--b:${r1(len - 100 - L)}"/>`;
+    const len = pts.reduce((a, p, i) => (i ? a + Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) : 0), 0);
+    // Tête : environ 26 unités du dessin (halo : 60), quelle que soit la longueur du trajet ; épaisseur selon la part
+    const Lh = r1(BZ.clamp(2600 / len, 4, 26)), Lg = r1(BZ.clamp(6000 / len, 9, 50)), k = (0.75 + 0.6 * Math.sqrt(x.share)).toFixed(2);
+    const head = (cls, len) => h`<path class="${cls}" d="${d}" pathLength="100" stroke-dasharray="${len} 400" style="--a:${len}"/>`;
     return h`<g class="mh-ln mh-l-${x.k}" data-tone="${x.tone}" data-on="${x.on ? 1 : 0}" data-role="${x.src ? "src" : "snk"}" style="--k:${k};--i:${(0.45 + 0.55 * x.share).toFixed(2)}">
-      <path class="mh-tube" d="${d}" filter="url(#mh-fx-blur)"/>
-      <path class="mh-core" d="${d}"/>
+      <path class="mh-glow" d="${d}" pathLength="100" filter="url(#mh-fx-blur)"/>
       <path class="mh-fill" d="${d}" pathLength="100"/>
-      ${seg("mh-halo", L)}${seg("mh-body", L)}${seg("mh-head", Lc)}
+      ${head("mh-halo", Lg)}${head("mh-head", Lh)}
       <g class="mh-hit" transform="translate(${far[0]} ${far[1]})"><circle class="mh-ring" r="16"/><circle class="mh-spark" r="6"/></g>
       <path class="mh-arrow" d="M-8,-8L3,0L-8,8" transform="translate(${m.x} ${m.y}) rotate(${m.a})"/>
     </g>`;

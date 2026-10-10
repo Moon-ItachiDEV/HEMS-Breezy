@@ -18,21 +18,22 @@
       : V.loading ? "Chargement de l'historique…"   // Home Assistant : la journée arrive des statistiques
       : `Voici le bilan du ${fmt.date(V.date, { weekday: "long", day: "numeric", month: "long" })}.`;
     const dateLabel = V.isToday ? `Aujourd'hui, ${fmt.date(V.date, { day: "numeric", month: "short" })}` : fmt.cap(fmt.date(V.date, { weekday: "short", day: "numeric", month: "short", year: "numeric" }));
-    return h`<header class="ph">
+    return h`<header class="ph o-ph">
       <div><p class="ph-hi">${hello}</p><h1>${BZ.esc(BZ.user)}<span class="wave" aria-hidden="true">👋</span></h1><p class="ph-sub">${status}</p></div>
       ${BZ.hero()}
       <div class="ph-a">
         <div class="datep" role="group" aria-label="Journée affichée">${icon("calendar")}<span aria-live="polite">${dateLabel}</span>
           <button type="button" data-act="day" data-d="-1" aria-label="Jour précédent" ${V.offset <= -29 || (BZ.hist && BZ.hist.has("energie") === false) ? "disabled" : ""}>${icon("left")}</button>
           <button type="button" data-act="day" data-d="1" aria-label="Jour suivant" ${V.isToday ? "disabled" : ""}>${icon("chevron")}</button></div>
-        ${btn({ label: L.charging ? "Arrêter la charge" : "Charger l'e-Niro", ic: L.charging ? "pause" : "bolt", act: "car-charge", kind: "primary", disabled: !L.plugged, pending: BZ.isPending(C.voiture_en_charge) })}
+        ${btn({ label: L.charging ? h`Arrêter<span class="ph-long"> la charge</span>` : h`Charger<span class="ph-long"> l'e-Niro</span>`, aria: L.charging ? "Arrêter la charge" : "Charger l'e-Niro",
+          ic: L.charging ? "pause" : "bolt", act: "car-charge", kind: "primary", disabled: !L.plugged, pending: BZ.isPending(C.voiture_en_charge) })}
       </div></header>`;
   }
 
   function kpis(V) {
     // Home Assistant : aujourd'hui jusqu'à maintenant contre hier à la même heure (le dire)
     const c = V.cur, p = V.prev, vs = V.isToday ? (V.sameHour ? `vs hier à ${fmt.time(new Date())}` : "vs hier") : "vs veille", wk = (f) => V.week.map(f);
-    return h`<div class="kpis">
+    return h`<div class="kpis o-kpis">
       ${kpi({ label: "Production solaire", ic: "sun", tone: "solar", value: val(fmt.kwh(c.prod)), delta: delta(c.prod, p.prod), vs, spark: BZ.spark(wk((d) => d.prod), "solar"), to: "energy" })}
       ${kpi({ label: "Consommation", ic: "home", tone: "battery", value: val(fmt.kwh(c.cons)), delta: delta(c.cons, p.cons, { invert: true }), vs, spark: BZ.spark(wk((d) => d.cons), "battery"), to: "insights" })}
       ${kpi({ label: "Autosuffisance", ic: "leaf", tone: "good", value: val([fmt.n(V.autonomy * 100), "%"]), delta: delta(V.autonomy, V.prevAutonomy, { unit: "pts" }), vs, spark: BZ.spark(V.autWeek, "good"), to: "insights" })}
@@ -43,12 +44,13 @@
   function devicesCard() {
     const f = BZ.ui.devFilter, all = BZ.deviceRows();
     const rows = all.filter((r) => f === "all" || r.cat === f);
+    // Toute la ligne s'ouvre au clic (au clavier : son bouton)
     const go = (r) => (r.sheet ? `data-act="open-sheet" data-sheet="${r.sheet}"` : `data-act="nav" data-to="${r.to}"`);
     return card({ cls: "o-dev", title: "Mes appareils", ic: "plug", tone: "accent", link: { label: "Voir la maison", to: "home" },
       aside: pills({ name: "devFilter", label: "Filtrer les appareils", value: f, options: [["all", "Tous"], ["energy", "Énergie"], ["heat", "Chauffage"], ["home", "Maison"]] }),
       body: h`<div class="dt-wrap"><table class="dt">
         <thead><tr><th scope="col">Appareil</th><th scope="col">Type</th><th scope="col">Mesure</th><th scope="col">Statut</th><th scope="col"><span class="sr">Ouvrir</span></th></tr></thead>
-        <tbody>${rows.map((r) => h`<tr data-key="${r.k}">
+        <tbody>${rows.map((r) => h`<tr data-key="${r.k}" ${go(r)}>
           <td><div class="dt-main"><span class="dt-ic" data-tone="${r.tone}">${icon(r.ic)}</span><div><strong>${r.name}</strong><small>${r.sub}</small></div></div></td>
           <td>${pill(r.type[0], r.type[1])}</td>
           <td class="dt-v">${r.value}</td>
@@ -122,7 +124,7 @@
     return h`<section class="card o-roi">
       <div class="o-roi-t">
         <h3>Ton installation est rentabilisée à ${fmt.n(R.progress * 100)} %</h3>
-        <p>${fmt.eur(R.total, 0)} économisés sur ${fmt.eur(R.inv, 0)}. Remboursée vers ${fmt.date(R.payback, { month: "long", year: "numeric" })} au rythme actuel.</p>
+        <p><span>${fmt.eur(R.total, 0)}</span> économisés sur <span>${fmt.eur(R.inv, 0)}</span>. Remboursée vers <span>${fmt.date(R.payback, { month: "long", year: "numeric" })}</span> au rythme actuel.</p>
         <a class="btn btn-primary btn-sm" href="${BZ.href("insights")}"><span>Voir le bilan</span>${icon("arrow")}</a>
       </div>
       <svg class="o-roi-art" viewBox="0 0 160 120" aria-hidden="true">

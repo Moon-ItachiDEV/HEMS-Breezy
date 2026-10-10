@@ -9,12 +9,12 @@ html, body { min-height: 100%; }
 :root[data-ha-menu] .ha-menu { display: grid; flex: none; margin-left: calc(-1 * var(--s-2)); }
 
 /* ─── Hors ligne : les valeurs restent (dernières connues), une pastille le signale ─
-   Téléphone étroit (≤ 400 px) : un simple point, pour que la barre du haut ne déborde pas */
+   Téléphone : un simple point à côté de la cloche, pour ne pas empiéter sur le titre de la page */
 :root[data-ha-offline] .top-a::before {
   content: "Hors ligne"; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; margin-right: var(--s-1);
   border-radius: 7px; font-size: var(--fs-12); font-weight: 600; white-space: nowrap; color: var(--warn-t); background: var(--warn-s);
 }
-@media (max-width: 400px) {
+@media (max-width: 767px) {
   /* le point garde « Hors ligne » comme texte de remplacement pour les lecteurs d'écran (sans support : un simple point) */
   :root[data-ha-offline] .top-a::before { content: ""; content: "" / "Hors ligne"; width: 10px; height: 10px; padding: 0; border-radius: 50%; background: var(--warn-t); flex: none; }
 }
@@ -26,6 +26,8 @@ html, body { min-height: 100%; }
   animation: bz-hist 1.2s linear infinite;
 }
 @keyframes bz-hist { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+/* Téléphone (pas de barre du haut) : le trait court en haut de l'écran */
+@media (max-width: 767px) { :root[data-hist-loading] .top::after { top: env(safe-area-inset-top, 0px); bottom: auto; } }
 @media (prefers-reduced-motion: reduce) { :root[data-hist-loading] .top::after { animation: none; background-size: 100% 100%; opacity: .5; } }
 .ha-hint { margin: var(--s-2) 0 0; font-size: var(--fs-13); color: var(--text-3); }
 

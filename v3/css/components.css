@@ -41,6 +41,10 @@ ul, ol { list-style: none; margin: 0; padding: 0; }
 .card-t h3 { font-size: var(--fs-17); font-weight: 600; letter-spacing: var(--tr-title); line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-t p { font-size: var(--fs-13); color: var(--text-3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-a { margin-left: auto; display: flex; align-items: center; gap: var(--s-3); flex: none; }
+/* Téléphone : cartes d'application, sans bordure, plus arrondies, posées sur une ombre douce */
+@media (max-width: 767px) {
+  .card, .kpi { border-color: transparent; border-radius: 20px; box-shadow: var(--shadow-soft); }
+}
 
 /* Lien « Voir tout → » */
 .more { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-13); font-weight: 500; color: var(--accent); white-space: nowrap; border-radius: var(--r-xs);
