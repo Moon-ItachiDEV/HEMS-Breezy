@@ -36,46 +36,51 @@
     return { x: pts[0][0], y: pts[0][1], a: 0 };
   }
 
-  /* ─── Paliers : vitesse, nombre d'impulsions, éclat ─────────────────
-     Une puissance qui varie un peu (relevés toutes les 5 s) garde son palier : rien ne saute à l'écran. */
-  const SPEEDS = [[0, 120], [250, 170], [700, 230], [1400, 300], [2600, 380], [4200, 460]];   // W → unités/s
-  const COUNTS = [[0, 1], [450, 2], [1300, 3], [2600, 4]];
+  /* ─── Le chemin de l'énergie, en deux temps, sur un rythme commun ─────
+     1. Les sources (soleil, réseau quand tu achètes, batterie quand elle se décharge) envoient chacune un paquet
+        d'énergie vers le coffret ; tous y arrivent au même instant, le coffret s'illumine.
+     2. Le coffret redistribue : un paquet part vers chaque destination (maison, batterie qui charge, voiture,
+        réseau quand tu revends) et arrive avec un éclat.
+     La taille et l'éclat d'un paquet suivent sa part de l'énergie ; le rythme s'accélère avec la puissance totale.
+     Le rythme reste sur un palier tant que la puissance bouge peu (relevés toutes les 5 s) : rien ne saute. */
+  const HUB = [760, 538];
+  const PERIODS = [[0, 4.6], [400, 4], [1200, 3.4], [2800, 2.9], [5000, 2.5]];   // W au total → secondes par cycle
   const pick = (tab, w) => tab.reduce((a, [t, v]) => (w >= t ? v : a), tab[0][1]);
-  const memo = {};
-  // Palier gardé tant que la puissance reste à ±15 % du seuil franchi (pas de va-et-vient à la frontière)
-  function steady(k, w) {
-    const m = memo[k];
-    if (m && w > m.w * 0.85 && w < m.w * 1.15) return m;
-    return (memo[k] = { w, v: pick(SPEEDS, w), n: pick(COUNTS, w), i: Math.round(BZ.clamp(0.45 + w / 5000, 0.45, 1) * 10) / 10 });
+  let pace = null;
+  function period(total) {
+    if (pace && total > pace.w * 0.85 && total < pace.w * 1.15) return pace.P;
+    pace = { w: total, P: pick(PERIODS, total) };
+    return pace.P;
   }
 
+  // Rôle de chaque liaison : source (vers le coffret) ou destination (depuis le coffret)
   function links(S) {
-    const { L } = S, g = L.grid, b = L.bat;
-    const live = (w) => has(w) && w >= IDLE;
-    return [
-      { k: "sun", tone: "solar", w: L.solar, on: live(L.solar), rev: false },
-      { k: "home", tone: "home", w: L.house, on: live(L.house), rev: false },
-      { k: "bat", tone: "battery", w: Math.abs(b), on: live(Math.abs(b)), rev: b < 0 },          // décharge : batterie → coffret
-      { k: "grid", tone: g > 0 ? "bad" : "good", w: Math.abs(g), on: live(Math.abs(g)), rev: g > 0 },   // achat : réseau → coffret
-      { k: "car", tone: "ev", w: L.car, on: S.carOn, rev: false },
+    const { L } = S, g = L.grid, b = L.bat, live = (w) => has(w) && w >= IDLE;
+    const all = [
+      { k: "sun", tone: "solar", w: L.solar, on: live(L.solar), src: true },
+      { k: "home", tone: "home", w: L.house, on: live(L.house), src: false },
+      { k: "bat", tone: "battery", w: Math.abs(b), on: live(Math.abs(b)), src: b < 0 },       // décharge : batterie → coffret
+      { k: "grid", tone: g > 0 ? "bad" : "good", w: Math.abs(g), on: live(Math.abs(g)), src: g > 0 },   // achat : réseau → coffret
+      { k: "car", tone: "ev", w: L.car, on: S.carOn, src: false },
     ];
+    const tot = (src) => all.filter((x) => x.on && x.src === src).reduce((a, x) => a + x.w, 0);
+    const supply = tot(true), demand = tot(false);
+    for (const x of all) x.share = x.on ? BZ.clamp(x.w / ((x.src ? supply : demand) || 1), 0, 1) : 0;
+    return { all, P: period(Math.max(supply, demand)), live: supply >= IDLE };
   }
 
   function flow(x) {
-    const pts = x.rev ? ROUTES[x.k].slice().reverse() : ROUTES[x.k], d = dOf(pts), len = lenOf(pts);
-    const s = x.on ? steady(x.k, x.w) : null;
-    // Impulsions : au plus une tous les 120 unités de trajet (une gaine courte n'en porte qu'une)
-    const n = s ? Math.max(1, Math.min(s.n, Math.round(len / 120))) : 1, per = 100 / n;
-    const dur = s ? Math.max(0.9, Math.round((len / s.v) * 20) / 20) : 2;
-    const tail = r1(per * 0.5), head = 3.4, end = pts[pts.length - 1], m = mid(pts);
-    const style = `--d:${dur}s;--n:${n};--i:${s ? s.i : 0};--tl:${tail};--hd:${head};--per:${r1(per)}`;
-    return h`<g class="mh-ln mh-l-${x.k}" data-tone="${x.tone}" data-on="${x.on ? 1 : 0}" style="${style}">
+    // Les trajets sont décrits depuis le coffret (sauf le soleil) : une source les parcourt vers le coffret
+    const out = ROUTES[x.k], pts = x.k === "sun" ? out : x.src ? out.slice().reverse() : out;
+    const d = dOf(pts), m = mid(pts), far = x.src ? pts[0] : pts[pts.length - 1];
+    // Paquet : traîne de 20 à 46 % du trajet selon sa part, cœur blanc à l'avant
+    const L = r1(20 + 26 * Math.sqrt(x.share)), Lc = r1(Math.max(5, L * 0.3)), k = (0.7 + 0.7 * Math.sqrt(x.share)).toFixed(2);
+    const seg = (cls, len) => h`<path class="${cls}" d="${d}" pathLength="100" stroke-dasharray="${len} 400" style="--a:${len};--b:${r1(len - 100 - L)}"/>`;
+    return h`<g class="mh-ln mh-l-${x.k}" data-tone="${x.tone}" data-on="${x.on ? 1 : 0}" data-role="${x.src ? "src" : "snk"}" style="--k:${k};--i:${(0.45 + 0.55 * x.share).toFixed(2)}">
       <path class="mh-tube" d="${d}" filter="url(#mh-fx-blur)"/>
       <path class="mh-core" d="${d}"/>
-      <path class="mh-glow" d="${d}" pathLength="100" stroke-dasharray="${tail} ${r1(per - tail)}"/>
-      <path class="mh-tail" d="${d}" pathLength="100" stroke-dasharray="${tail} ${r1(per - tail)}"/>
-      <path class="mh-head" d="${d}" pathLength="100" stroke-dasharray="${head} ${r1(per - head)}" style="--s0:${r1(-(tail - head))}"/>
-      <g class="mh-hit" transform="translate(${end[0]} ${end[1]})"><circle class="mh-ring" r="16"/><circle class="mh-spark" r="5.5"/></g>
+      ${seg("mh-halo", L)}${seg("mh-body", L)}${seg("mh-head", Lc)}
+      <g class="mh-hit" transform="translate(${far[0]} ${far[1]})"><circle class="mh-ring" r="16"/><circle class="mh-spark" r="6"/></g>
       <path class="mh-arrow" d="M-8,-8L3,0L-8,8" transform="translate(${m.x} ${m.y}) rotate(${m.a})"/>
     </g>`;
   }
@@ -134,7 +139,7 @@
     const chip = (c) => h`<a class="mh-chip ${c.idle ? "is-idle" : ""}" data-tone="${c.tone}" href="${BZ.href(c.to)}" ${c.spot ? `data-spot="${c.spot}"` : ""}
         style="left:${pct(c.x, W)};top:${pct(rowY[c.row] + TOP, H + TOP + BOT)}" aria-label="${esc(`${c.l}${c.x2 ? ` ${c.x2}` : ""} ${c.v}${c.sub ? ` ${c.sub}` : ""}, ${c.say}. ${c.go}`)}">
         <span class="mh-cl">${icon(c.ic)}${c.l}${c.x2 ? h`<em>${c.x2}</em>` : ""}</span><b class="mh-cv">${c.v}${c.sub ? h`<small> ${c.sub}</small>` : ""}</b></a>`;
-    return h`<section class="mh" data-run="${running() ? 1 : 0}" aria-labelledby="mh-t">
+    return h`<section class="mh" data-run="${running() ? 1 : 0}" style="--P:${LK.P}s" aria-labelledby="mh-t">
       <h2 class="sr" id="mh-t">Ta maison en direct</h2>
       <a class="mh-go" href="${BZ.href("energy")}" aria-label="${esc(`${label} Voir le détail sur la page Énergie.`)}"></a>
       <div class="mh-stage" aria-hidden="true">
@@ -145,13 +150,17 @@
             <filter id="mh-fx-blur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"/></filter>
             <clipPath id="mh-fx-led"><path d="${LED}"/></clipPath>
             <linearGradient id="mh-fx-sweep" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+            <radialGradient id="mh-fx-hub"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset=".35" stop-color="#ffe7a8" stop-opacity=".55"/><stop offset="1" stop-color="#ffe7a8" stop-opacity="0"/></radialGradient>
             <radialGradient id="mh-fx-warm"><stop offset="0" stop-color="#ffd9a3" stop-opacity=".9"/><stop offset="1" stop-color="#ffd9a3" stop-opacity="0"/></radialGradient>
             <radialGradient id="mh-fx-ev"><stop offset="0" stop-color="#b66cff" stop-opacity=".8"/><stop offset="1" stop-color="#b66cff" stop-opacity="0"/></radialGradient>
             <radialGradient id="mh-fx-green"><stop offset="0" stop-color="#6dff5c" stop-opacity=".75"/><stop offset="1" stop-color="#6dff5c" stop-opacity="0"/></radialGradient>
             <linearGradient id="mh-fx-scan" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eaffd9" stop-opacity=".9"/><stop offset=".25" stop-color="#eaffd9" stop-opacity="0"/><stop offset="1" stop-color="#eaffd9" stop-opacity="0"/></linearGradient>
           </defs>
           ${scene(S)}
-          <g class="mh-links">${LK.map(flow)}</g>
+          <g class="mh-links" data-live="${LK.live ? 1 : 0}">
+            ${LK.all.map(flow)}
+            <g class="mh-hub" transform="translate(${HUB[0]} ${HUB[1]})"><circle class="mh-hub-glow" r="58" fill="url(#mh-fx-hub)"/><circle class="mh-hub-ring" r="26"/><circle class="mh-hub-ring is-2" r="26"/></g>
+          </g>
           <g class="mh-leads">${CH.map((c) => h`<g data-tone="${c.tone}" class="${c.idle ? "is-idle" : ""}"><path d="M${c.x},${rowY[c.row]}L${c.at[0]},${c.at[1]}"/><circle cx="${c.at[0]}" cy="${c.at[1]}" r="7"/></g>`)}</g>
         </svg>
         <div class="mh-chips">${CH.map(chip)}</div>
