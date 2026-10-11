@@ -896,11 +896,13 @@ function fluxMaison() {
   };
 }
 /* capacité = disponible / charge (comme S&A-HOME) ; « pleine » : jusqu'à 100 %, au rythme de maintenant (plafonné à 24 h) ;
-   « jusqu'à » : au rythme de maintenant, jusqu'à la réserve basse (pas jusqu'à 0 %). Durées en heures. */
+   « jusqu'à » : au rythme de maintenant, jusqu'à la réserve basse (pas jusqu'à 0 %). Durées en heures.
+   Réserve reliée mais illisible (charge ou réserve indisponible) : pas d'heure, plutôt qu'une heure comptée jusqu'à 0 %. */
 function batterieMaison(f) {
   const soc = HA.nb(ENT.socBatterie), dispo = HA.nb(ENT.batterieDispo), reserve = HA.nb(ENT.batterieMin);
   const cap = soc != null && soc > 5 && dispo != null ? dispo / (soc / 100) : null;
-  const utile = dispo != null ? Math.max(0, dispo - (cap && reserve != null ? cap * reserve / 100 : 0)) : null;
+  const reserveOk = !ENT.batterieMin || (cap != null && reserve != null);
+  const utile = dispo != null && reserveOk ? Math.max(0, dispo - (ENT.batterieMin ? cap * reserve / 100 : 0)) : null;
   const batNet = f?.batNet ?? null;
   const autonomie = batNet != null && utile != null && batNet < -30 ? utile * 1000 / -batNet : null;
   const pleine = batNet != null && cap && dispo != null && batNet > 50 && soc < 100 ? Math.min(24, Math.max(0, cap - dispo) * 1000 / batNet) : null;
@@ -1804,15 +1806,38 @@ function cadrer() {
   const ancreUne = MEMO.ancreUne;
   // la rangée du ciel, sur téléphone : le filet du chiffre la coupe en deux ; chaque pastille reste du côté de son ancre, à 12 px du filet
   const lxUne = mode === 'portrait' && !ligne && ancreUne ? P(ancreUne)[0] : null;
+  let etage = null;   // la pastille de la borne, montée d'un étage au-dessus de la rangée du ciel (téléphone)
+  const rangCiel = () => ciel.filter(x => x !== etage);
   const cotes = avecFil => avecFil && lxUne != null
-    ? [[ciel.filter(x => P(x.P.ancre)[0] < lxUne), gauche, lxUne - 12], [ciel.filter(x => P(x.P.ancre)[0] >= lxUne), lxUne + 12, droite]]
-    : [[ciel, gauche, droite]];
+    ? [[rangCiel().filter(x => P(x.P.ancre)[0] < lxUne), gauche, lxUne - 12], [rangCiel().filter(x => P(x.P.ancre)[0] >= lxUne), lxUne + 12, droite]]
+    : [[rangCiel(), gauche, droite]];
   const tient = avecFil => !rangee(solP, droite - gauche) && (ligne || cotes(avecFil).every(([L, g, d]) => !L.length || !rangee(L, d - g)));
+  // téléphone : plutôt que de perdre son mot, « Borne 7,2 kW » monte d'un étage, de son côté du filet du chiffre, si
+  // l'étage tient sous le texte, si son filet descend droit vers le garage et ne passe sous aucune pastille de la rangée
+  const etageBorne = () => {
+    const pb = ciel.find(x => x.P.id === 'borne');
+    if (mode !== 'portrait' || ligne || skyTop == null || lxUne == null || !pb) return null;
+    const top = skyTop - 44, ax = P(pb.P.ancre)[0], w = largeur(pb);
+    const [g, d] = ax >= lxUne ? [lxUne + 12, droite] : [gauche, lxUne - 12];
+    if (top < CADRE.hb + 16 || w > d - g) return null;
+    const cx = borne(ax, g + w / 2, d - w / 2);
+    if (ax < cx - w / 2 + 15 || ax > cx + w / 2 - 15) return null;
+    etage = pb;
+    const L = cotes(true).find(([, g2]) => g2 === g)[0];
+    const cxL = resoudre(L.map(x => ({ x: P(x.P.ancre)[0], w: largeur(x) })), g, d);
+    if (!tient(true) || L.some((x, k) => Math.abs(ax - cxL[k]) < largeur(x) / 2 + 8)) { etage = null; return null; }
+    pb.cx = cx; pb.top = top;
+    return pb;
+  };
   let avecFil = true;
   if (mode !== 'court') {
-    // la borne sans son mot, puis tous les libellés courts ; sinon la rangée du ciel ignore le filet ;
+    // la borne d'un étage plus haut ou sans son mot, puis tous les libellés courts ; sinon la rangée du ciel ignore le filet ;
     // sinon (texte très agrandi) les pastilles passent sous le héros
-    for (const cls of ['borne-courte', 'pills-courtes']) { if (tient(true)) break; hero.classList.add(cls); }
+    for (const cls of ['borne-courte', 'pills-courtes']) {
+      if (tient(true)) break;
+      if (cls === 'borne-courte' && etageBorne()) break;
+      hero.classList.add(cls);
+    }
     if (!tient(true)) { avecFil = false; if (!tient(false)) { dehors = true; pastillesDehors(true); } }
   }
 
@@ -2024,7 +2049,7 @@ function ajusterBilan() {
   cols.classList.remove('rangees');
   if ([...cols.querySelectorAll('.bm-l, .bm-v')].some(el => el.scrollWidth > el.clientWidth + .5)) cols.classList.add('rangees');
 }
-/* Bilan du jour (S&A-HOME) : produits (sur la prévision Solcast), part autoconsommée, économies (le filet : le jour sur un quart du mois) */
+/* Bilan du jour (S&A-HOME) : produits (le filet : sur la prévision Solcast), part autoconsommée (le filet : ce %), économies (piste seule) */
 function rendreBilan(d) {
   const B = d.bilan;
   $('bilan-date').textContent = dateCourte(d.date);
@@ -2042,7 +2067,7 @@ function rendreBilan(d) {
   compter($('bm-auto'), B.autoPct, v => fini(v) ? `${pct(v)}<span class="u">${NNBSP}%</span>` : '—');
   filet('bm-auto-p', B.autoPct);
   compter($('bm-eco'), B.ecoJour, v => fini(v) ? `${euros(v)}<span class="u">${NBSP}€</span>` : '—');
-  filet('bm-eco-p', B.ecoJour != null && B.ecoMois > 0 ? 400 * B.ecoJour / B.ecoMois : null);
+  filet('bm-eco-p', null);   // pas de référence définie pour les économies du jour : la piste seule, sans remplissage
   ajusterBilan();
 }
 
@@ -2079,10 +2104,12 @@ function rendreCourbe(d) {
   const X = h => (h - 6) / 15 * W, Y = kw => H - Math.max(0, kw) * (H - 12) / C.maxKW, f1 = v => v.toFixed(1);
   const chemin = pts => pts.map((p, k) => `${k ? 'L' : 'M'}${f1(X(p.h))} ${f1(Y(p.kw))}`).join(' ');
   let s = '';
-  if (C.det.length) s += `<path class="c-bande" d="${chemin(C.det.map(p => ({ h: p.h, kw: fini(p.hi) ? p.hi : p.kw })))} ${C.det.slice().reverse().map(p => `L${f1(X(p.h))} ${f1(Y(fini(p.lo) ? p.lo : p.kw))}`).join(' ')} Z"/>`;
+  const r = C.reel, aire = r.length > 1 ? `${chemin(r)} L${f1(X(r.at(-1).h))} ${H} L${f1(X(r[0].h))} ${H} Z` : '';
+  // la fourchette 10-90 % n'est peinte qu'hors de l'aire du réel : deux couches lisibles, pas de troisième teinte
+  if (C.det.length && aire) s += `<defs><mask id="c-hors-reel" maskUnits="userSpaceOnUse" x="-8" y="-8" width="${W + 16}" height="${H + 16}"><rect x="-8" y="-8" width="${W + 16}" height="${H + 16}" fill="#fff"/><path d="${aire}" fill="#000"/></mask></defs>`;
+  if (C.det.length) s += `<path class="c-bande"${aire ? ' mask="url(#c-hors-reel)"' : ''} d="${chemin(C.det.map(p => ({ h: p.h, kw: fini(p.hi) ? p.hi : p.kw })))} ${C.det.slice().reverse().map(p => `L${f1(X(p.h))} ${f1(Y(fini(p.lo) ? p.lo : p.kw))}`).join(' ')} Z"/>`;
   s += `<path class="c-base" d="M0 ${H} H${W}"/>`;
-  const r = C.reel;
-  if (r.length > 1) s += `<path class="c-aire" d="${chemin(r)} L${f1(X(r.at(-1).h))} ${H} L${f1(X(r[0].h))} ${H} Z"/>`;
+  if (aire) s += `<path class="c-aire" d="${aire}"/>`;
   if (C.det.length) s += `<path class="c-prev" d="${chemin(C.det)}"/>`;
   if (r.length > 1) s += `<path class="c-reel" d="${chemin(r)}"/>`;
   box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true" focusable="false">${s}<g class="c-repere"></g></svg>`;
