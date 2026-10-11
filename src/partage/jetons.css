@@ -1,0 +1,108 @@
+/* Breezy · jetons et base, communs à toutes les pages (inclus par tools/build.js) */
+/* ================================================================ JETONS === */
+:root {
+  color-scheme: light;
+  --fond: oklch(0.972 0.004 260);
+  --surface: #FFFFFF;
+  --surface-2: oklch(0.95 0.005 260);
+  --encre: oklch(0.22 0.012 260);
+  --encre-2: oklch(0.44 0.01 260);
+  --encre-3: oklch(0.52 0.01 260);
+  --filet: oklch(0.22 0.012 260 / .10);
+  --piste: oklch(0.40 0.01 260 / .10);
+  /* énergie : même teinte pour comète, pastille, graphique, icône */
+  --soleil: oklch(0.82 0.16 82);
+  --soleil-t: oklch(0.52 0.12 70);
+  --soleil-graphe: oklch(0.665 0.15 70);       /* barres du graphique : ≥ 3:1 sur la carte blanche (le héros garde --soleil) */
+  --maison: oklch(0.66 0.14 250);
+  --maison-t: oklch(0.48 0.15 256);
+  --batterie: oklch(0.64 0.15 152);
+  --batterie-t: oklch(0.48 0.12 152);
+  --reseau: oklch(0.50 0.19 295);
+  --reseau-t: oklch(0.46 0.19 295);
+  --borne: oklch(0.58 0.19 332);                  /* la recharge de la voiture : un violet rosé, distinct du réseau */
+  --borne-t: oklch(0.50 0.18 332);
+  --alerte: oklch(0.58 0.20 27);
+  --ombre-carte: 0 0 0 .5px var(--filet), 0 1px 2px oklch(0.25 0.02 260 / .04), 0 10px 30px -18px oklch(0.25 0.03 260 / .25);
+  --police: Geist, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --gx: 20px;
+  --edge: 32px;
+  --colw: 400px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --fond: oklch(0.17 0.006 260);
+    --surface: oklch(0.215 0.007 260);
+    --surface-2: oklch(0.25 0.008 260);
+    --encre: oklch(0.96 0.004 260);
+    --encre-2: oklch(0.80 0.008 260);
+    --encre-3: oklch(0.70 0.008 260);
+    --filet: oklch(0.96 0.004 260 / .10);
+    --piste: oklch(0.96 0.004 260 / .12);
+    --soleil: oklch(0.86 0.15 85);
+    --soleil-t: oklch(0.86 0.15 85); --soleil-graphe: oklch(0.86 0.15 85);
+    --maison: oklch(0.80 0.11 240);
+    --maison-t: oklch(0.80 0.11 240);
+    --batterie: oklch(0.74 0.15 152);
+    --batterie-t: oklch(0.74 0.15 152);
+    --reseau: oklch(0.62 0.17 295);
+    --reseau-t: oklch(0.70 0.15 295);
+    --borne: oklch(0.72 0.15 332);
+    --borne-t: oklch(0.76 0.13 332);
+    --alerte: oklch(0.72 0.17 27);
+    --ombre-carte: 0 0 0 .5px var(--filet), 0 18px 40px -26px oklch(0 0 0 / .7);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --fond: oklch(0.17 0.006 260);
+  --surface: oklch(0.215 0.007 260);
+  --surface-2: oklch(0.25 0.008 260);
+  --encre: oklch(0.96 0.004 260);
+  --encre-2: oklch(0.80 0.008 260);
+  --encre-3: oklch(0.70 0.008 260);
+  --filet: oklch(0.96 0.004 260 / .10);
+  --piste: oklch(0.96 0.004 260 / .12);
+  --soleil: oklch(0.86 0.15 85);
+  --soleil-t: oklch(0.86 0.15 85); --soleil-graphe: oklch(0.86 0.15 85);
+  --maison: oklch(0.80 0.11 240);
+  --maison-t: oklch(0.80 0.11 240);
+  --batterie: oklch(0.74 0.15 152);
+  --batterie-t: oklch(0.74 0.15 152);
+  --reseau: oklch(0.62 0.17 295);
+  --reseau-t: oklch(0.70 0.15 295);
+  --borne: oklch(0.72 0.15 332);
+  --borne-t: oklch(0.76 0.13 332);
+  --alerte: oklch(0.72 0.17 27);
+  --ombre-carte: 0 0 0 .5px var(--filet), 0 18px 40px -26px oklch(0 0 0 / .7);
+}
+@media (max-width: 374px) { :root { --gx: 16px; } }
+@media (min-width: 768px) { :root { --gx: 32px; } }
+
+/* ================================================================ BASE === */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; background: var(--fond); }
+body {
+  margin: 0; background: var(--fond); color: var(--encre);
+  font: 400 15px/21px var(--police);
+  font-feature-settings: "tnum" 1; font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+p, h1, h2, h3, ul, ol, dl, dd, figure { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+a { color: inherit; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+svg { overflow: visible; }
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--encre); outline-offset: 2px; }
+.ic { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.saut {
+  position: absolute; z-index: 20; left: var(--gx); top: -80px;
+  padding: 10px 14px; border-radius: 12px;
+  background: var(--encre); color: var(--fond); font-weight: 600; text-decoration: none;
+}
+.saut:focus { top: max(8px, env(safe-area-inset-top)); }

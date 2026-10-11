@@ -2,9 +2,13 @@
 <!--
   Breezy · Accueil — « la maison au grand air »
   ---------------------------------------------------------------------------
-  GABARIT : l'illustration assets/maison.svg est insérée telle quelle, en ligne, à la place du
-  marqueur MAISON_SVG de #scene (ses éléments sont animés à l'exécution, le fichier n'est jamais modifié) :
-      node tools/inline-svg.js src/index.template.html index.html
+  GABARIT : tools/build.js produit index.html (une page autonome) depuis ce fichier :
+   - les marqueurs INCLURE insèrent le code commun à toutes les pages (src/partage/ : jetons, scène, pont vers
+     Home Assistant, formats, icônes, ciel, comètes, interrupteur des animations) ;
+   - l'illustration assets/maison.svg est insérée telle quelle, en ligne, à la place du marqueur MAISON_SVG de #scene
+     (ses éléments sont animés à l'exécution, le fichier n'est jamais modifié).
+      node tools/build.js                                      (toutes les pages)
+      node tools/build.js src/index.template.html index.html   (ou : node tools/inline-svg.js src/index.template.html index.html)
 
   DONNÉES : les entités de Home Assistant (bloc CONFIG.entites du script, « ← AJUSTE ICI »), reçues de
   la coque de S&A-HOME par postMessage (request_states → states, history_request → history_result).
@@ -34,6 +38,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap">
 <style>
+/* Breezy · jetons et base, communs à toutes les pages (inclus par tools/build.js) */
 /* ================================================================ JETONS === */
 :root {
   color-scheme: light;
@@ -135,6 +140,15 @@ svg { overflow: visible; }
 :focus-visible { outline: 2px solid var(--encre); outline-offset: 2px; }
 .ic { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
+.saut {
+  position: absolute; z-index: 20; left: var(--gx); top: -80px;
+  padding: 10px 14px; border-radius: 12px;
+  background: var(--encre); color: var(--fond); font-weight: 600; text-decoration: none;
+}
+.saut:focus { top: max(8px, env(safe-area-inset-top)); }
+
+/* Breezy · la scène et les composants communs (héros, ciel, barre, pastilles, chiffre, verre dépoli, cartes, lignes, pied)
+   — inclus par tools/build.js ; les règles propres à une page restent dans son gabarit, APRÈS ce fichier. */
 /* ================================================================ HÉROS === */
 .hero {
   position: relative; display: block;
@@ -163,12 +177,6 @@ svg { overflow: visible; }
   --fil: oklch(0.88 0.01 260 / .45);
 }
 .hero :focus-visible { outline-color: var(--ciel-encre); }
-.saut {
-  position: absolute; z-index: 20; left: var(--gx); top: -80px;
-  padding: 10px 14px; border-radius: 12px;
-  background: var(--encre); color: var(--fond); font-weight: 600; text-decoration: none;
-}
-.saut:focus { top: max(8px, env(safe-area-inset-top)); }
 #annonce { top: 0; left: 0; }
 .direct:focus { outline: none; }
 
@@ -306,8 +314,6 @@ svg { overflow: visible; }
 @media (min-width: 1100px) { .hero[data-mode="large"] .nav-large { display: flex; } }
 .hero[data-mode="court"] .barre { top: 6px; right: auto; width: calc(var(--colw) - var(--gx)); }
 .hero[data-mode="court"] .une-v { letter-spacing: -.05em; }
-</style>
-<style>
 /* ================================================================ CONTENU === */
 main { display: block; padding: 0 0 8px; }
 @media (prefers-reduced-motion: reduce) { main { padding-bottom: 32px; } }   /* le pied (interrupteur) est masqué : la page garde sa marge basse */
@@ -347,10 +353,94 @@ main { display: block; padding: 0 0 8px; }
 }
 .bilan-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 14px; margin-bottom: 12px; }
 .bilan-tete h2 { font-size: 15px; line-height: 20px; }
+.bilan[hidden] { display: none; }
+@media (max-width: 429px) { .bilan-tete { padding: 0 11px; } }
+@media (max-width: 374px) { .bilan-tete { padding: 0 7px; } .bilan { margin-left: 8px; margin-right: 8px; } }
+@media (min-width: 768px) { .bilan { margin-left: var(--gx); margin-right: var(--gx); } }
+
+/* --- Lignes (liste à la Tesla) --- */
+.lignes { margin: 0 calc(var(--gx) * -1); }
+.lignes a {
+  position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr) auto 16px; align-items: center; gap: 14px;
+  min-height: 60px; padding: 10px var(--gx); color: var(--encre); text-decoration: none;
+}
+.lignes li + li a::before { content: ""; position: absolute; top: 0; left: calc(var(--gx) + 38px); right: 0; height: 1px; background: var(--filet); }
+.lignes a:hover { background: color-mix(in oklch, var(--surface-2) 70%, transparent); }
+.lignes .ic { width: 22px; height: 22px; stroke-width: 1.6; color: var(--encre); }
+.lignes .chev { width: 16px; height: 16px; color: var(--encre-3); }
+.lignes .l1 { min-width: 0; font: 500 16px/22px var(--police); }
+.lignes .lv { font: 500 15px/20px var(--police); color: var(--encre-2); white-space: nowrap; }
+/* une ligne d'information, sans lien ni chevron */
+.lignes .ligne { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 60px; padding: 10px var(--gx); color: var(--encre); }
+.lignes li + li .ligne::before { content: ""; position: absolute; top: 0; left: calc(var(--gx) + 38px); right: 0; height: 1px; background: var(--filet); }
+
+/* --- Pied : l'interrupteur des animations (WCAG 2.2.2) --- */
+.pied[hidden] { display: none; }
+.pied { max-width: 1320px; margin: 0 auto; padding: 16px var(--gx) 28px; text-align: center; font: 500 12.5px/18px var(--police); color: var(--encre-3); }
+.pied-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 20px; }
+.interrupteur { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-width: 44px; min-height: 44px; padding: 0 4px; border: 0; background: none; font: 500 13px/1 var(--police); color: var(--encre-2); border-radius: 12px; }
+/* piste cerclée (≥ 3:1 sur la page) ; allumée : vert foncé en thème clair */
+.interrupteur .tr { position: relative; width: 34px; height: 20px; border-radius: 999px; background: var(--piste); box-shadow: inset 0 0 0 1px var(--encre-3); transition: background .2s; flex: none; }
+.interrupteur .tr::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 1px var(--encre-3), 0 1px 3px oklch(.2 .01 260 / .3); transition: transform .2s; }
+.interrupteur[aria-checked="true"] .tr { background: var(--batterie-t); box-shadow: none; }
+.interrupteur[aria-checked="true"] .tr::after { box-shadow: 0 1px 3px oklch(.2 .01 260 / .3); transform: translateX(14px); }
+
+/* ================================================================ GRANDS ÉCRANS (contenu) === */
+html[data-mode="large"] .bilan { width: var(--colw); margin: calc(var(--lift, 0px) * -1) 0 0 var(--edge); }
+html[data-mode="court"] .bilan { margin: 12px var(--gx) 0; }
+@media (min-width: 900px) {
+  .page { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 24px; align-items: start; padding-top: 32px; }
+  .colonne-g { grid-column: 1 / span 7; display: flex; flex-direction: column; gap: 24px; }
+  .colonne-d { grid-column: 8 / span 5; display: flex; flex-direction: column; gap: 24px; }
+  .lignes { margin: 0; padding: 6px 0; border-radius: 24px; background: var(--surface); box-shadow: var(--ombre-carte); overflow: hidden; }
+  .lignes a { padding: 12px 20px; }
+  .lignes li + li a::before { left: 58px; }
+  .lignes .ligne { padding: 12px 20px; }
+  .lignes li + li .ligne::before { left: 58px; }
+  .pied { text-align: left; }
+  .pied-actions { justify-content: flex-start; }
+}
+@media (max-width: 899px) { .colonne-g, .colonne-d { display: contents; } }
+
+/* ================================================================ COMÈTES ET MOYEU (dans le SVG) === */
+.fl-flux { transition: opacity 300ms ease; }
+.fl-flux path, .fl-fixe path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.fl-lueur { filter: url(#fl-flou); }
+.fl-fixe .fl-fleche { stroke: var(--surface-scene); stroke-width: 1; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.pill .long, .pill .court { align-items: center; gap: 4px; }
+.pill .long { display: inline-flex; }
+.pill .court { display: none; }
+.pill .sep { margin-right: 1px; }
+@media (max-width: 359px) { .pill .long { display: none; } .pill .court { display: inline-flex; } .pill .court:empty { display: none; } }
+.hero.borne-courte .pill .n { display: none; }
+.hero.pills-courtes .pill .long { display: none; }
+.hero.pills-courtes .pill .court { display: inline-flex; }
+.hero.pills-courtes .pill .court:empty { display: none; }
+
+/* ================================================================ MOUVEMENT RÉDUIT === */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+.calme .etoiles .tw, .calme .nuages, .calme .pluie, .calme .ancre.pouls { animation: none !important; }
+#hero.fige, #hero.fige * { animation-play-state: paused !important; }      /* héros hors écran ou onglet caché */
+
+/* ================================================================ COULEURS FORCÉES (Windows contraste élevé) === */
+@media (forced-colors: active) {
+  .interrupteur .tr { border: 1px solid CanvasText; background: Canvas; }
+  .interrupteur .tr::after { background: CanvasText; forced-color-adjust: none; }
+  .interrupteur[aria-checked="true"] .tr { background: Highlight; border-color: Highlight; forced-color-adjust: none; }
+  .interrupteur[aria-checked="true"] .tr::after { background: HighlightText; }
+  .une-k { position: relative; z-index: 1; }           /* le fond imposé de la ligne du chiffre ne masque plus son intitulé */
+  .capsule .pt, .une-k i { forced-color-adjust: none; }
+}
+
+</style>
+<style>
+/* ================================================================ ACCUEIL === */
 .bilan-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); }   /* « Autoconsommés », le plus long libellé, tient sur une ligne */
 .bm { position: relative; display: flex; flex-direction: column; min-width: 0; padding: 0 14px; }
 .bm + .bm:not(.premiere) { border-left: 1px solid var(--filet); }
-.bm[hidden], .bilan[hidden], .journee[hidden] { display: none; }
+.bm[hidden], .journee[hidden] { display: none; }
 .bm-b { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
 .bm-l { max-width: 100%; font: 500 12.5px/16px var(--police); color: var(--encre-2); }
 .bm-v { max-width: 100%; white-space: nowrap; font-weight: 400; font-size: clamp(19px, 6.2vw, 24px); line-height: 28px; letter-spacing: -.04em; color: var(--encre); }
@@ -362,9 +452,8 @@ main { display: block; padding: 0 0 8px; }
 .bilan-cols.rangees { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
 .bilan-cols.rangees .bm + .bm:not(.premiere) { border-left: 0; border-top: 1px solid var(--filet); padding-top: 12px; }
 .bilan-cols.rangees .bm-v { white-space: normal; }
-@media (max-width: 429px) { .bm { padding: 0 11px; } .bilan-tete { padding: 0 11px; } }
-@media (max-width: 374px) { .bm { padding: 0 7px; } .bilan-tete { padding: 0 7px; } .bilan { margin-left: 8px; margin-right: 8px; } .bm-l { font-size: 12px; } }
-@media (min-width: 768px) { .bilan { margin-left: var(--gx); margin-right: var(--gx); } }
+@media (max-width: 429px) { .bm { padding: 0 11px; } }
+@media (max-width: 374px) { .bm { padding: 0 7px; } .bm-l { font-size: 12px; } }
 
 /* --- Production solaire : réel et prévision Solcast, de 6 h à 21 h (S&A-HOME, écran Énergie) --- */
 .journee .carte-tete { flex-wrap: wrap; row-gap: 4px; }               /* téléphone étroit : la légende passe sous le titre */
@@ -390,50 +479,7 @@ main { display: block; padding: 0 0 8px; }
 .bulle[hidden] { display: none; }
 .axe-h { display: flex; justify-content: space-between; margin-top: 8px; font: 500 12px/16px var(--police); color: var(--encre-3); }
 
-/* --- Lignes (liste à la Tesla) --- */
-.lignes { margin: 0 calc(var(--gx) * -1); }
-.lignes a {
-  position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr) auto 16px; align-items: center; gap: 14px;
-  min-height: 60px; padding: 10px var(--gx); color: var(--encre); text-decoration: none;
-}
-.lignes li + li a::before { content: ""; position: absolute; top: 0; left: calc(var(--gx) + 38px); right: 0; height: 1px; background: var(--filet); }
-.lignes a:hover { background: color-mix(in oklch, var(--surface-2) 70%, transparent); }
-.lignes .ic { width: 22px; height: 22px; stroke-width: 1.6; color: var(--encre); }
-.lignes .chev { width: 16px; height: 16px; color: var(--encre-3); }
-.lignes .l1 { min-width: 0; font: 500 16px/22px var(--police); }
-.lignes .lv { font: 500 15px/20px var(--police); color: var(--encre-2); white-space: nowrap; }
-
-/* --- Pied : l'interrupteur des animations (WCAG 2.2.2) --- */
-.pied[hidden] { display: none; }
-.pied { max-width: 1320px; margin: 0 auto; padding: 16px var(--gx) 28px; text-align: center; font: 500 12.5px/18px var(--police); color: var(--encre-3); }
-.pied-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 20px; }
-.interrupteur { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-width: 44px; min-height: 44px; padding: 0 4px; border: 0; background: none; font: 500 13px/1 var(--police); color: var(--encre-2); border-radius: 12px; }
-/* piste cerclée (≥ 3:1 sur la page) ; allumée : vert foncé en thème clair */
-.interrupteur .tr { position: relative; width: 34px; height: 20px; border-radius: 999px; background: var(--piste); box-shadow: inset 0 0 0 1px var(--encre-3); transition: background .2s; flex: none; }
-.interrupteur .tr::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 1px var(--encre-3), 0 1px 3px oklch(.2 .01 260 / .3); transition: transform .2s; }
-.interrupteur[aria-checked="true"] .tr { background: var(--batterie-t); box-shadow: none; }
-.interrupteur[aria-checked="true"] .tr::after { box-shadow: 0 1px 3px oklch(.2 .01 260 / .3); transform: translateX(14px); }
-
-/* ================================================================ GRANDS ÉCRANS (contenu) === */
-html[data-mode="large"] .bilan { width: var(--colw); margin: calc(var(--lift, 0px) * -1) 0 0 var(--edge); }
-html[data-mode="court"] .bilan { margin: 12px var(--gx) 0; }
-@media (min-width: 900px) {
-  .page { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 24px; align-items: start; padding-top: 32px; }
-  .colonne-g { grid-column: 1 / span 7; display: flex; flex-direction: column; gap: 24px; }
-  .colonne-d { grid-column: 8 / span 5; display: flex; flex-direction: column; gap: 24px; }
-  .lignes { margin: 0; padding: 6px 0; border-radius: 24px; background: var(--surface); box-shadow: var(--ombre-carte); overflow: hidden; }
-  .lignes a { padding: 12px 20px; }
-  .lignes li + li a::before { left: 58px; }
-  .pied { text-align: left; }
-  .pied-actions { justify-content: flex-start; }
-}
-@media (max-width: 899px) { .colonne-g, .colonne-d { display: contents; } }
-
-/* ================================================================ COMÈTES ET MOYEU (dans le SVG) === */
-.fl-flux { transition: opacity 300ms ease; }
-.fl-flux path, .fl-fixe path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.fl-lueur { filter: url(#fl-flou); }
-.fl-fixe .fl-fleche { stroke: var(--surface-scene); stroke-width: 1; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+/* moyeu des flux (dans le SVG de la maison) */
 .hub-halo { fill: var(--maison); opacity: .55; }
 .hub-disque { transform-box: fill-box; transform-origin: center; }
 .hub-rond { fill: var(--surface-scene); stroke: var(--maison); stroke-width: 1.8; }
@@ -441,32 +487,8 @@ html[data-mode="court"] .bilan { margin: 12px var(--gx) 0; }
 #fl-hub.eteint .hub-halo { display: none; }
 #fl-hub.eteint .hub-rond { stroke: var(--encre-3); }
 #fl-hub.eteint .hub-ic { fill: var(--encre-3); }
-.pill .long, .pill .court { align-items: center; gap: 4px; }
-.pill .long { display: inline-flex; }
-.pill .court { display: none; }
-.pill .sep { margin-right: 1px; }
-@media (max-width: 359px) { .pill .long { display: none; } .pill .court { display: inline-flex; } .pill .court:empty { display: none; } }
-.hero.borne-courte .pill .n { display: none; }
-.hero.pills-courtes .pill .long { display: none; }
-.hero.pills-courtes .pill .court { display: inline-flex; }
-.hero.pills-courtes .pill .court:empty { display: none; }
-
-/* ================================================================ MOUVEMENT RÉDUIT === */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
-}
-.calme .etoiles .tw, .calme .nuages, .calme .pluie, .calme .ancre.pouls { animation: none !important; }
-#hero.fige, #hero.fige * { animation-play-state: paused !important; }      /* héros hors écran ou onglet caché */
-
-/* ================================================================ COULEURS FORCÉES (Windows contraste élevé) === */
 @media (forced-colors: active) {
-  .interrupteur .tr { border: 1px solid CanvasText; background: Canvas; }
-  .interrupteur .tr::after { background: CanvasText; forced-color-adjust: none; }
-  .interrupteur[aria-checked="true"] .tr { background: Highlight; border-color: Highlight; forced-color-adjust: none; }
-  .interrupteur[aria-checked="true"] .tr::after { background: HighlightText; }
-  .une-k { position: relative; z-index: 1; }           /* le fond imposé de la ligne du chiffre ne masque plus son intitulé */
   .bm-p, .bm-p i { forced-color-adjust: none; }
-  .capsule .pt, .une-k i { forced-color-adjust: none; }
 }
 </style>
 </head>
@@ -1177,9 +1199,11 @@ const CONFIG = {
 };
 const ENT = CONFIG.entites;
 
-/* ---------- Home Assistant, par la coque de S&A-HOME (postMessage) ----------
+/* ---------- Home Assistant, par la coque de S&A-HOME (postMessage) — partagé par toutes les pages ----------
    page → coque : { type: 'request_states' } · { type: 'history_request', id, start, end, entities, period, types }
+                  · { type: 'service_call', id, domain, service, entity_id, data }                  (S&A-HOME : ha.appel)
    coque → page : { type: 'states', states, user, dark } · { type: 'history_result', id, success, data }
+                  · { type: 'service_result', id, success, error }
    Une entité absente, « unavailable » ou « unknown » vaut null : rien n'est jamais inventé. */
 const HA = {
   enCoque: window.parent !== window,
@@ -1194,6 +1218,14 @@ const HA = {
   attr(id, a) { const s = this.e(id); return s && s.attributes && s.attributes[a] != null ? s.attributes[a] : null; },
   premiere(liste) { return [].concat(liste).find(id => id && this.etats[id]) || null; },
   maintenant() { return this.t ?? Date.now(); },
+  /* âge d'une donnée, en minutes (S&A-HOME : ha.age) : l'horodatage de l'état (capteur timestamp), à défaut son last_changed ;
+     null si l'entité est absente ou indisponible */
+  age(id) {
+    const s = this.e(id);
+    if (!s || this.etat(id) == null) return null;
+    const t = Date.parse(s.state), t2 = Number.isFinite(t) ? t : Date.parse(s.last_changed);
+    return Number.isFinite(t2) ? Math.max(0, (this.maintenant() - t2) / 60000) : null;
+  },
   ecouter(recu) {
     window.addEventListener('message', ev => {
       const m = ev.data;
@@ -1204,7 +1236,7 @@ const HA = {
         const premier = !this.connecte;
         this.connecte = true;
         recu(premier);
-      } else if (m.type === 'history_result' && this.attentes[m.id]) {
+      } else if ((m.type === 'history_result' || m.type === 'service_result') && this.attentes[m.id]) {
         const r = this.attentes[m.id]; delete this.attentes[m.id];
         if (m.success) r.ok(m.data); else r.ko(m.error);
       }
@@ -1219,17 +1251,492 @@ const HA = {
       window.parent.postMessage({ type: 'history_request', id, ...q }, '*');
       setTimeout(() => { if (this.attentes[id]) { delete this.attentes[id]; ko(new Error('sans réponse')); } }, 20000);
     });
+  },
+  /* une commande, exactement comme S&A-HOME (ha.appel) : service_call, puis service_result ; sans réponse après 15 s, elle est
+     tenue pour faite. Résout { ok: true } ou { ok: false, erreur } (jamais rejetée). Hors de Home Assistant : rien n'est envoyé. */
+  appel(domaine, service, entite, donnees) {
+    if (!this.enCoque) return Promise.resolve({ ok: true, envoye: false });
+    const id = this.id++;
+    return new Promise(fin => {
+      this.attentes[id] = { ok: () => fin({ ok: true, envoye: true }), ko: erreur => fin({ ok: false, envoye: true, erreur }) };
+      window.parent.postMessage({ type: 'service_call', id, domain: domaine, service, entity_id: entite, data: donnees || {} }, '*');
+      setTimeout(() => { if (this.attentes[id]) { delete this.attentes[id]; fin({ ok: true, envoye: true }); } }, 15000);
+    });
   }
 };
 
 /* ---------- Statistiques de Home Assistant (comme S&A-HOME : debutDe, parCle) ---------- */
-const HISTO = { heures: null, quand: 0 };
 const debutDe = p => (typeof p.start === 'number' ? p.start : Date.parse(p.start));
 const parCle = (res, id, cle, champ) => {
   const o = {};
   ((res && res[id]) || []).forEach(p => { const v = Number(p[champ || 'change']), k = cle(debutDe(p)); if (Number.isFinite(v) && k != null) o[k] = (o[k] || 0) + v; });
   return o;
 };
+
+/* ------------------------------------------------------------ Formats FR, outils, heure de la maison -- partagé
+   Contrat : la page déclare CONFIG (CONFIG.fuseau) AVANT ce fichier. */
+const NBSP = ' ', NNBSP = ' ';
+const nf = {};
+const nombre = (v, d = 1, dMin = d) => (nf[d + '/' + dMin] ||= new Intl.NumberFormat('fr-FR', { minimumFractionDigits: dMin, maximumFractionDigits: d })).format(v);
+const fini = v => typeof v === 'number' && Number.isFinite(v);
+const borne = (v, a, b) => Math.max(a, Math.min(b, v));
+/* Puissance (W) : < 1 000 W en watts arrondis à 10 W ; au-delà en kW (1,46 kW, 7,2 kW) ; un 0 mesuré reste « 0 W » */
+const kWtxt = w => nombre(w / 1000, 2, 1);
+function puissance(w) {
+  if (!fini(w)) return { n: '—', u: '', w: null };
+  const a = Math.abs(w), r = Math.round(a / 10) * 10;
+  if (a === 0) return { n: '0', u: 'W', w: 0 };
+  if (r < 1000) return { n: r === 0 ? `<${NNBSP}10` : nombre(r, 0), u: 'W', w: r };
+  return { n: kWtxt(a), u: 'kW', w: a };
+}
+const pTxt = w => { const p = puissance(w); return p.u ? `${p.n}${NBSP}${p.u}` : p.n; };
+/* lecture d'écran : « 1,46 kilowatt », « 520 watts » (accord sur le nombre tel qu'il est affiché) */
+const pLong = w => {
+  const p = puissance(w);
+  if (!p.u) return 'non mesuré';
+  const n = p.u === 'W' ? p.w || 10 : Math.round(Math.abs(w) / 10) / 100;
+  return `${p.n.replace(NNBSP, ' ')} ${accord(n, p.u === 'W' ? 'watt' : 'kilowatt')}`;
+};
+const accord = (n, sing, plur = sing + 's') => Math.abs(n) >= 2 ? plur : sing;
+const kWh = v => fini(v) ? nombre(v, 1) : '—';
+const euros = v => fini(v) ? nombre(v, 2) : '—';
+const pct = v => fini(v) ? new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(v) : '—';
+const unite = (n, u, cls = 'u') => `${n}<span class="${cls}">${NBSP}${u}</span>`;
+const heureTxt = h => {
+  if (!fini(h)) return '—';
+  h = ((h % 24) + 24) % 24;
+  let H = Math.floor(h), M = Math.round((h - H) * 60);
+  if (M === 60) { H = (H + 1) % 24; M = 0; }
+  return M ? `${H}${NBSP}h${NBSP}${String(M).padStart(2, '0')}` : `${H}${NBSP}h`;
+};
+const hDe = (s, defaut = null) => { if (typeof s !== 'string') return defaut; const [H, M] = s.split(':').map(Number); return fini(H) ? H + (M || 0) / 60 : defaut; };
+/* heures annoncées à 5 min près : « pleine vers » au plus proche, « jusqu'à » tronquée (jamais de promesse en trop) */
+const arrondi5 = h => Math.round(h * 12) / 12;
+const tronque5 = h => Math.floor(h * 12 + 1e-9) / 12;
+const $ = id => document.getElementById(id);
+const SVGNS = 'http://www.w3.org/2000/svg';
+const reduitMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+const sombreMQ = window.matchMedia('(prefers-color-scheme: dark)');
+let PAUSE = false;                                   // interrupteur « Animations des flux » du pied de page
+const immobile = () => reduitMQ.matches || PAUSE;
+const themeSombre = () => { const t = document.documentElement.dataset.theme; return t === 'dark' || (t !== 'light' && sombreMQ.matches); };
+
+/* Heure de la maison (CONFIG.fuseau), quel que soit le fuseau du navigateur : { date, h (heures décimales), jour (aaaa-mm-jj) } */
+const FMT_HEURE = new Intl.DateTimeFormat('fr-FR', { timeZone: CONFIG.fuseau, year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' });
+function heureLocale(date) {
+  const d = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
+  const parts = FMT_HEURE.formatToParts(d), v = t => Number(parts.find(p => p.type === t)?.value ?? 0);
+  return { date: d, h: v('hour') + v('minute') / 60 + v('second') / 3600, jour: `${v('year')}-${v('month')}-${v('day')}` };
+}
+/* minuit de la maison, le jour de l'instant t (ms), à la milliseconde ; corrigé une fois les jours de changement d'heure */
+const minuitDe = t => {
+  const d = new Date(t), m = t - Math.round(heureLocale(d).h * 3600) * 1000 - d.getMilliseconds(), e = heureLocale(new Date(m)).h;
+  return e ? m - Math.round((e > 12 ? e - 24 : e) * 3600) * 1000 : m;
+};
+const dateCourte = date => new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: CONFIG.fuseau }).format(date);
+
+/* ------------------------------------------------------------ Icônes (traits, 24 × 24) -- partagé */
+const TRACE = {
+  soleil: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/>',
+  maison: '<path d="M3.5 11 12 4l8.5 7"/><path d="M5.8 9.4V20h12.4V9.4"/><path d="M10 20v-5.2h4V20"/>',
+  batterie: '<rect x="2.5" y="7" width="16.5" height="10" rx="2.2"/><path d="M21.5 10.5v3"/><path d="M6 10v4M9.5 10v4"/>',
+  reseau: '<path d="M8 21 11.2 3h1.6L16 21"/><path d="M6.5 8h11M5 13h14"/><path d="M9.2 17.2 14 13M14.8 17.2 10 13"/>',
+  borne: '<rect x="4.5" y="3" width="9" height="18" rx="2"/><path d="M4.5 9.5h9"/><path d="M13.5 13h2a2 2 0 0 1 2 2v2.5a1.5 1.5 0 0 0 3 0V9l-2.5-2.5"/><path d="M9.6 12 8 14.6h2.2L8.6 17.2"/>',
+  chevron: '<path d="M9 5.5 15.5 12 9 18.5"/>',
+  graphique: '<path d="M3.5 20.5h17"/><path d="M6.5 17V11M11 17V6.5M15.5 17v-8M20 17v-4"/>',
+  feuille: '<path d="M5 19.5C5 11 10.5 5 20 4.5c0 9.5-6 15-14 15z"/><path d="M5 19.5 13.5 11"/>',
+  // la voiture et ses commandes (page Kia, ligne Kia de l'Accueil)
+  voiture: '<path d="M5.2 11 6.9 6.9A2.2 2.2 0 0 1 8.9 5.5h6.2a2.2 2.2 0 0 1 2 1.4l1.7 4.1"/><rect x="3.5" y="11" width="17" height="6.5" rx="2.2"/><path d="M6.2 17.5v2M17.8 17.5v2M7 14.2h1.6M15.4 14.2H17"/>',
+  verrou: '<rect x="5" y="10.5" width="14" height="10" rx="2.6"/><path d="M8.2 10.5V7.8a3.8 3.8 0 0 1 7.6 0v2.7"/><path d="M12 14.4v2.2"/>',
+  verrouOuvert: '<rect x="5" y="10.5" width="14" height="10" rx="2.6"/><path d="M8.2 10.5V7.8a3.8 3.8 0 0 1 7.3-1.5"/><path d="M12 14.4v2.2"/>',
+  ventilateur: '<circle cx="12" cy="12" r="1.7"/><path d="M12 10.3C10.5 7.6 10.9 3.9 13.5 3.6c2.5-.3 3.4 2.6 1.5 4.4-1 .9-2 1.6-3 2.3z"/><path d="M12 10.3C10.5 7.6 10.9 3.9 13.5 3.6c2.5-.3 3.4 2.6 1.5 4.4-1 .9-2 1.6-3 2.3z" transform="rotate(120 12 12)"/><path d="M12 10.3C10.5 7.6 10.9 3.9 13.5 3.6c2.5-.3 3.4 2.6 1.5 4.4-1 .9-2 1.6-3 2.3z" transform="rotate(240 12 12)"/>',
+  actualiser: '<path d="M19.5 12a7.5 7.5 0 1 1-2.3-5.4"/><path d="M19.6 4.4v3.9h-3.9"/>',
+  eclair: '<path d="M13.2 3 5.8 13.2h5.9L10.8 21l7.4-10.2h-5.9z"/>',
+  stop: '<rect x="6.5" y="6.5" width="11" height="11" rx="2.2"/>',
+  moins: '<path d="M6 12h12"/>',
+  plus: '<path d="M12 6v12M6 12h12"/>',
+  soleilLune: '<circle cx="9.5" cy="13.5" r="3.4"/><path d="M9.5 6.8v1.6M9.5 18.6v1.6M2.8 13.5h1.6M14.6 13.5h1.6M4.8 8.8l1.1 1.1M13.1 17.1l1.1 1.1M4.8 18.2l1.1-1.1"/><path d="M21 7.4a3.3 3.3 0 1 1-3.6-4.3 2.6 2.6 0 0 0 3.6 4.3z"/>',
+  b12v: '<rect x="3" y="7.5" width="18" height="11.5" rx="2.2"/><path d="M6.5 7.5V5.5h3v2M14.5 7.5V5.5h3v2"/><path d="M6.6 13.2h3M15 11.7v3M13.5 13.2h3"/>',
+  compteur: '<path d="M4.3 17.6a8.6 8.6 0 1 1 15.4 0"/><path d="M12 14.4 15.6 9.2"/><circle cx="12" cy="14.6" r="1.3"/>',
+  cle: '<path d="M14.8 6.2a4 4 0 0 0-5.3 5.2l-5.7 5.7a1.6 1.6 0 0 0 2.3 2.3l5.7-5.7a4 4 0 0 0 5.2-5.3l-2.5 2.5-2.1-.5-.5-2.1z"/>',
+  retour: '<path d="M15 5.5 8.5 12 15 18.5"/>',
+  coche: '<path d="M5 12.6 9.8 17.4 19 7.4"/>'
+};
+const icone = (nom, cls = 'ic') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${TRACE[nom] || ''}</svg>`;
+/* flèches de sens : ↗ export, ↙ import, ↑ charge, ↓ décharge (la couleur n'est jamais seule) */
+const FL_TRACE = {
+  export: '<path d="M7 17 17 7M8.5 7H17v8.5"/>',
+  import: '<path d="M17 7 7 17M7 8.5V17h8.5"/>',
+  haut: '<path d="M12 19.5V5M6.5 10.5 12 5l5.5 5.5"/>',
+  bas: '<path d="M12 4.5V19M6.5 13.5 12 19l5.5-5.5"/>'
+};
+const fleche = nom => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${FL_TRACE[nom]}</svg>`;
+
+/* ════════════════════════════════════════════════════════════ CIEL — partagé par toutes les pages ═══
+   Couleurs OKLab, ciel par hauteur du soleil (sun.sun) et météo (weather.*), encre du texte posé sur le ciel, astre,
+   étoiles, nuages. Contrat : la page déclare MEMO (objet), CADRE / SCENE, et les éléments #hero, #ciel, #ciel-a, #ciel-b,
+   #astre, #nuages, #pluie, #etoiles. Le cadre C (cadrer() de la page) fournit : mode, W, H, s, hx, gx, bB, yh (ligne
+   d'horizon, px), silhouette(x) (haut de l'objet posé au sol, px ; Infinity hors de lui), lune ([x, y], grand écran),
+   texte ([y0, y1]), obstacles, verre (la carte en verre dépoli) et bilanZone ([y0, y1] de cette carte sur la scène). */
+
+/* ------------------------------------------------------------ Couleurs (OKLab) -- */
+const RAD = Math.PI / 180;
+const lireOklch = s => { const [L, C, h] = s.trim().split(/\s+/).map(Number); return [L, C * Math.cos(h * RAD), C * Math.sin(h * RAD)]; };
+const versRgbLin = ([L, a, b]) => {
+  const l = (L + .3963377774 * a + .2158037573 * b) ** 3, m = (L - .1055613458 * a - .0638541728 * b) ** 3, s = (L - .0894841775 * a - 1.291485548 * b) ** 3;
+  return [4.0767416621 * l - 3.3077115913 * m + .2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - .3413193965 * s, -.0041960863 * l - .7034186147 * m + 1.707614701 * s];
+};
+const lin = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+const depuisHex = hex => {
+  const n = parseInt(hex.slice(1), 16), r = lin((n >> 16 & 255) / 255), g = lin((n >> 8 & 255) / 255), b = lin((n & 255) / 255);
+  const l = Math.cbrt(.4122214708 * r + .5363325363 * g + .0514459929 * b), m = Math.cbrt(.2119034982 * r + .6806995451 * g + .1073969566 * b), s = Math.cbrt(.0883024619 * r + .2817188376 * g + .6299787005 * b);
+  return [.2104542553 * l + .793617785 * m - .0040720468 * s, 1.9779984951 * l - 2.428592205 * m + .4505937099 * s, .0259040371 * l + .7827717662 * m - .808675766 * s];
+};
+const cssLab = ([L, a, b]) => `oklab(${L.toFixed(4)} ${a.toFixed(4)} ${b.toFixed(4)})`;
+const melangeLab = (A, B, t) => A.map((x, k) => x + (B[k] - x) * t);
+const lisser = (a, b, x) => { const t = borne((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const luminanceLab = lab => { const [r, g, b] = versRgbLin(lab).map(v => borne(v, 0, 1)); return .2126 * r + .7152 * g + .0722 * b; };
+const contraste = (y1, y2) => (Math.max(y1, y2) + .05) / (Math.min(y1, y2) + .05);
+const chroma = ([L, a, b], k, dL = 0) => [L + dL, a * k, b * k];
+function interCles(cles, E, n) {
+  if (E <= cles[0][0]) return cles[0][n];
+  for (let k = 1; k < cles.length; k++) if (E <= cles[k][0]) return melangeLab(cles[k - 1][n], cles[k][n], lisser(cles[k - 1][0], cles[k][0], E));
+  return cles[cles.length - 1][n];
+}
+
+/* Ciel : clés par élévation du soleil E (°) — haut, milieu, horizon, sol. Matin et soir ne diffèrent qu'autour de l'horizon. */
+const K = s => lireOklch(s);
+const CIEL = {
+  nuit:  [-12, K('.165 .016 262'), K('.205 .02 262'), K('.235 .016 260'), K('.20 .012 262')],
+  crep:  [-4,  K('.30 .05 275'), K('.42 .07 315'), K('.62 .10 45'), K('.26 .02 270')],
+  clair: {
+    soir:  [4,  K('.80 .05 265'), K('.89 .05 40'), K('.94 .06 70'), K('.88 .02 60')],
+    matin: [4,  K('.82 .045 275'), K('.90 .045 10'), K('.95 .045 75'), K('.89 .015 60')],
+    k14:   [14, K('.84 .05 248'), K('.92 .035 230'), K('.955 .02 80'), K('.92 .012 78')],
+    jour:  [20, K('.86 .055 240'), K('.93 .035 220'), K('.96 .012 85'), K('.93 .01 80')]
+  },
+  sombre: {
+    soir:  [4,  K('.26 .05 270'), K('.34 .06 330'), K('.50 .09 55'), K('.22 .015 270')],
+    matin: [4,  K('.27 .045 275'), K('.36 .05 350'), K('.50 .07 60'), K('.22 .015 270')],
+    jour:  [20, K('.30 .055 245'), K('.37 .05 232'), K('.45 .03 80'), K('.24 .012 250')]
+  }
+};
+function clesCiel(sombre, matin) {
+  const T = sombre ? CIEL.sombre : CIEL.clair, k4 = matin ? T.matin : T.soir;
+  const k14 = sombre ? [14, ...[1, 2, 3, 4].map(n => melangeLab(k4[n], T.jour[n], .66))] : T.k14;
+  return [CIEL.nuit, CIEL.crep, k4, k14, T.jour];
+}
+/* Voile posé sur l'objet de la scène, maison ou voiture (multiplication) : blanc = aucun effet */
+const VOILE = {
+  clair:  [[-12, depuisHex('#262b49')], [-4, depuisHex('#55557f')], [4, depuisHex('#d9d3d8')], [12, depuisHex('#ffffff')]],
+  sombre: [[-12, depuisHex('#262b49')], [-4, depuisHex('#55557f')], [4, depuisHex('#a2a3b9')], [12, depuisHex('#c4c9d6')]]
+};
+
+/* ------------------------------------------------ Position du soleil ---
+   Formules astronomiques simplifiées (≈ 0,5°), suffisantes pour peindre le ciel.
+   Avec Home Assistant, l’attribut elevation de sun.sun est utilisé tel quel ; ceci ne sert qu’à défaut (et aux valeurs d’exemple). */
+function positionSoleil(date, lat, lon) {
+  const d = date.getTime() / 86400000 - 10957.5;
+  const g = (357.529 + 0.98560028 * d) * RAD;
+  const q = 280.459 + 0.98564736 * d;
+  const L = (q + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * RAD;
+  const eps = (23.439 - 0.00000036 * d) * RAD;
+  const ra = Math.atan2(Math.cos(eps) * Math.sin(L), Math.cos(L));
+  const dec = Math.asin(Math.sin(eps) * Math.sin(L));
+  const gmst = ((18.697374558 + 24.06570982441908 * d) % 24 + 24) % 24;
+  const H = (gmst * 15 + lon) * RAD - ra, phi = lat * RAD;
+  const alt = Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H));
+  return { elevation: alt / RAD };
+}
+
+/* météo de Home Assistant → ciel de la scène */
+const METEO = { sunny: 'clair', 'clear-night': 'clair', partlycloudy: 'nuageux', windy: 'nuageux', 'windy-variant': 'nuageux', cloudy: 'couvert', exceptional: 'couvert', fog: 'voile',
+  rainy: 'pluie', pouring: 'pluie', snowy: 'pluie', 'snowy-rainy': 'pluie', hail: 'pluie', lightning: 'orage', 'lightning-rainy': 'orage' };
+/* halo derrière l'objet de la scène (contre-jour), par moment du jour : couleur, opacité */
+const HALO = { doree: ['#ffaa60', .35], aube: ['#ffaa60', .35], crepuscule: ['#8a8fff', .34], nuit: ['#7d93ff', .36] };
+
+/* Le ciel d'une scène (la partie « ciel » de rendreScene) : dégradé par élévation et météo, encre, astre, nuages, pluie.
+   d : { E, matin, ciel } ; C : le cadre courant (null au premier rendu). Renvoie 'clair' ou 'sombre' (ciel derrière l'objet). */
+function peindreCiel(d, C) {
+  const sombre = themeSombre();
+  const hero = $('hero');
+  // --- ciel : interpolation OKLab par élévation (sun.sun), puis météo (weather.*)
+  const cles = clesCiel(sombre, d.matin);
+  let teintes = [1, 2, 3, 4].map(n => interCles(cles, d.E, n));
+  const meteo = d.ciel;
+  const mod = { clair: [1, 0], voile: [.8, 0], nuageux: [.75, 0], couvert: [.35, sombre ? -.02 : -.04], pluie: [.35, sombre ? -.04 : -.06], orage: [.35, sombre ? -.08 : -.10] }[meteo] || [1, 0];
+  teintes = teintes.map(t => chroma(t, mod[0], mod[1]));
+  const [haut, milieu] = teintes;
+  // ciel sombre ou clair (ombres du dessin) ; l'encre du texte, elle, est choisie par encrerCiel() sur le ciel réellement derrière le texte
+  const yH = luminanceLab(haut), yM = luminanceLab(milieu), yN = luminanceLab(ENCRE.sombre), yB = luminanceLab(ENCRE.claire);
+  const ciel = Math.min(contraste(yN, yH), contraste(yN, yM)) >= Math.min(contraste(yB, yH), contraste(yB, yM)) ? 'clair' : 'sombre';
+  if (!C) hero.dataset.ciel = ciel;
+  MEMO.teintes = teintes; MEMO.fonduCiel = true;
+  encrerCiel(C);
+  // --- astre : soleil (E ≥ −1), lune (E < −4)
+  const astre = $('astre');
+  const soleilVu = d.E >= -1, luneVue = d.E < -4;
+  const voile = { voile: .75, couvert: .3 }[meteo] ?? 1;
+  const cache = meteo === 'pluie' || meteo === 'orage';
+  astre.classList.toggle('lune', !soleilVu && luneVue);
+  astre.style.opacity = (soleilVu || luneVue) && !cache ? String(soleilVu ? voile : 1) : '0';
+  const cA = melangeLab(lireOklch('.80 .14 60'), lireOklch('.86 .15 85'), lisser(3, 18, d.E));
+  astre.style.setProperty('--astre', cssLab(cA));
+  // --- nuages et pluie
+  const nb = { voile: 2, nuageux: 3, couvert: 5, pluie: 5, orage: 5 }[meteo] || 0;
+  const nuages = $('nuages');
+  nuages.dataset.n = nb; nuages.dataset.meteo = meteo;
+  nuages.classList.toggle('derive', nb > 0 && !immobile());
+  const nuit = d.E < -4;
+  nuages.style.setProperty('--nuage', meteo === 'voile' ? 'oklch(1 0 0 / .35)' : meteo === 'orage' ? 'oklch(.36 .012 260 / .8)' : nuit ? 'oklch(.3 .01 260 / .6)' : meteo === 'nuageux' ? 'oklch(1 0 0 / .7)' : 'oklch(.93 .005 260 / .8)');
+  $('pluie').hidden = !(meteo === 'pluie' || meteo === 'orage');
+  $('pluie').classList.toggle('anim', !immobile());
+  return ciel;
+}
+
+/* ------------------------------------------------ Encre du héros et voile de lecture ---
+   Le texte du héros (marque, menu, chiffre, phrase) est posé sur le ciel. On échantillonne le dégradé réellement
+   derrière lui (de la barre au bas de la phrase), on choisit l'encre, sombre ou claire, qui demande le moins d'aide,
+   puis, si elle reste sous 4,5:1 (autour de l'aube et du crépuscule, ciel mauve), on pose en haut du ciel un voile
+   de sa propre teinte, plus clair ou plus sombre, juste assez opaque pour l'atteindre. L'encre secondaire
+   (intitulé, unité, menu) se rapproche de l'encre principale tant qu'elle n'atteint pas 4,5:1.
+   La carte en verre (C.verre : le bilan, la charge), quand elle chevauche une scène sombre ou intermédiaire en thème clair,
+   passe en surface pleine ou en verre sombre. */
+const ENCRE = { sombre: lireOklch('.22 .012 260'), claire: lireOklch('.97 .004 260') };
+const CIBLE = 4.6;
+const versSrgb = lab => versRgbLin(lab).map(v => { v = borne(v, 0, 1); return v <= .0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - .055; });
+const lumSrgb = c => .2126 * lin(c[0]) + .7152 * lin(c[1]) + .0722 * lin(c[2]);
+function encrerCiel(C) {
+  const T = MEMO.teintes;
+  if (!T) return;
+  const hero = $('hero'), sombreTheme = themeSombre();
+  const [haut, milieu, horizon, sol] = T;
+  const H = C?.H || hero.clientHeight || 600, yh = C ? C.yh : H * .6;
+  const [y0, y1] = C?.texte || [0, yh * .45];
+  // le dégradé CSS du ciel (interpolé en sRGB, comme le navigateur)
+  const arrets = [[0, haut], [yh * .45, milieu], [yh, horizon], [yh + 24, sol], [H, chroma(sol, 1, -.015)]].map(([y, c]) => [y, versSrgb(c)]);
+  const ciel = y => {
+    if (y <= arrets[0][0]) return arrets[0][1];
+    for (let k = 1; k < arrets.length; k++) if (y <= arrets[k][0]) { const [ya, a] = arrets[k - 1], [yb, b] = arrets[k], t = yb > ya ? (y - ya) / (yb - ya) : 1; return a.map((x, n) => x + (b[n] - x) * t); }
+    return arrets[arrets.length - 1][1];
+  };
+  const ech = Array.from({ length: 13 }, (_, k) => ciel(y0 + (y1 - y0) * k / 12));
+  const voiles = { clair: versSrgb([.97, haut[1] * .3, haut[2] * .3]), sombre: versSrgb([.24, haut[1] * .7, haut[2] * .7]) };
+  const pire = (yEncre, voile, a) => Math.min(...ech.map(c => contraste(yEncre, lumSrgb(a ? c.map((x, n) => x + (voile[n] - x) * a) : c))));
+  const alpha = (yEncre, voile) => {
+    if (pire(yEncre, voile, 0) >= CIBLE) return 0;
+    let lo = 0, hi = .8;
+    if (pire(yEncre, voile, hi) < CIBLE) return hi;
+    for (let k = 0; k < 14; k++) { const m = (lo + hi) / 2; if (pire(yEncre, voile, m) >= CIBLE) hi = m; else lo = m; }
+    return hi;
+  };
+  const yS = luminanceLab(ENCRE.sombre), yC = luminanceLab(ENCRE.claire);
+  const aS = alpha(yS, voiles.clair), aC = alpha(yC, voiles.sombre);
+  const encre = aS <= aC ? 'clair' : 'sombre';                       // data-ciel : « clair » = ciel clair, encre sombre
+  const a = Math.min(aS, aC), voile = encre === 'clair' ? voiles.clair : voiles.sombre;
+  // encre secondaire : la plus discrète qui garde 4,5:1 sur le ciel voilé
+  let L2 = encre === 'clair' ? .38 : .84;
+  const L1 = encre === 'clair' ? .22 : .97, y2 = L => luminanceLab(lireOklch(`${L} .01 260`));
+  if (pire(y2(L2), voile, a) < CIBLE) {
+    let lo = L1, hi = L2;                                             // lo : passe toujours ; hi : trop discret
+    for (let k = 0; k < 12; k++) { const m = (lo + hi) / 2; if (pire(y2(m), voile, a) >= CIBLE) lo = m; else hi = m; }
+    L2 = lo;
+  }
+  hero.dataset.ciel = encre;
+  if (L2 !== (encre === 'clair' ? .38 : .84)) hero.style.setProperty('--ciel-encre-2', `oklch(${L2.toFixed(3)} .01 260)`); else hero.style.removeProperty('--ciel-encre-2');
+  // le ciel (fondu de 1,2 s quand il change avec les données)
+  const rgb = c => `rgb(${c.map(x => Math.round(borne(x, 0, 1) * 255)).join(' ')}`;
+  const vars = { '--c-haut': cssLab(haut), '--c-milieu': cssLab(milieu), '--c-horizon': cssLab(horizon), '--c-sol0': cssLab(sol), '--c-sol1': cssLab(chroma(sol, 1, -.015)),
+    '--voile-c': a > 0 ? `${rgb(voile)} / ${a.toFixed(3)})` : 'transparent', '--voile-y': `${Math.round(y1)}px` };
+  const cle = Object.values(vars).join('|');
+  const ca = $('ciel-a'), cb = $('ciel-b');
+  if (cle !== MEMO.cleCiel) {
+    if (MEMO.cleCiel && MEMO.fonduCiel && !immobile()) {
+      for (const k of Object.keys(vars)) cb.style.setProperty(k, ca.style.getPropertyValue(k));
+      cb.style.transition = 'none'; cb.style.opacity = '1'; void cb.offsetWidth;
+      cb.style.transition = 'opacity 1.2s ease'; cb.style.opacity = '0';
+    }
+    for (const [k, v] of Object.entries(vars)) ca.style.setProperty(k, v);
+    MEMO.cleCiel = cle;
+  }
+  MEMO.fonduCiel = false;
+  hero.style.setProperty('--ciel-haut-actuel', vars['--c-haut']);
+  // la carte en verre sur la scène (thème clair seulement : en thème sombre, son verre sombre suffit partout)
+  let fond = '';
+  if (!sombreTheme && C?.bilanZone) {
+    const [b0, b1] = C.bilanZone;
+    const yMin = Math.min(...Array.from({ length: 7 }, (_, k) => lumSrgb(ciel(b0 + (b1 - b0) * k / 6))));
+    if (C.mode === 'large' && encre === 'sombre') fond = 'sombre';
+    else if (yMin < .52) fond = 'plein';
+  }
+  const verre = C?.verre;
+  if (verre && (verre.dataset.fond || '') !== fond) { if (fond) verre.dataset.fond = fond; else delete verre.dataset.fond; }
+}
+
+/* ------------------------------------------------ Ciel : soleil ou lune, étoiles, nuages (jamais sous le texte) */
+function placerCiel(C, d) {
+  if (!C || !d) return;
+  const { W, s, hx, gx, mode } = C;
+  const astre = $('astre');
+  const yh = C.yh;
+  const touche = (x, y, m) => C.obstacles.some(o => x > o.l - m && x < o.r + m && y > o.t - m && y < o.b + m);
+  const p = d.progres;
+  const lune = d.E < -4;
+  const r = lune ? 13 : mode === 'large' ? 28 : 20;
+  let ax, ay;
+  if (mode === 'portrait') {
+    if (lune) { ax = W - gx - 40; ay = C.bB + 40; }
+    else { ax = W - gx - 36 - (1 - p) * .18 * W; ay = C.bB + 26 + (1 - Math.sin(Math.PI * p)) * .10 * C.H; }
+  } else if (mode === 'court') {
+    ax = hx + 80 * s; ay = 24;
+  } else {
+    // grand écran : le ciel libre à droite de la colonne de texte ; matin à gauche, soir à droite, plus haut vers midi
+    const xa = C.edge + C.colW + 16 + r, xb = W - C.edge - r;
+    if (lune) [ax, ay] = C.lune;
+    else { ax = xa + p * (xb - xa); ay = C.bB + r + 24 + (1 - Math.sin(Math.PI * p)) * Math.max(0, yh - r - 40 - (C.bB + r + 24)) * .7; }
+  }
+  // place libre la plus proche : le disque plus une marge (la partie vive du halo) ne touche ni texte, ni pastille, ni filet, ni toit
+  const libre = (x, y, m) => {
+    if (x - r < 4 || x + r > W - 4 || y - r < (mode === 'large' ? C.bB - 8 : 4) || y + r > yh - 8) return false;   // grand écran : pas dans la rangée du menu
+    const R = r + m;
+    if (C.obstacles.some(o => x + R > o.l && x - R < o.r && y + R > o.t && y - R < o.b)) return false;
+    const Rt = R + (mode === 'large' ? 8 : 0);                      // le profil du toit est approché : un peu plus d'air au-dessus
+    for (let a = 0; a <= 180; a += 30) { const t = a * RAD, px = x + Rt * Math.cos(t), py = y + Rt * Math.sin(t); if (py >= C.silhouette(px)) return false; }
+    return true;
+  };
+  const marges = mode === 'large' ? [24, 16, 8] : [12, 8];
+  let place = null;
+  for (const m of marges) {
+    if (libre(ax, ay, m)) { place = [ax, ay]; break; }
+    let best = null, d2 = Infinity;
+    for (let y = r + 4; y <= yh - r - 8; y += 6) for (let x = r + 4; x <= W - r - 4; x += 8) {
+      const q = (x - ax) ** 2 + (y - ay) ** 2;
+      if (q < d2 && libre(x, y, m)) { d2 = q; best = [x, y]; }
+    }
+    if (best) { place = best; break; }
+  }
+  if (place) [ax, ay] = place;
+  astre.style.transform = `translate(${ax.toFixed(1)}px, ${ay.toFixed(1)}px)`;
+  astre.style.setProperty('--r', r + 'px');
+  // étoiles : 24 points déterministes (suite du nombre d'or), dans les 70 % hauts du ciel, hors du texte
+  let et = '';
+  if (d.E < -6) {
+    const phi = 0.6180339887, phi2 = 0.7548776662;
+    let tw = 0;
+    for (let k = 1; k <= 24; k++) {
+      const x = ((k * phi) % 1) * W, y = ((k * phi2 + .13) % 1) * .7 * yh;
+      if (touche(x, y, 10) || y > C.silhouette(x) - 8 || Math.hypot(x - ax, y - ay) < r + 16) continue;
+      const rr = .6 + .6 * ((k * 0.38196) % 1), op = .25 + .25 * ((k * 0.7071) % 1);
+      const twc = tw < 5 && k % 4 === 1;
+      if (twc) tw++;
+      et += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rr.toFixed(2)}" opacity="${op.toFixed(2)}"${twc ? ` class="tw" style="--d:${(3.5 + (k % 5) * .55).toFixed(2)}s;--r:${(-(k % 7) * .7).toFixed(1)}s"` : ''}/>`;
+    }
+  }
+  $('etoiles').innerHTML = et;
+  // nuages : des formes douces dans la bande de ciel au-dessus de l'objet
+  const n = +($('nuages').dataset.n || 0);
+  const pos = [[.12, .30, .34], [.62, .18, .30], [.36, .48, .26], [.86, .42, .24], [.02, .58, .22]];
+  const cirrus = $('nuages').dataset.meteo === 'voile';
+  $('nuages').innerHTML = pos.slice(0, n).map(([fx, fy, fw]) => {
+    const w = fw * W * (cirrus ? 1.6 : 1), h = cirrus ? 10 : w * .34;
+    return `<i style="left:${(fx * W).toFixed(0)}px;top:${(C.bB + fy * (yh * .55)).toFixed(0)}px;width:${w.toFixed(0)}px;height:${h.toFixed(0)}px"></i>`;
+  }).join('');
+}
+
+/* ======================================================= FLUX : le relais de S&A-HOME — partagé ===
+   Une comète = 6 tirets empilés (46/38/30/22/14/7, opacité .10 → 1) + une lueur floutée, têtes alignées.
+   Cycle fixe de 5,6 s : les comètes entrantes arrivent au moyeu à 28,2 %, les sortantes partent à 25,7 %.
+   Vitesse croissante avec la puissance : les fenêtres de la référence sont le cas le plus lent (u → 0) ;
+   u = √(|kW| / 3) les raccourcit, sans jamais passer sous 0,9 s de trajet.
+   Contrat : la page déclare l'élément #hero (pause de ses animations CSS). */
+const T_CYCLE = 5600, EASE = 'cubic-bezier(.45,0,.55,1)';
+const COUCHES = [[46, .10], [38, .16], [30, .26], [22, .40], [14, .62], [7, 1]];
+let T0 = null;
+const ANIMS = new Set();
+function enregistrer(a) { ANIMS.add(a); a.startTime = T0; return a; }
+function annuler(liste) { liste.forEach(a => { a.cancel(); ANIMS.delete(a); }); liste.length = 0; }
+
+const points = d => (d.match(/-?[\d.]+,-?[\d.]+/g) || []).map(q => q.split(',').map(Number));
+const cheminDe = pts => 'M' + pts.map(p => p.join(',')).join(' L');
+const longueur = pts => pts.slice(1).reduce((a, p, k) => a + Math.hypot(p[0] - pts[k][0], p[1] - pts[k][1]), 0);
+/* fenêtre [début, fin] (fraction du cycle) : arrivée au moyeu à 28,2 % (entrantes, 1,58 s → 0,90 s),
+   départ à 25,7 % (sortantes, 1,66 s → 0,90 s), puis le câble de la borne de 53,6 à 64,3 % (phase « cab ») ;
+   le reste du cycle est le repos de la référence */
+function fenetre(phase, u) {
+  u = borne(u || 0, 0, 1);
+  return phase === 'cab' ? [0.536, 0.643] : phase === 'sor' ? [0.257, 0.554 - 0.137 * u] : [0.122 * u, 0.282];
+}
+/* images clés du tiret N ; « decal » décale le motif pour un tronçon qui commence plus loin sur le trajet */
+function images(N, PL, phase, [a, b], decal = 0) {
+  const inv = phase === 'ent inv';
+  const o0 = (inv ? -PL - 1 : N + 1) + decal;                    // ±1 : le tiret attend entièrement hors du tracé
+  const o1 = (inv ? 47 : N - (PL + 47)) + decal;
+  const k = [{ offset: 0, strokeDashoffset: o0 }];
+  if (a > 0) k.push({ offset: a, strokeDashoffset: o0 });
+  k[k.length - 1].easing = EASE;
+  k.push({ offset: b, strokeDashoffset: o1 }, { offset: 1, strokeDashoffset: o1 });
+  return k;
+}
+
+/* Une comète sur un trajet fait de tronçons ({ d, len }) : la lueur puis les 6 tirets de chaque tronçon, dans g.
+   PL : longueur du motif (pathLength du trajet entier) ; gradId : le dégradé du trait. Renvoie les tracés créés
+   (_N : longueur du tiret, _decal : début du tronçon sur le trajet, _lueur). */
+function construireComete(g, pieces, PL, gradId) {
+  const L = pieces.reduce((a, p) => a + p.len, 0), paths = [];
+  let decal = 0;
+  for (const piece of pieces) {
+    const plp = PL * piece.len / L;
+    const couches = [['fl-lueur', 14, null], ...COUCHES.map(([N, o]) => ['fl-trait l' + N, N, o])];
+    for (const [cls, N, op] of couches) {
+      const p = document.createElementNS(SVGNS, 'path');
+      p.setAttribute('d', piece.d);
+      p.setAttribute('pathLength', plp.toFixed(3));
+      p.setAttribute('class', cls);
+      p.setAttribute('stroke', `url(#${gradId})`);
+      p.setAttribute('stroke-dasharray', `${N} ${PL + 300}`);
+      p.setAttribute('stroke-dashoffset', String(N + 1 + decal));
+      if (op != null) p.style.opacity = op;
+      p._N = N; p._decal = decal; p._lueur = op == null;
+      g.appendChild(p);
+      paths.push(p);
+    }
+    decal += plp;
+  }
+  return paths;
+}
+
+/* Hors écran, ou onglet caché : tout se met en pause ; au retour, même origine T0 (les flux restent en phase) */
+let VISIBLE = true, ECRAN = true;
+function synchroPause() {
+  const actif = VISIBLE && ECRAN;
+  $('hero').classList.toggle('fige', !actif);                    // animations CSS du ciel (étoiles, nuages) : en pause aussi
+  for (const a of ANIMS) {
+    if (!actif) { if (a.playState === 'running') a.pause(); }
+    else if (a.playState === 'paused') a.startTime = T0;
+  }
+}
+
+/* Interrupteur « Animations des flux » (WCAG 2.2.2) — partagé : coupe comètes, pulsations, nuages ; mémorisé dans ce navigateur
+   seulement, sous la même clé sur toutes les pages. Mouvement réduit demandé par l'appareil : tout est déjà immobile,
+   l'interrupteur n'a plus d'utilité et le pied est masqué. Contrat : la page déclare #btn-anim et #pied. */
+const lireAnimations = () => { try { PAUSE = localStorage.getItem('breezy-animations') === '0'; } catch (_) { PAUSE = false; } };
+function majInterrupteur() {
+  $('btn-anim').setAttribute('aria-checked', String(!immobile()));
+  $('pied').hidden = reduitMQ.matches;
+  document.documentElement.classList.toggle('calme', immobile());
+}
+/* apres : ce que la page refait une fois l'interrupteur basculé (rendu immédiat, flux recréés) */
+function basculerAnimations(apres) {
+  if (reduitMQ.matches) return;
+  PAUSE = !PAUSE;
+  try { localStorage.setItem('breezy-animations', PAUSE ? '0' : '1'); } catch (_) { /* stockage indisponible */ }
+  majInterrupteur();
+  apres();
+}
+
+
+/* ---------- Statistiques de Home Assistant : la production heure par heure ---------- */
+const HISTO = { heures: null, quand: 0 };
 /* la production heure par heure depuis minuit (moyennes, en W) : comme chargerHisto de S&A-HOME, rechargée toutes les 15 min */
 function chargerHisto() {
   if (!HA.enCoque || !ENT.solaire) return;
@@ -1298,158 +1805,6 @@ function etatsExemple(nom) {
   return { t, etats, histo: { [ENT.solaire]: serie } };
 }
 
-/* ------------------------------------------------------------ Formats FR -- */
-const NBSP = ' ', NNBSP = ' ';
-const nf = {};
-const nombre = (v, d = 1, dMin = d) => (nf[d + '/' + dMin] ||= new Intl.NumberFormat('fr-FR', { minimumFractionDigits: dMin, maximumFractionDigits: d })).format(v);
-const fini = v => typeof v === 'number' && Number.isFinite(v);
-const borne = (v, a, b) => Math.max(a, Math.min(b, v));
-/* Puissance (W) : < 1 000 W en watts arrondis à 10 W ; au-delà en kW (1,46 kW, 7,2 kW) ; un 0 mesuré reste « 0 W » */
-const kWtxt = w => nombre(w / 1000, 2, 1);
-function puissance(w) {
-  if (!fini(w)) return { n: '—', u: '', w: null };
-  const a = Math.abs(w), r = Math.round(a / 10) * 10;
-  if (a === 0) return { n: '0', u: 'W', w: 0 };
-  if (r < 1000) return { n: r === 0 ? `<${NNBSP}10` : nombre(r, 0), u: 'W', w: r };
-  return { n: kWtxt(a), u: 'kW', w: a };
-}
-const pTxt = w => { const p = puissance(w); return p.u ? `${p.n}${NBSP}${p.u}` : p.n; };
-/* lecture d'écran : « 1,46 kilowatt », « 520 watts » (accord sur le nombre tel qu'il est affiché) */
-const pLong = w => {
-  const p = puissance(w);
-  if (!p.u) return 'non mesuré';
-  const n = p.u === 'W' ? p.w || 10 : Math.round(Math.abs(w) / 10) / 100;
-  return `${p.n.replace(NNBSP, ' ')} ${accord(n, p.u === 'W' ? 'watt' : 'kilowatt')}`;
-};
-const accord = (n, sing, plur = sing + 's') => Math.abs(n) >= 2 ? plur : sing;
-const kWh = v => fini(v) ? nombre(v, 1) : '—';
-const euros = v => fini(v) ? nombre(v, 2) : '—';
-const pct = v => fini(v) ? new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(v) : '—';
-const unite = (n, u, cls = 'u') => `${n}<span class="${cls}">${NBSP}${u}</span>`;
-const heureTxt = h => {
-  if (!fini(h)) return '—';
-  h = ((h % 24) + 24) % 24;
-  let H = Math.floor(h), M = Math.round((h - H) * 60);
-  if (M === 60) { H = (H + 1) % 24; M = 0; }
-  return M ? `${H}${NBSP}h${NBSP}${String(M).padStart(2, '0')}` : `${H}${NBSP}h`;
-};
-const hDe = (s, defaut = null) => { if (typeof s !== 'string') return defaut; const [H, M] = s.split(':').map(Number); return fini(H) ? H + (M || 0) / 60 : defaut; };
-/* heures annoncées à 5 min près : « pleine vers » au plus proche, « jusqu'à » tronquée (jamais de promesse en trop) */
-const arrondi5 = h => Math.round(h * 12) / 12;
-const tronque5 = h => Math.floor(h * 12 + 1e-9) / 12;
-const $ = id => document.getElementById(id);
-const SVGNS = 'http://www.w3.org/2000/svg';
-const reduitMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
-const sombreMQ = window.matchMedia('(prefers-color-scheme: dark)');
-let PAUSE = false;                                   // interrupteur « Animations des flux » du pied de page
-const immobile = () => reduitMQ.matches || PAUSE;
-const themeSombre = () => { const t = document.documentElement.dataset.theme; return t === 'dark' || (t !== 'light' && sombreMQ.matches); };
-
-/* Heure de la maison (CONFIG.fuseau), quel que soit le fuseau du navigateur : { date, h (heures décimales), jour (aaaa-mm-jj) } */
-const FMT_HEURE = new Intl.DateTimeFormat('fr-FR', { timeZone: CONFIG.fuseau, year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' });
-function heureLocale(date) {
-  const d = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
-  const parts = FMT_HEURE.formatToParts(d), v = t => Number(parts.find(p => p.type === t)?.value ?? 0);
-  return { date: d, h: v('hour') + v('minute') / 60 + v('second') / 3600, jour: `${v('year')}-${v('month')}-${v('day')}` };
-}
-/* minuit de la maison, le jour de l'instant t (ms), à la milliseconde ; corrigé une fois les jours de changement d'heure */
-const minuitDe = t => {
-  const d = new Date(t), m = t - Math.round(heureLocale(d).h * 3600) * 1000 - d.getMilliseconds(), e = heureLocale(new Date(m)).h;
-  return e ? m - Math.round((e > 12 ? e - 24 : e) * 3600) * 1000 : m;
-};
-const dateCourte = date => new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: CONFIG.fuseau }).format(date);
-
-/* ------------------------------------------------------------ Icônes (traits, 24 × 24) -- */
-const TRACE = {
-  soleil: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/>',
-  maison: '<path d="M3.5 11 12 4l8.5 7"/><path d="M5.8 9.4V20h12.4V9.4"/><path d="M10 20v-5.2h4V20"/>',
-  batterie: '<rect x="2.5" y="7" width="16.5" height="10" rx="2.2"/><path d="M21.5 10.5v3"/><path d="M6 10v4M9.5 10v4"/>',
-  reseau: '<path d="M8 21 11.2 3h1.6L16 21"/><path d="M6.5 8h11M5 13h14"/><path d="M9.2 17.2 14 13M14.8 17.2 10 13"/>',
-  borne: '<rect x="4.5" y="3" width="9" height="18" rx="2"/><path d="M4.5 9.5h9"/><path d="M13.5 13h2a2 2 0 0 1 2 2v2.5a1.5 1.5 0 0 0 3 0V9l-2.5-2.5"/><path d="M9.6 12 8 14.6h2.2L8.6 17.2"/>',
-  chevron: '<path d="M9 5.5 15.5 12 9 18.5"/>',
-  graphique: '<path d="M3.5 20.5h17"/><path d="M6.5 17V11M11 17V6.5M15.5 17v-8M20 17v-4"/>',
-  feuille: '<path d="M5 19.5C5 11 10.5 5 20 4.5c0 9.5-6 15-14 15z"/><path d="M5 19.5 13.5 11"/>'
-};
-const icone = (nom, cls = 'ic') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${TRACE[nom] || ''}</svg>`;
-/* flèches de sens : ↗ export, ↙ import, ↑ charge, ↓ décharge (la couleur n'est jamais seule) */
-const FL_TRACE = {
-  export: '<path d="M7 17 17 7M8.5 7H17v8.5"/>',
-  import: '<path d="M17 7 7 17M7 8.5V17h8.5"/>',
-  haut: '<path d="M12 19.5V5M6.5 10.5 12 5l5.5 5.5"/>',
-  bas: '<path d="M12 4.5V19M6.5 13.5 12 19l5.5-5.5"/>'
-};
-const fleche = nom => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${FL_TRACE[nom]}</svg>`;
-
-/* ------------------------------------------------------------ Couleurs (OKLab) -- */
-const RAD = Math.PI / 180;
-const lireOklch = s => { const [L, C, h] = s.trim().split(/\s+/).map(Number); return [L, C * Math.cos(h * RAD), C * Math.sin(h * RAD)]; };
-const versRgbLin = ([L, a, b]) => {
-  const l = (L + .3963377774 * a + .2158037573 * b) ** 3, m = (L - .1055613458 * a - .0638541728 * b) ** 3, s = (L - .0894841775 * a - 1.291485548 * b) ** 3;
-  return [4.0767416621 * l - 3.3077115913 * m + .2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - .3413193965 * s, -.0041960863 * l - .7034186147 * m + 1.707614701 * s];
-};
-const lin = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-const depuisHex = hex => {
-  const n = parseInt(hex.slice(1), 16), r = lin((n >> 16 & 255) / 255), g = lin((n >> 8 & 255) / 255), b = lin((n & 255) / 255);
-  const l = Math.cbrt(.4122214708 * r + .5363325363 * g + .0514459929 * b), m = Math.cbrt(.2119034982 * r + .6806995451 * g + .1073969566 * b), s = Math.cbrt(.0883024619 * r + .2817188376 * g + .6299787005 * b);
-  return [.2104542553 * l + .793617785 * m - .0040720468 * s, 1.9779984951 * l - 2.428592205 * m + .4505937099 * s, .0259040371 * l + .7827717662 * m - .808675766 * s];
-};
-const cssLab = ([L, a, b]) => `oklab(${L.toFixed(4)} ${a.toFixed(4)} ${b.toFixed(4)})`;
-const melangeLab = (A, B, t) => A.map((x, k) => x + (B[k] - x) * t);
-const lisser = (a, b, x) => { const t = borne((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
-const luminanceLab = lab => { const [r, g, b] = versRgbLin(lab).map(v => borne(v, 0, 1)); return .2126 * r + .7152 * g + .0722 * b; };
-const contraste = (y1, y2) => (Math.max(y1, y2) + .05) / (Math.min(y1, y2) + .05);
-const chroma = ([L, a, b], k, dL = 0) => [L + dL, a * k, b * k];
-function interCles(cles, E, n) {
-  if (E <= cles[0][0]) return cles[0][n];
-  for (let k = 1; k < cles.length; k++) if (E <= cles[k][0]) return melangeLab(cles[k - 1][n], cles[k][n], lisser(cles[k - 1][0], cles[k][0], E));
-  return cles[cles.length - 1][n];
-}
-
-/* Ciel : clés par élévation du soleil E (°) — haut, milieu, horizon, sol. Matin et soir ne diffèrent qu'autour de l'horizon. */
-const K = s => lireOklch(s);
-const CIEL = {
-  nuit:  [-12, K('.165 .016 262'), K('.205 .02 262'), K('.235 .016 260'), K('.20 .012 262')],
-  crep:  [-4,  K('.30 .05 275'), K('.42 .07 315'), K('.62 .10 45'), K('.26 .02 270')],
-  clair: {
-    soir:  [4,  K('.80 .05 265'), K('.89 .05 40'), K('.94 .06 70'), K('.88 .02 60')],
-    matin: [4,  K('.82 .045 275'), K('.90 .045 10'), K('.95 .045 75'), K('.89 .015 60')],
-    k14:   [14, K('.84 .05 248'), K('.92 .035 230'), K('.955 .02 80'), K('.92 .012 78')],
-    jour:  [20, K('.86 .055 240'), K('.93 .035 220'), K('.96 .012 85'), K('.93 .01 80')]
-  },
-  sombre: {
-    soir:  [4,  K('.26 .05 270'), K('.34 .06 330'), K('.50 .09 55'), K('.22 .015 270')],
-    matin: [4,  K('.27 .045 275'), K('.36 .05 350'), K('.50 .07 60'), K('.22 .015 270')],
-    jour:  [20, K('.30 .055 245'), K('.37 .05 232'), K('.45 .03 80'), K('.24 .012 250')]
-  }
-};
-function clesCiel(sombre, matin) {
-  const T = sombre ? CIEL.sombre : CIEL.clair, k4 = matin ? T.matin : T.soir;
-  const k14 = sombre ? [14, ...[1, 2, 3, 4].map(n => melangeLab(k4[n], T.jour[n], .66))] : T.k14;
-  return [CIEL.nuit, CIEL.crep, k4, k14, T.jour];
-}
-/* Voile posé sur la maison (multiplication) : blanc = aucun effet */
-const VOILE = {
-  clair:  [[-12, depuisHex('#262b49')], [-4, depuisHex('#55557f')], [4, depuisHex('#d9d3d8')], [12, depuisHex('#ffffff')]],
-  sombre: [[-12, depuisHex('#262b49')], [-4, depuisHex('#55557f')], [4, depuisHex('#a2a3b9')], [12, depuisHex('#c4c9d6')]]
-};
-
-/* ------------------------------------------------ Position du soleil ---
-   Formules astronomiques simplifiées (≈ 0,5°), suffisantes pour peindre le ciel.
-   Avec Home Assistant, l’attribut elevation de sun.sun est utilisé tel quel ; ceci ne sert qu’à défaut (et aux valeurs d’exemple). */
-function positionSoleil(date, lat, lon) {
-  const d = date.getTime() / 86400000 - 10957.5;
-  const g = (357.529 + 0.98560028 * d) * RAD;
-  const q = 280.459 + 0.98564736 * d;
-  const L = (q + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * RAD;
-  const eps = (23.439 - 0.00000036 * d) * RAD;
-  const ra = Math.atan2(Math.cos(eps) * Math.sin(L), Math.cos(L));
-  const dec = Math.asin(Math.sin(eps) * Math.sin(L));
-  const gmst = ((18.697374558 + 24.06570982441908 * d) % 24 + 24) % 24;
-  const H = (gmst * 15 + lon) * RAD - ra, phi = lat * RAD;
-  const alt = Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H));
-  return { elevation: alt / RAD };
-}
-
 /* ------------------------------------------------------- Lecture des entités (S&A-HOME : fluxMaison, batterieMaison) --
    Puissances en W. batNet = −batterie : + = la batterie se charge, − = elle alimente la maison.
    maison = soleil + réseau − batNet − borne ; elle n'est connue que si le soleil, le réseau et la batterie (si reliée) le sont.
@@ -1491,9 +1846,6 @@ function ligneBatterie(d) {
 
 /* ------------------------------------------------------- Dérivés -- */
 let MEMO = { jour: null, annonce: null };
-/* météo de Home Assistant → ciel de la scène */
-const METEO = { sunny: 'clair', 'clear-night': 'clair', partlycloudy: 'nuageux', windy: 'nuageux', 'windy-variant': 'nuageux', cloudy: 'couvert', exceptional: 'couvert', fog: 'voile',
-  rainy: 'pluie', pouring: 'pluie', snowy: 'pluie', 'snowy-rainy': 'pluie', hail: 'pluie', lightning: 'orage', 'lightning-rainy': 'orage' };
 /* Flux allumés aux seuils de S&A-HOME : soleil ≥ 30 W, |batterie| > 30 W, |réseau| > 5 W, borne > 50 W ; la maison dès qu'elle est connue.
    u = √(kW / 3) : la vitesse des comètes croît avec la puissance. */
 function calculerFlux(f, aBatterie) {
@@ -1636,39 +1988,9 @@ let CADRE = null, SCENE = null;
 
 function rendreScene(d) {
   SCENE = d;
+  // --- le ciel (partage/ciel.js) : dégradé, encre, astre, nuages, pluie
+  const ciel = peindreCiel(d, CADRE);
   const sombre = themeSombre();
-  const hero = $('hero');
-  // --- ciel : interpolation OKLab par élévation (sun.sun), puis météo (weather.*)
-  const cles = clesCiel(sombre, d.matin);
-  let teintes = [1, 2, 3, 4].map(n => interCles(cles, d.E, n));
-  const meteo = d.ciel;
-  const mod = { clair: [1, 0], voile: [.8, 0], nuageux: [.75, 0], couvert: [.35, sombre ? -.02 : -.04], pluie: [.35, sombre ? -.04 : -.06], orage: [.35, sombre ? -.08 : -.10] }[meteo] || [1, 0];
-  teintes = teintes.map(t => chroma(t, mod[0], mod[1]));
-  const [haut, milieu] = teintes;
-  // ciel sombre ou clair (ombres du dessin) ; l'encre du texte, elle, est choisie par encrerCiel() sur le ciel réellement derrière le texte
-  const yH = luminanceLab(haut), yM = luminanceLab(milieu), yN = luminanceLab(ENCRE.sombre), yB = luminanceLab(ENCRE.claire);
-  const ciel = Math.min(contraste(yN, yH), contraste(yN, yM)) >= Math.min(contraste(yB, yH), contraste(yB, yM)) ? 'clair' : 'sombre';
-  if (!CADRE) hero.dataset.ciel = ciel;
-  MEMO.teintes = teintes; MEMO.fonduCiel = true;
-  encrerCiel();
-  // --- astre : soleil (E ≥ −1), lune (E < −4)
-  const astre = $('astre');
-  const soleilVu = d.E >= -1, luneVue = d.E < -4;
-  const voile = { voile: .75, couvert: .3 }[meteo] ?? 1;
-  const cache = meteo === 'pluie' || meteo === 'orage';
-  astre.classList.toggle('lune', !soleilVu && luneVue);
-  astre.style.opacity = (soleilVu || luneVue) && !cache ? String(soleilVu ? voile : 1) : '0';
-  const cA = melangeLab(lireOklch('.80 .14 60'), lireOklch('.86 .15 85'), lisser(3, 18, d.E));
-  astre.style.setProperty('--astre', cssLab(cA));
-  // --- nuages et pluie
-  const nb = { voile: 2, nuageux: 3, couvert: 5, pluie: 5, orage: 5 }[meteo] || 0;
-  const nuages = $('nuages');
-  nuages.dataset.n = nb; nuages.dataset.meteo = meteo;
-  nuages.classList.toggle('derive', nb > 0 && !immobile());
-  const nuit = d.E < -4;
-  nuages.style.setProperty('--nuage', meteo === 'voile' ? 'oklch(1 0 0 / .35)' : meteo === 'orage' ? 'oklch(.36 .012 260 / .8)' : nuit ? 'oklch(.3 .01 260 / .6)' : meteo === 'nuageux' ? 'oklch(1 0 0 / .7)' : 'oklch(.93 .005 260 / .8)');
-  $('pluie').hidden = !(meteo === 'pluie' || meteo === 'orage');
-  $('pluie').classList.toggle('anim', !immobile());
 
   // --- la maison : voile (multiplication), teinte, halo, lumières, ombres au sol
   const vo = interCles(VOILE[sombre ? 'sombre' : 'clair'], d.E, 1);
@@ -1679,10 +2001,10 @@ function rendreScene(d) {
   if (d.cle === 'jour') { teinte.setAttribute('display', 'inline'); teinte.setAttribute('fill', 'url(#gTeinteJour)'); teinte.setAttribute('opacity', sombre ? '.25' : '.35'); }
   else if (d.cle === 'doree' || d.cle === 'aube') { teinte.setAttribute('display', 'inline'); teinte.setAttribute('fill', 'url(#gTeinteDoree)'); teinte.setAttribute('opacity', '.55'); }
   else teinte.setAttribute('display', 'none');
-  const HALO = { doree: ['#ffaa60', .35], aube: ['#ffaa60', .35], crepuscule: ['#8a8fff', .34], nuit: ['#7d93ff', .36] }[d.cle];
+  const contreJour = HALO[d.cle];
   const halo = svg.querySelector('#halo');
-  halo.setAttribute('display', HALO ? 'inline' : 'none');
-  if (HALO) { svg.querySelector('#halo-couleur').setAttribute('flood-color', HALO[0]); halo.setAttribute('opacity', HALO[1]); }
+  halo.setAttribute('display', contreJour ? 'inline' : 'none');
+  if (contreJour) { svg.querySelector('#halo-couleur').setAttribute('flood-color', contreJour[0]); halo.setAttribute('opacity', contreJour[1]); }
   const soirOuNuit = d.cle === 'crepuscule' || d.cle === 'nuit';
   // lumières d'ambiance selon l'heure ; la tranchée s'éclaire quand le réseau travaille
   const Lum = {
@@ -1736,84 +2058,6 @@ function rendreScene(d) {
     `, réseau ${etat(f.grid, F.reseau.actif, f.grid > 0 ? `en import, ${pLong(f.grid)}` : `en export, ${pLong(f.grid)}`)}` +
     (F.voiture.actif ? `, borne de la voiture en charge, ${pLong(f.ve)}` : ENT.voiture && f.ve == null && d.f ? ', borne non mesurée (comptée à zéro)' : '') +
     (allumees.length ? `. Lumière allumée dans ${allumees.join(', ')}.` : '.'));
-}
-
-/* ------------------------------------------------ Encre du héros et voile de lecture ---
-   Le texte du héros (marque, menu, chiffre, phrase) est posé sur le ciel. On échantillonne le dégradé réellement
-   derrière lui (de la barre au bas de la phrase), on choisit l'encre, sombre ou claire, qui demande le moins d'aide,
-   puis, si elle reste sous 4,5:1 (autour de l'aube et du crépuscule, ciel mauve), on pose en haut du ciel un voile
-   de sa propre teinte, plus clair ou plus sombre, juste assez opaque pour l'atteindre. L'encre secondaire
-   (intitulé, unité, menu) se rapproche de l'encre principale tant qu'elle n'atteint pas 4,5:1.
-   Le bilan, quand il chevauche une scène sombre ou intermédiaire en thème clair, passe en surface pleine ou en verre sombre. */
-const ENCRE = { sombre: lireOklch('.22 .012 260'), claire: lireOklch('.97 .004 260') };
-const CIBLE = 4.6;
-const versSrgb = lab => versRgbLin(lab).map(v => { v = borne(v, 0, 1); return v <= .0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - .055; });
-const lumSrgb = c => .2126 * lin(c[0]) + .7152 * lin(c[1]) + .0722 * lin(c[2]);
-function encrerCiel() {
-  const T = MEMO.teintes;
-  if (!T) return;
-  const hero = $('hero'), C = CADRE, sombreTheme = themeSombre();
-  const [haut, milieu, horizon, sol] = T;
-  const H = C?.H || hero.clientHeight || 600, yh = C ? C.hy + 535 * C.s : H * .6;
-  const [y0, y1] = C?.texte || [0, yh * .45];
-  // le dégradé CSS du ciel (interpolé en sRGB, comme le navigateur)
-  const arrets = [[0, haut], [yh * .45, milieu], [yh, horizon], [yh + 24, sol], [H, chroma(sol, 1, -.015)]].map(([y, c]) => [y, versSrgb(c)]);
-  const ciel = y => {
-    if (y <= arrets[0][0]) return arrets[0][1];
-    for (let k = 1; k < arrets.length; k++) if (y <= arrets[k][0]) { const [ya, a] = arrets[k - 1], [yb, b] = arrets[k], t = yb > ya ? (y - ya) / (yb - ya) : 1; return a.map((x, n) => x + (b[n] - x) * t); }
-    return arrets[arrets.length - 1][1];
-  };
-  const ech = Array.from({ length: 13 }, (_, k) => ciel(y0 + (y1 - y0) * k / 12));
-  const voiles = { clair: versSrgb([.97, haut[1] * .3, haut[2] * .3]), sombre: versSrgb([.24, haut[1] * .7, haut[2] * .7]) };
-  const pire = (yEncre, voile, a) => Math.min(...ech.map(c => contraste(yEncre, lumSrgb(a ? c.map((x, n) => x + (voile[n] - x) * a) : c))));
-  const alpha = (yEncre, voile) => {
-    if (pire(yEncre, voile, 0) >= CIBLE) return 0;
-    let lo = 0, hi = .8;
-    if (pire(yEncre, voile, hi) < CIBLE) return hi;
-    for (let k = 0; k < 14; k++) { const m = (lo + hi) / 2; if (pire(yEncre, voile, m) >= CIBLE) hi = m; else lo = m; }
-    return hi;
-  };
-  const yS = luminanceLab(ENCRE.sombre), yC = luminanceLab(ENCRE.claire);
-  const aS = alpha(yS, voiles.clair), aC = alpha(yC, voiles.sombre);
-  const encre = aS <= aC ? 'clair' : 'sombre';                       // data-ciel : « clair » = ciel clair, encre sombre
-  const a = Math.min(aS, aC), voile = encre === 'clair' ? voiles.clair : voiles.sombre;
-  // encre secondaire : la plus discrète qui garde 4,5:1 sur le ciel voilé
-  let L2 = encre === 'clair' ? .38 : .84;
-  const L1 = encre === 'clair' ? .22 : .97, y2 = L => luminanceLab(lireOklch(`${L} .01 260`));
-  if (pire(y2(L2), voile, a) < CIBLE) {
-    let lo = L1, hi = L2;                                             // lo : passe toujours ; hi : trop discret
-    for (let k = 0; k < 12; k++) { const m = (lo + hi) / 2; if (pire(y2(m), voile, a) >= CIBLE) lo = m; else hi = m; }
-    L2 = lo;
-  }
-  hero.dataset.ciel = encre;
-  if (L2 !== (encre === 'clair' ? .38 : .84)) hero.style.setProperty('--ciel-encre-2', `oklch(${L2.toFixed(3)} .01 260)`); else hero.style.removeProperty('--ciel-encre-2');
-  // le ciel (fondu de 1,2 s quand il change avec les données)
-  const rgb = c => `rgb(${c.map(x => Math.round(borne(x, 0, 1) * 255)).join(' ')}`;
-  const vars = { '--c-haut': cssLab(haut), '--c-milieu': cssLab(milieu), '--c-horizon': cssLab(horizon), '--c-sol0': cssLab(sol), '--c-sol1': cssLab(chroma(sol, 1, -.015)),
-    '--voile-c': a > 0 ? `${rgb(voile)} / ${a.toFixed(3)})` : 'transparent', '--voile-y': `${Math.round(y1)}px` };
-  const cle = Object.values(vars).join('|');
-  const ca = $('ciel-a'), cb = $('ciel-b');
-  if (cle !== MEMO.cleCiel) {
-    if (MEMO.cleCiel && MEMO.fonduCiel && !immobile()) {
-      for (const k of Object.keys(vars)) cb.style.setProperty(k, ca.style.getPropertyValue(k));
-      cb.style.transition = 'none'; cb.style.opacity = '1'; void cb.offsetWidth;
-      cb.style.transition = 'opacity 1.2s ease'; cb.style.opacity = '0';
-    }
-    for (const [k, v] of Object.entries(vars)) ca.style.setProperty(k, v);
-    MEMO.cleCiel = cle;
-  }
-  MEMO.fonduCiel = false;
-  hero.style.setProperty('--ciel-haut-actuel', vars['--c-haut']);
-  // le bilan sur la scène (thème clair seulement : en thème sombre, son verre sombre suffit partout)
-  let fond = '';
-  if (!sombreTheme && C?.bilanZone) {
-    const [b0, b1] = C.bilanZone;
-    const yMin = Math.min(...Array.from({ length: 7 }, (_, k) => lumSrgb(ciel(b0 + (b1 - b0) * k / 6))));
-    if (C.mode === 'large' && encre === 'sombre') fond = 'sombre';
-    else if (yMin < .52) fond = 'plein';
-  }
-  const bilan = $('bilan');
-  if ((bilan.dataset.fond || '') !== fond) { if (fond) bilan.dataset.fond = fond; else delete bilan.dataset.fond; }
 }
 
 /* ------------------------------------------------ Préparation du dessin (une fois) ---
@@ -1936,41 +2180,10 @@ function preparerSvg() {
   preparerFlux();
 }
 
-/* ======================================================= FLUX : le relais de S&A-HOME ===
-   Une comète = 6 tirets empilés (46/38/30/22/14/7, opacité .10 → 1) + une lueur floutée, têtes alignées.
-   Cycle fixe de 5,6 s : les comètes entrantes arrivent au moyeu à 28,2 %, les sortantes partent à 25,7 %.
-   Vitesse croissante avec la puissance : les fenêtres de la référence sont le cas le plus lent (u → 0) ;
-   u = √(|kW| / 3) les raccourcit, sans jamais passer sous 0,9 s de trajet. */
-const T_CYCLE = 5600, EASE = 'cubic-bezier(.45,0,.55,1)';
-const COUCHES = [[46, .10], [38, .16], [30, .26], [22, .40], [14, .62], [7, 1]];
+/* ======================================================= FLUX de la maison (moteur : partage/flux.js) === */
 const COULEUR_FLUX = { soleil: null, maison: 'var(--maison)', batterie: 'var(--batterie)', reseau: 'var(--reseau)', voiture: 'var(--borne)' };
-let T0 = null, FILE = null, MINUTERIE = 0;
-const ANIMS = new Set();
+let FILE = null, MINUTERIE = 0;
 const FLUX = {};
-function enregistrer(a) { ANIMS.add(a); a.startTime = T0; return a; }
-function annuler(liste) { liste.forEach(a => { a.cancel(); ANIMS.delete(a); }); liste.length = 0; }
-
-const points = d => (d.match(/-?[\d.]+,-?[\d.]+/g) || []).map(q => q.split(',').map(Number));
-const cheminDe = pts => 'M' + pts.map(p => p.join(',')).join(' L');
-const longueur = pts => pts.slice(1).reduce((a, p, k) => a + Math.hypot(p[0] - pts[k][0], p[1] - pts[k][1]), 0);
-/* fenêtre [début, fin] (fraction du cycle) : arrivée au moyeu à 28,2 % (entrantes, 1,58 s → 0,90 s),
-   départ à 25,7 % (sortantes, 1,66 s → 0,90 s), puis le câble de la borne de 53,6 à 64,3 % (phase « cab ») ;
-   le reste du cycle est le repos de la référence */
-function fenetre(phase, u) {
-  u = borne(u || 0, 0, 1);
-  return phase === 'cab' ? [0.536, 0.643] : phase === 'sor' ? [0.257, 0.554 - 0.137 * u] : [0.122 * u, 0.282];
-}
-/* images clés du tiret N ; « decal » décale le motif pour un tronçon qui commence plus loin sur le trajet */
-function images(N, PL, phase, [a, b], decal = 0) {
-  const inv = phase === 'ent inv';
-  const o0 = (inv ? -PL - 1 : N + 1) + decal;                    // ±1 : le tiret attend entièrement hors du tracé
-  const o1 = (inv ? 47 : N - (PL + 47)) + decal;
-  const k = [{ offset: 0, strokeDashoffset: o0 }];
-  if (a > 0) k.push({ offset: a, strokeDashoffset: o0 });
-  k[k.length - 1].easing = EASE;
-  k.push({ offset: b, strokeDashoffset: o1 }, { offset: 1, strokeDashoffset: o1 });
-  return k;
-}
 
 function preparerFlux() {
   const lire = id => points(svg.querySelector('#' + id)?.getAttribute('d') || '');
@@ -2029,27 +2242,7 @@ function echelleFlux() {
 function construireFlux(f) {
   annuler(f.anims);
   f.g.textContent = '';
-  f.paths = [];
-  let decal = 0;
-  const PL = f.PL;
-  for (const piece of f.pieces) {
-    const plp = PL * piece.len / f.L;
-    const couches = [['fl-lueur', 14, null], ...COUCHES.map(([N, o]) => ['fl-trait l' + N, N, o])];
-    for (const [cls, N, op] of couches) {
-      const p = document.createElementNS(SVGNS, 'path');
-      p.setAttribute('d', piece.d);
-      p.setAttribute('pathLength', plp.toFixed(3));
-      p.setAttribute('class', cls);
-      p.setAttribute('stroke', `url(#fl-g-${f.nom})`);
-      p.setAttribute('stroke-dasharray', `${N} ${PL + 300}`);
-      p.setAttribute('stroke-dashoffset', String(N + 1 + decal));
-      if (op != null) p.style.opacity = op;
-      p._N = N; p._decal = decal; p._lueur = op == null;
-      f.g.appendChild(p);
-      f.paths.push(p);
-    }
-    decal += plp;
-  }
+  f.paths = construireComete(f.g, f.pieces, f.PL, `fl-g-${f.nom}`);
   // tracé fixe + flèche (mouvement réduit)
   f.gf.innerHTML = f.pieces.map(pc => `<path d="${pc.d}" stroke="url(#fl-gs-${f.nom})"/>`).join('') + '<path class="fl-fleche"/>';
 }
@@ -2165,17 +2358,6 @@ function animerLed() {
     ? [{ offset: 0, transform: bas, opacity: 0 }, { offset: wb, transform: bas, opacity: 0 }, { offset: wb + .026, transform: bas, opacity: 1, easing: 'ease-in-out' }, { offset: wb + .166, transform: sommet, opacity: 1 }, { offset: wb + .196, transform: sommet, opacity: 0 }, { offset: 1, transform: sommet, opacity: 0 }]
     : [{ offset: 0, transform: sommet, opacity: 0 }, { offset: .02, transform: sommet, opacity: 1, easing: 'ease-in-out' }, { offset: .18, transform: bas, opacity: 1 }, { offset: .21, transform: bas, opacity: 0 }, { offset: 1, transform: bas, opacity: 0 }];
   LED_ANIMS.push(enregistrer(onde.animate(k, { duration: T_CYCLE, iterations: Infinity })));
-}
-
-/* Hors écran, ou onglet caché : tout se met en pause ; au retour, même origine T0 (les flux restent en phase) */
-let VISIBLE = true, ECRAN = true;
-function synchroPause() {
-  const actif = VISIBLE && ECRAN;
-  $('hero').classList.toggle('fige', !actif);                    // animations CSS du ciel (étoiles, nuages) : en pause aussi
-  for (const a of ANIMS) {
-    if (!actif) { if (a.playState === 'running') a.pause(); }
-    else if (a.playState === 'paused') a.startTime = T0;
-  }
 }
 
 /* ================================================================ CADRAGE ===
@@ -2413,6 +2595,11 @@ function cadrer() {
   // --- la maison : viewBox à partir du cadrage
   const C = CADRE;
   C.bilanZone = bilanZone;
+  // pour le ciel partagé (partage/ciel.js) : horizon, profil du toit, lune du grand écran, carte en verre
+  C.yh = hy + 535 * s;
+  C.silhouette = x => silhouette(x, C);
+  C.lune = [hx + 1179 * s * .78, C.bB + 34];
+  C.verre = $('bilan');
   const x0 = -hx / s, y0 = 20 - hy / s;
   svg.setAttribute('viewBox', `${x0.toFixed(2)} ${y0.toFixed(2)} ${(W / s).toFixed(2)} ${(H / s).toFixed(2)}`);
   $('ciel').style.setProperty('--yh', (hy + 535 * s).toFixed(1) + 'px');
@@ -2512,8 +2699,8 @@ function cadrer() {
   C.texte = [Math.max(0, Math.min(...texte.map(b => b.t))), Math.max(...texte.map(b => b.b))];
   C.obstacles = [marque, vu(nav) ? nav : null, cap, une, phraseVue ? ph : null, ...(dehors ? [] : pills.map(x => x.el))].filter(Boolean).map(boite).concat(obstaclesFil);
   if (bilanZone && mode === 'large') C.obstacles.push(boite(bilan));
-  encrerCiel();
-  placerCiel();
+  encrerCiel(C);
+  placerCiel(C, SCENE);
   echelleFlux();
 }
 
@@ -2523,77 +2710,6 @@ function pastillesDehors(oui) {
   if (oui === ul.classList.contains('dehors')) return;
   ul.classList.toggle('dehors', oui);
   if (oui) $('contenu').prepend(ul); else $('direct').insertBefore(ul, $('scene'));
-}
-
-/* ------------------------------------------------ Ciel : soleil ou lune, étoiles, nuages (jamais sous le texte) */
-function placerCiel() {
-  const C = CADRE, d = SCENE;
-  if (!C || !d) return;
-  const { W, s, hx, hy, gx, mode } = C;
-  const astre = $('astre');
-  const yh = hy + 535 * s;
-  const touche = (x, y, m) => C.obstacles.some(o => x > o.l - m && x < o.r + m && y > o.t - m && y < o.b + m);
-  const p = d.progres;
-  const lune = d.E < -4;
-  const r = lune ? 13 : mode === 'large' ? 28 : 20;
-  let ax, ay;
-  if (mode === 'portrait') {
-    if (lune) { ax = W - gx - 40; ay = C.bB + 40; }
-    else { ax = W - gx - 36 - (1 - p) * .18 * W; ay = C.bB + 26 + (1 - Math.sin(Math.PI * p)) * .10 * C.H; }
-  } else if (mode === 'court') {
-    ax = hx + 80 * s; ay = 24;
-  } else {
-    // grand écran : le ciel libre à droite de la colonne de texte ; matin à gauche, soir à droite, plus haut vers midi
-    const xa = C.edge + C.colW + 16 + r, xb = W - C.edge - r;
-    if (lune) { ax = hx + 1179 * s * .78; ay = C.bB + 34; }
-    else { ax = xa + p * (xb - xa); ay = C.bB + r + 24 + (1 - Math.sin(Math.PI * p)) * Math.max(0, yh - r - 40 - (C.bB + r + 24)) * .7; }
-  }
-  // place libre la plus proche : le disque plus une marge (la partie vive du halo) ne touche ni texte, ni pastille, ni filet, ni toit
-  const libre = (x, y, m) => {
-    if (x - r < 4 || x + r > W - 4 || y - r < (mode === 'large' ? C.bB - 8 : 4) || y + r > yh - 8) return false;   // grand écran : pas dans la rangée du menu
-    const R = r + m;
-    if (C.obstacles.some(o => x + R > o.l && x - R < o.r && y + R > o.t && y - R < o.b)) return false;
-    const Rt = R + (mode === 'large' ? 8 : 0);                      // le profil du toit est approché : un peu plus d'air au-dessus
-    for (let a = 0; a <= 180; a += 30) { const t = a * RAD, px = x + Rt * Math.cos(t), py = y + Rt * Math.sin(t); if (py >= silhouette(px, C)) return false; }
-    return true;
-  };
-  const marges = mode === 'large' ? [24, 16, 8] : [12, 8];
-  let place = null;
-  for (const m of marges) {
-    if (libre(ax, ay, m)) { place = [ax, ay]; break; }
-    let best = null, d2 = Infinity;
-    for (let y = r + 4; y <= yh - r - 8; y += 6) for (let x = r + 4; x <= W - r - 4; x += 8) {
-      const q = (x - ax) ** 2 + (y - ay) ** 2;
-      if (q < d2 && libre(x, y, m)) { d2 = q; best = [x, y]; }
-    }
-    if (best) { place = best; break; }
-  }
-  if (place) [ax, ay] = place;
-  astre.style.transform = `translate(${ax.toFixed(1)}px, ${ay.toFixed(1)}px)`;
-  astre.style.setProperty('--r', r + 'px');
-  // étoiles : 24 points déterministes (suite du nombre d'or), dans les 70 % hauts du ciel, hors du texte
-  let et = '';
-  if (d.E < -6) {
-    const phi = 0.6180339887, phi2 = 0.7548776662;
-    let tw = 0;
-    for (let k = 1; k <= 24; k++) {
-      const x = ((k * phi) % 1) * W, y = ((k * phi2 + .13) % 1) * .7 * yh;
-      if (touche(x, y, 10) || y > silhouette(x, C) - 8 || Math.hypot(x - ax, y - ay) < r + 16) continue;
-      const rr = .6 + .6 * ((k * 0.38196) % 1), op = .25 + .25 * ((k * 0.7071) % 1);
-      const twc = tw < 5 && k % 4 === 1;
-      if (twc) tw++;
-      et += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rr.toFixed(2)}" opacity="${op.toFixed(2)}"${twc ? ` class="tw" style="--d:${(3.5 + (k % 5) * .55).toFixed(2)}s;--r:${(-(k % 7) * .7).toFixed(1)}s"` : ''}/>`;
-    }
-  }
-  $('etoiles').innerHTML = et;
-  // nuages : des formes douces dans la bande de ciel au-dessus du toit
-  const n = +($('nuages').dataset.n || 0);
-  const pos = [[.12, .30, .34], [.62, .18, .30], [.36, .48, .26], [.86, .42, .24], [.02, .58, .22]];
-  const cirrus = $('nuages').dataset.meteo === 'voile';
-  $('nuages').innerHTML = pos.slice(0, n).map(([fx, fy, fw]) => {
-    const w = fw * W * (cirrus ? 1.6 : 1), h = cirrus ? 10 : w * .34;
-    return `<i style="left:${(fx * W).toFixed(0)}px;top:${(C.bB + fy * (yh * .55)).toFixed(0)}px;width:${w.toFixed(0)}px;height:${h.toFixed(0)}px"></i>`;
-  }).join('');
 }
 
 /* ================================================================ SOUS LE HÉROS === */
@@ -2791,29 +2907,13 @@ function chargerExemple(nom) {
   HISTO.heures = x.histo;
 }
 
-/* Interrupteur « Animations des flux » (WCAG 2.2.2) : coupe comètes, moyeu, LED et nuages ; mémorisé dans ce navigateur seulement.
-   Mouvement réduit demandé par l'appareil : tout est déjà immobile, l'interrupteur n'a plus d'utilité et le pied est masqué. */
-function majInterrupteur() {
-  $('btn-anim').setAttribute('aria-checked', String(!immobile()));
-  $('pied').hidden = reduitMQ.matches;
-  document.documentElement.classList.toggle('calme', immobile());
-}
-function basculerAnimations() {
-  if (reduitMQ.matches) return;
-  PAUSE = !PAUSE;
-  try { localStorage.setItem('breezy-animations', PAUSE ? '0' : '1'); } catch (_) { /* stockage indisponible */ }
-  majInterrupteur();
-  rendre({ immediat: true });
-  appliquerFlux(true);
-}
-
 /* ================================================================ DÉMARRAGE === */
 function demarrer() {
-  try { PAUSE = localStorage.getItem('breezy-animations') === '0'; } catch (_) { PAUSE = false; }
+  lireAnimations();
   majInterrupteur();
   preparerSvg();
   brancherCourbe();
-  $('btn-anim').addEventListener('click', basculerAnimations);
+  $('btn-anim').addEventListener('click', () => basculerAnimations(() => { rendre({ immediat: true }); appliquerFlux(true); }));
   const histoPerime = () => Date.now() - HISTO.quand > 15 * 60000 || HISTO.quand < minuitDe(Date.now());
   if (HA.enCoque) {
     // dans la coque de S&A-HOME : les états de Home Assistant, puis la production heure par heure (toutes les 15 min)

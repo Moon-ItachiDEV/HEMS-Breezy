@@ -1,0 +1,1392 @@
+<!doctype html>
+<!--
+  Breezy · Kia — la voiture au grand air
+  ---------------------------------------------------------------------------
+  GABARIT : tools/build.js produit kia.html (une page autonome) depuis ce fichier :
+   - les marqueurs INCLURE insèrent le code commun à toutes les pages (src/partage/ : jetons, scène, pont vers
+     Home Assistant, formats, icônes, ciel, comètes, interrupteur des animations), le même que l'Accueil ;
+   - le rendu de la voiture (assets/roadster.webp) est embarqué tel quel en data URI, une seule fois (marqueur DATA).
+      node tools/build.js                                (toutes les pages)
+      node tools/build.js src/kia.template.html kia.html (cette page)
+  Déployer kia.html à côté d'index.html : les liens entre les pages sont relatifs.
+
+  DONNÉES : les entités de Home Assistant (bloc CONFIG.entites du script, « ← AJUSTE ICI »), reçues de la coque de
+  S&A-HOME par postMessage (request_states → states). Les commandes partent exactement comme celles de S&A-HOME
+  (PONT_NIRO.ecrire) : service_call → service_result.
+  Hors de Home Assistant (page ouverte seule) : des valeurs d'exemple, au même format que les états de Home Assistant,
+  lues par le même code ; les commandes y changent l'exemple après 1,2 s. Aperçus : kia.html?apercu=debranchee |
+  branchee | charge (par défaut) | limite | perime (ou Breezy.apercu('limite') dans la console).
+
+  La scène (ciel, lumière sur la voiture) suit le soleil (sun.sun) et la météo ; le thème suit Home Assistant.
+  La recharge se voit : un câble branché sur la prise (au centre de l'avant, comme sur le e-Niro), les comètes de
+  l'Accueil le long du câble (ambre : la part du soleil, violet : celle du réseau), une seule pastille.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F4F6F8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F12" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Breezy, la Kia e-Niro : batterie, autonomie, recharge au soleil et commandes.">
+<title>Breezy · Kia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap">
+<style>
+<!--INCLURE partage/jetons.css-->
+<!--INCLURE partage/scene.css-->
+</style>
+<style>
+/* ================================================================ KIA : HÉROS === */
+.hero[data-ciel="sombre"] { --alerte: oklch(0.72 0.17 27); }
+.hero[data-niveau="1"] .barre { top: 4px; }
+.hero[data-niveau="1"] .une-k { height: 18px; font-size: 13px; line-height: 18px; }
+.hero:is([data-niveau="2"], [data-niveau="3"], [data-niveau="4"]) .une-phrase { font-size: 15px; line-height: 20px; }
+.barre { transition: none; }
+.une-k i.anneau { box-shadow: 0 0 0 2.5px color-mix(in oklch, var(--c) 24%, transparent); }
+/* données anciennes (24 h et plus) : le chiffre et l'autonomie passent à l'encre secondaire */
+.hero.perime .une-v, .hero.perime .une-phrase { color: var(--ciel-encre-2); }
+/* le retour à l'accueil : un chevron devant le logo tant que le menu n'est pas affiché */
+.marque .retour { width: 16px; height: 16px; margin-right: -5px; stroke-width: 2.2; }
+@media (min-width: 1100px) { .hero[data-mode="large"]:not(.sans-nav) .marque .retour { display: none; } }
+
+/* --- La voiture : rendu, halo, ombre de contact ; le câble sur un calque à part (ses comètes ne refiltrent jamais la photo) --- */
+#voiture image { image-rendering: auto; }
+#ombre-auto .o-trace { opacity: .26; }
+.hero[data-ciel="sombre"] #ombre-auto .o-trace { opacity: .5; }
+#cable { pointer-events: none; }
+.cable-ame { fill: none; stroke: oklch(.30 .01 260); stroke-linecap: round; stroke-linejoin: round; }
+.hero[data-ciel="sombre"] .cable-ame { stroke: oklch(.20 .01 260); }
+.cable-reflet { fill: none; stroke: oklch(1 0 0 / .18); stroke-linecap: round; stroke-linejoin: round; }
+#prise { fill: oklch(.22 .01 260); }
+#prise.anneau { stroke: var(--borne); }
+#port-halo { fill: var(--borne); opacity: .35; transform-box: fill-box; transform-origin: center; }
+#cable-fixe path:not(.fl-fleche) { fill: none; stroke-linecap: round; }
+
+/* --- La pastille : la puissance de la borne et la part du soleil --- */
+.pill .s .sol { display: inline-flex; color: var(--soleil-t); }
+.pill .s .res { display: inline-flex; color: var(--reseau-t); }
+.hero[data-ciel="sombre"] .pill .s .sol { color: var(--soleil); }
+.hero[data-ciel="sombre"] .pill .s .res { color: var(--reseau); }
+
+/* --- Les commandes rapides : trois disques sous la voiture --- */
+.commandes { position: absolute; z-index: 4; left: 0; top: 0; display: flex; gap: var(--cg, 20px); transform: translateX(-50%); }
+.cmd {
+  position: relative; display: grid; place-items: center; flex: none;
+  width: var(--d, 48px); height: var(--d, 48px); padding: 0; border: 0; border-radius: 50%;
+  color: var(--ciel-encre);
+  transition: background-color .25s ease, color .25s ease, box-shadow .25s ease;
+}
+.cmd[hidden] { display: none; }
+.cmd .ic { width: 22px; height: 22px; stroke-width: 1.8; }
+.hero .cmd.alerte {
+  background: color-mix(in oklch, var(--alerte) 16%, var(--surface-scene)); color: var(--alerte);
+  box-shadow: inset 0 0 0 1.5px var(--alerte), 0 6px 16px -10px oklch(.25 .03 260 / .45);
+}
+.hero .cmd.allume { background: var(--ciel-encre); color: var(--surface-scene); box-shadow: 0 6px 16px -10px oklch(.25 .03 260 / .45); }
+.cmd.allume .ic { animation: tourne 6s linear infinite; }
+.cmd[aria-disabled="true"] { opacity: .5; cursor: default; }
+.cmd .age { position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--soleil); box-shadow: 0 0 0 1.5px var(--surface-scene); }
+/* en attente de Home Assistant : un arc qui tourne autour du disque (immobile : un anneau pointillé) */
+.cmd[aria-busy="true"]::after {
+  content: ""; position: absolute; inset: -5px; border-radius: 50%;
+  border: 2px solid transparent; border-top-color: var(--ciel-encre-2); border-right-color: var(--ciel-encre-2);
+  animation: tourne 1s linear infinite;
+}
+@keyframes tourne { to { transform: rotate(360deg); } }
+.secoue { animation: secoue 300ms ease-in-out; }
+@keyframes secoue { 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
+
+/* ================================================================ KIA : CONTENU === */
+/* --- Charge (le verre dépoli du bilan) --- */
+.charge .note { font: 400 15px/20px var(--police); color: var(--encre-2); white-space: nowrap; }
+.charge[data-fond="sombre"] { --surface-2: oklch(0.31 0.01 260); --borne: oklch(0.72 0.15 332); --reseau: oklch(0.62 0.17 295); }
+.jauge { position: relative; height: 16px; margin: 2px 14px 0; }
+.jauge .piste { position: absolute; left: 0; right: 0; top: 4px; height: 8px; border-radius: 999px; background: var(--piste); overflow: hidden; }
+.jauge .seg { position: absolute; top: 0; bottom: 0; left: calc(var(--a, 0) * 1%); width: calc((var(--b, 0) - var(--a, 0)) * 1%); transition: left .6s cubic-bezier(.2, .7, .2, 1), width .6s cubic-bezier(.2, .7, .2, 1); }
+.j-base { background: linear-gradient(90deg, color-mix(in oklch, var(--borne) 55%, transparent), var(--borne)); }
+.j-sol { background: var(--soleil); }
+.jauge .j-res { left: calc(var(--a, 0) * 1% + 1px); width: max(0px, calc((var(--b, 0) - var(--a, 0)) * 1% - 1px)); background: var(--reseau); }
+.j-reste { background: repeating-linear-gradient(-45deg, color-mix(in oklch, var(--borne) 28%, transparent) 0 2px, transparent 2px 5px); }
+.j-lim { position: absolute; top: 0; left: calc(var(--lim, 0) * 1%); width: 2px; height: 16px; margin-left: -1px; border-radius: 1px; background: var(--encre); transition: left .3s ease; }
+.j-pt { position: absolute; top: 1px; left: calc(var(--soc, 0) * 1%); width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 2.5px var(--borne), 0 1px 3px oklch(.25 .02 260 / .3); transition: left .6s cubic-bezier(.2, .7, .2, 1); }
+.jauge [hidden] { display: none; }
+.limite { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; margin-top: 10px; padding: 0 6px 0 14px; }
+.limite[hidden] { display: none; }
+.limite-l { font: 500 15px/20px var(--police); color: var(--encre); }
+.pas { display: flex; align-items: center; }
+.pas button { position: relative; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--encre); }
+.pas button::before { content: ""; position: absolute; inset: 2px; border-radius: 50%; background: var(--surface-2); }
+.pas button .ic { position: relative; width: 18px; height: 18px; stroke-width: 2; }
+.pas button[aria-disabled="true"] { opacity: .35; cursor: default; }
+.pas output { min-width: 72px; text-align: center; font: 400 22px/28px var(--police); letter-spacing: -.02em; white-space: nowrap; transition: opacity .2s ease; }
+.pas output .u { font-size: 15px; color: var(--encre-2); }
+.pas output.attente { opacity: .6; }
+.btn-charge {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: calc(100% - 28px); height: 48px; margin: 12px 14px 0; padding: 0 20px; border: 0; border-radius: 999px;
+  background: var(--borne-t); color: #fff; font: 600 16px/1 var(--police); letter-spacing: -.01em;
+  transition: background-color .25s ease, color .25s ease;
+}
+.btn-charge[hidden] { display: none; }
+.btn-charge .ic { width: 20px; height: 20px; stroke-width: 2; }
+.btn-charge.arreter { background: var(--surface-2); color: var(--encre); }
+.btn-charge[aria-disabled="true"] { background: var(--surface-2); color: var(--encre-3); cursor: default; }
+:root[data-theme="dark"] .btn-charge:not(.arreter):not([aria-disabled="true"]) { color: oklch(.17 .006 260); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn-charge:not(.arreter):not([aria-disabled="true"]) { color: oklch(.17 .006 260); } }
+.roue { display: block; width: 18px; height: 18px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: tourne .9s linear infinite; }
+
+/* --- Mode de recharge --- */
+.mode .carte-tete { flex-wrap: wrap; row-gap: 0; }
+.mode-v { font: 500 15px/20px var(--police); color: var(--encre-2); }
+.segments { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); height: 52px; margin-top: 10px; padding: 4px; border-radius: 999px; background: var(--surface-2); }
+.segments[hidden] { display: none; }
+.segments button { display: grid; place-items: center; height: 44px; padding: 0; border: 0; border-radius: 999px; background: none; color: var(--encre-3); transition: background-color .25s ease, color .25s ease, box-shadow .25s ease; }
+.segments button .ic { width: 22px; height: 22px; transition: opacity .2s ease; }
+.segments button[aria-checked="true"] { background: var(--surface); box-shadow: var(--ombre-carte); color: var(--mc, var(--encre)); }
+.segments button.attente .ic { opacity: .6; }
+.ligne-hc { display: flex; justify-content: space-between; width: 100%; min-height: 52px; margin-top: 14px; padding: 4px 0 0; border-top: 1px solid var(--filet); border-radius: 0; font: 500 15px/20px var(--police); color: var(--encre); text-align: left; }
+.ligne-hc[hidden] { display: none; }
+.ligne-hc.attente .tr { opacity: .6; }
+.ligne-hc[aria-disabled="true"] { cursor: default; }
+.ligne-hc[aria-disabled="true"] .tr { opacity: .4; }
+
+/* --- Recharges : les trois dernières, une barre chacune (soleil, réseau) --- */
+.journal { display: flex; flex-direction: column; margin-top: 6px; }
+.journal li { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 40px; }
+.journal .jd { font: 500 14px/20px var(--police); color: var(--encre-2); white-space: nowrap; }
+.journal .jb { position: relative; height: 6px; border-radius: 999px; background: var(--piste); }
+.journal .jf { position: absolute; left: 0; top: 0; bottom: 0; display: flex; gap: 1px; width: calc(var(--w, 0) * 1%); border-radius: 999px; overflow: hidden; }
+.journal .jf i { display: block; height: 100%; }
+.journal .jf .js { width: calc(var(--ps, 0) * 1%); background: var(--soleil); flex: none; }
+.journal .jf .jr { flex: 1; background: var(--reseau); }
+.journal .jv { font: 500 15px/20px var(--police); color: var(--encre); white-space: nowrap; text-align: right; }
+
+/* --- Suivi --- */
+.suivi .lv.chaud { color: var(--soleil-t); }
+.suivi .lv.alerte { color: var(--alerte); }
+.lignes[hidden], .carte[hidden] { display: none; }
+
+/* --- Déverrouiller : une confirmation --- */
+.dialogue { width: min(340px, calc(100vw - 32px)); padding: 22px 20px 18px; border: 0; color: var(--encre); }
+.dialogue::backdrop { background: oklch(.15 .01 260 / .45); }
+.dialogue h2 { margin: 0 0 18px; }
+.dlg-actions { display: flex; gap: 10px; }
+.dlg-actions button { flex: 1; height: 48px; border: 0; border-radius: 999px; font: 600 15px/1 var(--police); background: var(--surface-2); color: var(--encre); }
+.dlg-actions .alerte { background: oklch(0.52 0.19 27); color: #fff; }
+:root[data-theme="dark"] .dlg-actions .alerte { background: var(--alerte); color: oklch(.17 .006 260); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .dlg-actions .alerte { background: var(--alerte); color: oklch(.17 .006 260); } }
+
+/* ================================================================ KIA : MOUVEMENT ET COULEURS FORCÉES === */
+.calme .cmd .ic, .calme .cmd::after, .calme .roue { animation: none !important; }
+.calme .cmd[aria-busy="true"]::after { border: 2px dashed var(--ciel-encre-2); }
+@media (prefers-reduced-motion: reduce) { .cmd[aria-busy="true"]::after { border: 2px dashed var(--ciel-encre-2); } }
+@media (forced-colors: active) {
+  .cmd, .btn-charge, .segments, .dlg-actions button { border: 1px solid CanvasText; }
+  .cmd[aria-busy="true"]::after { border-color: CanvasText; forced-color-adjust: none; }
+  .cmd .age { forced-color-adjust: none; background: CanvasText; }
+  .jauge .piste, .journal .jb { outline: 1px solid CanvasText; }
+  .jauge .seg, .journal .jf i { forced-color-adjust: none; }
+  .j-lim { forced-color-adjust: none; background: CanvasText; }
+  .j-pt { forced-color-adjust: none; background: Canvas; box-shadow: 0 0 0 2.5px CanvasText; }
+  .pas button::before { border: 1px solid CanvasText; }
+  .segments button[aria-checked="true"] { outline: 2px solid CanvasText; outline-offset: -2px; }
+}
+</style>
+</head>
+<body>
+<!-- Le héros : la barre, puis la section « en direct » (titre h1, état, batterie, autonomie, pastille, voiture, commandes) -->
+<div class="hero" id="hero" data-hero data-mode="portrait" data-niveau="0" data-ciel="clair">
+  <a class="saut" href="#direct">Aller au contenu</a>
+  <!-- Ciel : le même que l'Accueil (dégradé, astre, nuages, étoiles), peint DERRIÈRE la voiture -->
+  <div class="ciel" id="ciel" aria-hidden="true" data-transparent>
+    <div class="ciel-fond" id="ciel-a"></div><div class="ciel-fond ciel-fond-b" id="ciel-b"></div>
+    <svg class="etoiles" id="etoiles" focusable="false"></svg>
+    <div class="astre" id="astre"><i class="halo"></i><i class="disque"></i></div>
+    <div class="nuages" id="nuages"></div>
+    <div class="pluie" id="pluie" hidden></div>
+  </div>
+
+  <header class="barre" id="barre">
+    <div class="barre-g">
+      <a class="marque" id="marque" href="index.html" aria-label="Retour à l’accueil">
+        <svg class="ic retour" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5.5 8.5 12 15 18.5"/></svg>
+        <svg viewBox="0 0 28 28" aria-hidden="true" focusable="false">
+          <rect width="28" height="28" rx="9" fill="var(--surface-scene)" opacity=".9"/>
+          <circle cx="14" cy="11.6" r="4.2" fill="var(--soleil)"/>
+          <path d="M7.5 18.4h13" stroke="var(--maison)" stroke-width="2" stroke-linecap="round"/>
+          <path d="M10 21.8h8" stroke="var(--batterie)" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span class="marque-nom">Breezy</span>
+      </a>
+      <nav class="nav-large" aria-label="Navigation principale">
+        <a href="index.html">Accueil</a><a href="#">Batterie</a><a href="kia.html" aria-current="page">Kia</a><a href="#">Énergie</a><a href="#">Économies</a>
+      </nav>
+    </div>
+    <!-- État des données : l'âge des données de la voiture (coque Home Assistant) ou valeurs d'exemple (page ouverte seule) -->
+    <p class="capsule givre" id="capsule" role="status"></p>
+  </header>
+
+  <section class="direct" id="direct" tabindex="-1" aria-labelledby="direct-t">
+    <h1 class="sr-only" id="direct-t">Kia e-Niro</h1>
+    <!-- LE chiffre : la batterie ; au-dessus, l'état de la prise et de la charge -->
+    <p class="une" id="une">
+      <span class="une-k" id="une-k" aria-hidden="true"><i></i><span></span></span>
+      <span class="une-v" id="une-v" aria-hidden="true"></span>
+      <span class="sr-only" id="une-sr"></span>
+    </p>
+    <!-- une seule ligne : l'autonomie -->
+    <p class="une-phrase" id="une-phrase" aria-hidden="true" hidden></p>
+
+    <ul class="pastilles" id="pastilles" aria-label="Relevés en direct">
+      <li aria-hidden="true"><span class="pill cache" id="pill" data-noeud="borne" aria-hidden="true"></span><span class="sr-only" id="pill-sr"></span></li>
+    </ul>
+    <!-- La voiture entière ; cadrer() règle le viewBox (en pixels de l'image) des deux calques -->
+    <div class="scene" id="scene">
+      <svg id="voiture" viewBox="0 0 1672 941" preserveAspectRatio="xMidYMid slice" role="img" aria-label="La Kia e-Niro" focusable="false">
+        <defs>
+          <filter id="f-voile-auto" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB"><feColorMatrix id="voile-auto" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0"/></filter>
+          <radialGradient id="g-halo-auto"><stop id="halo-auto-0" offset="0" stop-color="#7d93ff" stop-opacity="1"/><stop id="halo-auto-1" offset=".6" stop-color="#7d93ff" stop-opacity=".45"/><stop id="halo-auto-2" offset="1" stop-color="#7d93ff" stop-opacity="0"/></radialGradient>
+          <filter id="f-ombre-large" filterUnits="userSpaceOnUse" x="-100" y="500" width="1900" height="420"><feGaussianBlur stdDeviation="14"/></filter>
+          <filter id="f-ombre-pneu" filterUnits="userSpaceOnUse" x="-100" y="500" width="1900" height="420"><feGaussianBlur stdDeviation="3"/></filter>
+          <filter id="f-ombre-becquet" filterUnits="userSpaceOnUse" x="-100" y="500" width="1900" height="420"><feGaussianBlur stdDeviation="5"/></filter>
+        </defs>
+        <ellipse id="halo-auto" cx="850" cy="520" rx="900" ry="330" fill="url(#g-halo-auto)" display="none"/>
+        <g id="ombre-auto" fill="#000">
+          <polygon class="o-trace" points="95,730 420,778 870,812 1580,658 1470,612 640,628" filter="url(#f-ombre-large)"/>
+          <ellipse cx="870" cy="808" rx="78" ry="10" opacity=".5" filter="url(#f-ombre-pneu)"/>
+          <ellipse cx="1556" cy="654" rx="46" ry="7" opacity=".4" filter="url(#f-ombre-pneu)"/>
+          <path d="M80,726 L740,782" stroke="#000" stroke-width="10" stroke-linecap="round" opacity=".22" filter="url(#f-ombre-becquet)"/>
+        </g>
+        <image id="auto" href="{{DATA assets/roadster.webp}}" x="0" y="0" width="1672" height="941" preserveAspectRatio="none"/>
+      </svg>
+      <!-- Le câble de la borne, ses comètes, la prise : un calque à part, au-dessus de la photo -->
+      <svg id="cable" viewBox="0 0 1672 941" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+        <defs>
+          <linearGradient id="g-fondu-cable" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="100" y2="0"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient>
+          <mask id="m-cable" maskUnits="userSpaceOnUse" x="-400" y="300" width="1000" height="700"><rect x="-400" y="300" width="1000" height="700" fill="url(#g-fondu-cable)"/></mask>
+          <linearGradient id="fl-g-soleil" gradientUnits="userSpaceOnUse" x1="-220" y1="860" x2="330" y2="566"><stop offset="0" stop-color="oklch(0.92 0.13 98)"/><stop offset=".5" stop-color="oklch(0.86 0.16 90)"/><stop offset="1" stop-color="oklch(0.78 0.16 72)"/></linearGradient>
+          <linearGradient id="fl-g-reseau" gradientUnits="userSpaceOnUse" x1="-220" y1="860" x2="330" y2="566"><stop offset="0" style="stop-color:var(--reseau)"/><stop offset="1" style="stop-color:var(--reseau)"/></linearGradient>
+          <linearGradient id="fl-g-borne" gradientUnits="userSpaceOnUse" x1="-220" y1="860" x2="330" y2="566"><stop offset="0" style="stop-color:var(--borne)"/><stop offset="1" style="stop-color:var(--borne)"/></linearGradient>
+          <linearGradient id="g-fixe" gradientUnits="userSpaceOnUse" x1="236" y1="812" x2="330" y2="566"></linearGradient>
+          <filter id="fl-flou" filterUnits="userSpaceOnUse" x="-400" y="300" width="1000" height="700"><feGaussianBlur id="fl-flou-dev" stdDeviation="7"/></filter>
+          <filter id="f-port" x="-2" y="-2" width="5" height="5"><feGaussianBlur id="f-port-dev" stdDeviation="10"/></filter>
+        </defs>
+        <g id="cable-tout" display="none">
+          <circle id="port-halo" cx="333" cy="560" r="38" filter="url(#f-port)" display="none"/>
+          <g mask="url(#m-cable)">
+            <path id="cable-ame" class="cable-ame" d="M-220,860 C0,852 150,842 236,812 C282,795 298,650 312,592 L330,566"/>
+            <path id="cable-reflet" class="cable-reflet" d="M-220,860 C0,852 150,842 236,812 C282,795 298,650 312,592 L330,566"/>
+            <g id="cable-flux"></g>
+          </g>
+          <g id="cable-fixe" class="fl-fixe" style="display:none"><path id="fixe-trait" d="M236,812 C282,795 298,650 312,592 L330,566"/><path class="fl-fleche" id="fixe-fleche" d="M4,0 L-4,-3.5 L-2.4,0 L-4,3.5 Z"/></g>
+          <rect id="prise" x="-9" y="-3" width="9" height="6" rx="1.6"/>
+        </g>
+      </svg>
+    </div>
+    <!-- Filet pointillé et ancre, en pixels -->
+    <svg class="fils" id="fils" aria-hidden="true" focusable="false"></svg>
+    <!-- Les commandes rapides : verrou, climatisation, actualiser -->
+    <div class="commandes" id="commandes">
+      <button class="cmd givre" id="d-verrou" type="button" aria-label="Verrouillage" aria-pressed="true"></button>
+      <button class="cmd givre" id="d-clim" type="button" aria-label="Climatisation" aria-pressed="false"></button>
+      <button class="cmd givre" id="d-maj" type="button" aria-label="Actualiser"></button>
+    </div>
+    <p class="sr-only" id="annonce" aria-live="polite"></p>
+  </section>
+</div>
+
+<main id="contenu" tabindex="-1">
+  <!-- Charge : chevauche le bas du héros sur téléphone ; posée dans la colonne gauche du héros sur grand écran -->
+  <section class="bilan charge" id="charge" aria-labelledby="charge-t">
+    <div class="bilan-tete"><h2 id="charge-t">Charge</h2><span class="note" id="charge-fin"></span></div>
+    <div class="jauge" id="jauge" role="img" aria-label="">
+      <span class="piste"><i class="seg j-base" id="j-base"></i><i class="seg j-sol" id="j-sol"></i><i class="seg j-res" id="j-res"></i><i class="seg j-reste" id="j-reste"></i></span>
+      <i class="j-lim" id="j-lim"></i><i class="j-pt" id="j-pt"></i>
+    </div>
+    <div class="limite" id="limite" role="group" aria-labelledby="limite-l">
+      <span class="limite-l" id="limite-l">Limite</span>
+      <div class="pas" id="pas">
+        <button type="button" id="lim-moins" aria-label="Baisser la limite"></button>
+        <output id="lim-v" aria-live="polite"></output>
+        <button type="button" id="lim-plus" aria-label="Monter la limite"></button>
+      </div>
+    </div>
+    <button class="btn-charge" id="btn-charge" type="button"></button>
+  </section>
+
+  <div class="page">
+    <div class="colonne-g">
+      <!-- Mode de recharge (Voltia) et la recharge en heures creuses -->
+      <section class="carte mode" id="mode" aria-labelledby="mode-t">
+        <div class="carte-tete"><h2 id="mode-t">Mode de recharge</h2><span class="mode-v" id="mode-v" aria-hidden="true"></span></div>
+        <div class="segments" id="segments" role="radiogroup" aria-labelledby="mode-t"></div>
+        <button class="interrupteur ligne-hc" id="btn-hc" type="button" role="switch" aria-checked="false"><span>Réseau en heures creuses</span><span class="tr" aria-hidden="true"></span></button>
+      </section>
+      <!-- Recharges : les trois dernières (journal de S&A-HOME) -->
+      <section class="carte recharges" id="recharges" aria-labelledby="rech-t">
+        <div class="carte-tete"><h2 id="rech-t">Recharges</h2></div>
+        <ul class="journal" id="journal"></ul>
+      </section>
+    </div>
+    <div class="colonne-d">
+      <!-- Suivi : batterie 12 V, kilométrage, révision -->
+      <section class="suivi" id="suivi" aria-labelledby="suivi-t">
+        <h2 class="sr-only" id="suivi-t">Suivi</h2>
+        <ul class="lignes" id="lignes"></ul>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer class="pied" id="pied">
+  <div class="pied-actions">
+    <button class="interrupteur" id="btn-anim" type="button" role="switch" aria-checked="true"><span class="tr" aria-hidden="true"></span><span>Animations des flux</span></button>
+  </div>
+</footer>
+
+<dialog class="carte dialogue" id="dlg-verrou" aria-labelledby="dlg-t">
+  <form method="dialog">
+    <h2 id="dlg-t">Déverrouiller la Kia ?</h2>
+    <div class="dlg-actions">
+      <button type="submit" value="annuler" autofocus>Annuler</button>
+      <button type="submit" value="ok" class="alerte">Déverrouiller</button>
+    </div>
+  </form>
+</dialog>
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════════════
+   Breezy · Kia — réglages et pont vers Home Assistant (comme S&A-HOME)
+   ← AJUSTE ICI : toutes les entités sont regroupées dans CONFIG.entites (les mêmes que S&A-HOME, Voltia et le journal
+   des recharges). Une entité vide ('') = l'élément n'est pas relié : il est masqué. Une entité absente, « unavailable »
+   ou « unknown » dans Home Assistant : sa valeur s'affiche « — » (rien n'est jamais inventé).
+   ═══════════════════════════════════════════════════════════════════════ */
+const CONFIG = {
+  fuseau: 'Europe/Paris',                                                 // ← l'heure de la maison
+  batterieKWh: 64,                                                        // batterie utile du e-Niro (kia_trajets.yaml)
+  entites: {
+    // la voiture (S&A-HOME : E.niro)
+    soc: 'sensor.e_niro_e_niro_e_niro_ev_battery_level',                  // %
+    autonomie: 'sensor.e_niro_e_niro_e_niro_ev_range',                    // km
+    branchee: 'binary_sensor.e_niro_e_niro_e_niro_ev_battery_plug',
+    charge: 'switch.e_niro_e_niro_ev_charging',
+    limite: 'number.e_niro_e_niro_e_niro_ac_charging_limit',              // % (attributs min, max, step)
+    duree: 'sensor.e_niro_e_niro_e_niro_estimated_charge_duration',       // minutes restantes
+    verrou: 'lock.e_niro_e_niro_e_niro_door_lock',
+    clim: 'switch.e_niro_e_niro_climate',
+    actualiser: 'button.e_niro_e_niro_force_refresh',
+    maj: 'sensor.e_niro_e_niro_e_niro_last_updated_at',                   // horodatage des données de la voiture
+    hc: 'switch.e_niro_off_peak_charge_only',
+    b12v: 'sensor.e_niro_e_niro_e_niro_car_battery_level',                // % de la batterie 12 V
+    odometre: 'sensor.e_niro_e_niro_e_niro_odometer',                     // km
+    dernierEntretien: 'input_number.eniro_dernier_entretien_km',          // km au compteur à la dernière révision
+    intervalleEntretienKm: 15000,
+    // la recharge (la borne et Voltia)
+    borne: 'sensor.te31njn2n154747_l2_p',                                 // W à la borne (Smart3CT L2), en direct
+    veSolaire: 'sensor.ve_puissance_solaire',                             // W venus du soleil
+    veReseau: 'sensor.ve_puissance_reseau',                               // W venus du réseau
+    energieSolaire: 'sensor.ve_energie_solaire_kwh',                      // kWh cumulés
+    energieReseau: 'sensor.ve_energie_reseau_kwh',                        // kWh cumulés
+    mode: 'input_select.voltia_mode_recharge',                            // Normal | Soleil | Soleil + super creuses
+    sessionSoc: 'input_number.voltia_session_soc',                        // au branchement : niveau,
+    sessionSol: 'input_number.voltia_session_sol_kwh',                    //   compteur solaire,
+    sessionRes: 'input_number.voltia_session_res_kwh',                    //   compteur réseau,
+    sessionDebut: 'input_datetime.voltia_session_debut',                  //   heure
+    journal: 'sensor.sa_niro_recharges',                                  // attribut sessions (la plus récente d'abord)
+    // le ciel
+    soleil: 'sun.sun',
+    meteo: ['weather.homelyvibes_sa', 'weather.forecast_maison', 'weather.forecast_home']   // la première qui existe
+  }
+};
+const ENT = CONFIG.entites;
+<!--INCLURE partage/ha.js-->
+<!--INCLURE partage/formats.js-->
+<!--INCLURE partage/icones.js-->
+<!--INCLURE partage/ciel.js-->
+<!--INCLURE partage/flux.js-->
+<!--INCLURE partage/animations.js-->
+
+/* ---------- Valeurs d'exemple (page ouverte hors de Home Assistant) ----------
+   Des états au format de Home Assistant, lus par le MÊME code que les vrais. Samedi 10 octobre 2026 à Paris (les mêmes
+   jours que les aperçus de l'Accueil) : lever 8 h 05, coucher 19 h 13. */
+const EXEMPLE = {
+  lever: '08:05', coucher: '19:13',
+  odo: 41236, entretien: 30000, b12: 86, limite: 80, options: ['Normal', 'Soleil', 'Soleil + super creuses'],
+  compteurs: { sol: 1240.32, res: 2871.50 },                              // compteurs de Voltia au branchement
+  dernier: { debut: '2026-10-10 12:10:00', soc: 52, sol: 7.60, res: 11.50 },  // le dernier branchement (ignoré une fois débranchée)
+  apercus: {
+    //            heure                          météo           prise  charge  W : borne, soleil, réseau ; %, km ; min ; âge des données (min)
+    debranchee: { t: '2026-10-10T18:24:00+02:00', meteo: 'sunny',        prise: 'off', charge: 'off', borne: 0,    sol: 0,    res: 0,    soc: 71, km: 322, duree: 0,  age: 18 },
+    branchee:   { t: '2026-10-10T10:40:00+02:00', meteo: 'partlycloudy', prise: 'on',  charge: 'off', borne: 0,    sol: 0,    res: 0,    soc: 52, km: 236, duree: 0,  age: 9,
+                  session: { debut: '2026-10-10 10:31:00', soc: 52, sol: 0, res: 0 } },
+    charge:     { t: '2026-10-10T13:24:00+02:00', meteo: 'sunny',        prise: 'on',  charge: 'on',  borne: 7200, sol: 2900, res: 4300, soc: 64, km: 290, duree: 85, age: 4,
+                  session: { debut: '2026-10-10 12:10:00', soc: 52, sol: 3.30, res: 4.90 } },
+    limite:     { t: '2026-10-10T16:05:00+02:00', meteo: 'sunny',        prise: 'on',  charge: 'off', borne: 0,    sol: 0,    res: 0,    soc: 80, km: 363, duree: 0,  age: 11,
+                  session: { debut: '2026-10-10 12:10:00', soc: 52, sol: 7.60, res: 11.50 }, aujourdhui: true },
+    perime:     { t: '2026-10-10T22:36:00+02:00', meteo: 'clear-night',  prise: 'off', charge: 'off', borne: 0,    sol: 0,    res: 0,    soc: 71, km: 322, duree: 0,  age: 28 * 60,
+                  verrou: 'unlocked', mode: 'Soleil + super creuses' }
+  },
+  // journal des recharges (sensor.sa_niro_recharges, attribut sessions) : cout = réseau × tarif de l'heure, eco = soleil × 0,2302
+  aujourdhui: { debut: '2026-10-10 12:16:00', fin: '2026-10-10 14:55:00', type: 'mixte', tarif: 'hp', sol: 7.6, hsc: 0, hc: 0, hp: 11.5, total: 19.1, cout: 2.65, eco: 1.75 },
+  journal: [
+    { debut: '2026-10-09 11:48:00', fin: '2026-10-09 13:52:00', type: 'mixte', tarif: 'hp', sol: 5.9, hsc: 0, hc: 0, hp: 9.0, total: 14.9, cout: 2.07, eco: 1.36 },
+    { debut: '2026-10-07 02:00:00', fin: '2026-10-07 04:31:00', type: 'reseau', tarif: 'hsc', sol: 0, hsc: 18.1, hc: 0, hp: 0, total: 18.1, cout: 2.42, eco: 0 },
+    { debut: '2026-10-05 12:20:00', fin: '2026-10-05 13:41:00', type: 'mixte', tarif: 'hp', sol: 3.9, hsc: 0, hc: 0, hp: 5.8, total: 9.7, cout: 1.34, eco: 0.90 }
+  ]
+};
+function etatsExemple(nom) {
+  const A = EXEMPLE.apercus[nom] || EXEMPLE.apercus.charge;
+  const t = Date.parse(A.t), date = new Date(t), h = heureLocale(date).h, minuit = minuitDe(t), quand = date.toISOString();
+  const etats = {};
+  const pose = (id, state, attributes = {}) => { if (id) etats[id] = { entity_id: id, state: String(state), attributes, last_changed: quand }; };
+  // le soleil de ce jour-là, à Paris (comme l'Accueil)
+  const lever = hDe(EXEMPLE.lever), coucher = hDe(EXEMPLE.coucher);
+  const prochain = (x, hx) => new Date(minuit + (h < x ? 0 : 86400000) + hx * 3600000).toISOString();
+  const elevation = positionSoleil(date, 48.85, 2.35).elevation;
+  pose(ENT.soleil, elevation > 0 ? 'above_horizon' : 'below_horizon', { elevation: +elevation.toFixed(2), rising: h < (lever + coucher) / 2, next_rising: prochain(lever, lever), next_setting: prochain(coucher, coucher) });
+  pose([].concat(ENT.meteo)[0], A.meteo);
+  // la voiture
+  pose(ENT.soc, A.soc, { unit_of_measurement: '%' });
+  pose(ENT.autonomie, A.km, { unit_of_measurement: 'km' });
+  pose(ENT.branchee, A.prise, { device_class: 'plug' });
+  pose(ENT.charge, A.charge);
+  pose(ENT.limite, EXEMPLE.limite, { min: 50, max: 100, step: 10, unit_of_measurement: '%' });
+  pose(ENT.duree, A.duree, { unit_of_measurement: 'min' });
+  pose(ENT.verrou, A.verrou || 'locked');
+  pose(ENT.clim, 'off');
+  pose(ENT.actualiser, new Date(t - 2 * 86400000).toISOString());
+  pose(ENT.maj, new Date(t - A.age * 60000).toISOString(), { device_class: 'timestamp' });
+  pose(ENT.hc, 'off');
+  pose(ENT.b12v, EXEMPLE.b12, { unit_of_measurement: '%' });
+  pose(ENT.odometre, EXEMPLE.odo, { unit_of_measurement: 'km' });
+  pose(ENT.dernierEntretien, EXEMPLE.entretien, { min: 0, max: 500000, step: 1, unit_of_measurement: 'km' });
+  // la recharge
+  pose(ENT.borne, A.borne, { unit_of_measurement: 'W' });
+  pose(ENT.veSolaire, A.sol, { unit_of_measurement: 'W' });
+  pose(ENT.veReseau, A.res, { unit_of_measurement: 'W' });
+  pose(ENT.mode, A.mode || 'Soleil', { options: EXEMPLE.options });
+  const S = A.session || EXEMPLE.dernier, C0 = EXEMPLE.compteurs;
+  pose(ENT.sessionSoc, S.soc, { unit_of_measurement: '%' });
+  pose(ENT.sessionSol, C0.sol.toFixed(3), { unit_of_measurement: 'kWh' });
+  pose(ENT.sessionRes, C0.res.toFixed(3), { unit_of_measurement: 'kWh' });
+  pose(ENT.sessionDebut, S.debut, { has_date: true, has_time: true });
+  pose(ENT.energieSolaire, (C0.sol + S.sol).toFixed(3), { unit_of_measurement: 'kWh' });
+  pose(ENT.energieReseau, (C0.res + S.res).toFixed(3), { unit_of_measurement: 'kWh' });
+  const sessions = (A.aujourdhui ? [EXEMPLE.aujourdhui] : []).concat(EXEMPLE.journal);
+  pose(ENT.journal, sessions[0].fin, { sessions });
+  return { t, etats };
+}
+
+/* ================================================================ LECTURE === */
+/* Commandes en attente de Home Assistant : la commande affiche tout de suite son état visé (cible) tant que Home Assistant
+   rapporte autre chose et que le délai court ; dès qu'il rapporte la cible, l'attente s'efface ; au bout du délai, l'état
+   réel de Home Assistant reprend la main, sans message. */
+const ATTENTE = {};
+function attente(cle, reel) {
+  const a = ATTENTE[cle];
+  if (!a) return { val: reel, attente: false };
+  if (a.confirme ? a.confirme() : reel === a.cible) { delete ATTENTE[cle]; a.apres?.(); return { val: reel, attente: false }; }
+  if (Date.now() - a.depuis > a.delai) { delete ATTENTE[cle]; return { val: reel, attente: false }; }
+  return { val: a.cible, attente: true };
+}
+const nombreOu = (v, defaut) => { const n = Number(v); return v != null && Number.isFinite(n) ? n : defaut; };
+const relie = id => !!id;                                                     // '' dans CONFIG : non relié, masqué
+
+let MEMO = { annonce: null };
+let CADRE = null, SCENE = null;
+
+function deriver() {
+  const t = HA.maintenant(), { date, h } = heureLocale(new Date(t));
+  // le soleil : sun.sun (élévation, prochains lever et coucher) ; à défaut, sa position calculée à Paris (comme l'Accueil)
+  const el = HA.attr(ENT.soleil, 'elevation');
+  const E = el != null && Number.isFinite(Number(el)) ? Number(el) : positionSoleil(date, 48.85, 2.35).elevation;
+  const nr = Date.parse(HA.attr(ENT.soleil, 'next_rising')), ns = Date.parse(HA.attr(ENT.soleil, 'next_setting'));
+  const lever = Number.isFinite(nr) ? heureLocale(new Date(nr)).h : 7.5, coucher = Number.isFinite(ns) ? heureLocale(new Date(ns)).h : 19;
+  const montant = HA.attr(ENT.soleil, 'rising');
+  const matin = typeof montant === 'boolean' ? montant : h < (lever + coucher) / 2;
+  const cle = E >= 10 ? 'jour' : E >= -1 ? (matin ? 'aube' : 'doree') : E >= -8 ? 'crepuscule' : 'nuit';
+  const progres = borne((h - lever) / (coucher - lever), 0, 1);
+  const ciel = METEO[HA.etat(HA.premiere(ENT.meteo))] || 'clair';
+
+  const v = {};
+  v.soc = HA.nb(ENT.soc);
+  v.km = HA.nb(ENT.autonomie);
+  // la limite de charge (S&A-HOME : bornée à 50–100, par pas de 10 si l'entité ne dit rien)
+  v.lim = { min: nombreOu(HA.attr(ENT.limite, 'min'), 50), max: nombreOu(HA.attr(ENT.limite, 'max'), 100), pas: nombreOu(HA.attr(ENT.limite, 'step'), 10) || 10 };
+  const lim = attente('limite', HA.nb(ENT.limite));
+  v.limite = lim.val; v.limiteAttente = lim.attente;
+  const pr = HA.etat(ENT.branchee);
+  v.branchee = pr === 'on' ? true : pr === 'off' ? false : null;
+  const chReel = HA.etat(ENT.charge), ch = attente('charge', chReel == null ? null : chReel === 'on');
+  v.chargeOn = ch.val; v.chargeAttente = ch.attente; v.chargeReel = chReel === 'on';
+  // la borne, en direct (Smart3CT) ; ses sources (Voltia)
+  v.borneW = HA.nb(ENT.borne); v.solW = HA.nb(ENT.veSolaire); v.resW = HA.nb(ENT.veReseau);
+  v.mesure = v.borneW != null && v.borneW > 50;
+  const sol = v.solW != null ? Math.max(0, v.solW) : null, res = v.resW != null ? Math.max(0, v.resW) : null;
+  v.part = sol != null && res != null && sol + res > 50 ? Math.round(sol / (sol + res) * 100) : null;
+  // l'état : la mesure en direct de la borne prime sur la prise (donnée de la voiture, parfois ancienne)
+  v.etat = v.mesure ? 'charge'
+    : v.borneW == null && v.branchee === true && v.chargeReel ? 'charge'                       // borne non mesurée : ni comète ni pastille
+    : v.branchee === false ? 'debranchee'
+    : v.branchee === true ? (v.soc != null && v.limite != null && v.soc >= v.limite ? 'limite' : 'branchee')
+    : null;
+  v.branche = v.etat === 'charge' || v.etat === 'branchee' || v.etat === 'limite';
+  // depuis le branchement (Voltia) : points gagnés, kWh du soleil et du réseau
+  v.session = null;
+  const s0 = HA.nb(ENT.sessionSoc), deb = Date.parse(String(HA.etat(ENT.sessionDebut) || '').replace(' ', 'T'));
+  if (v.branche && s0 != null && v.soc != null && !(Number.isFinite(deb) && deb > t + 60000)) {
+    const dif = (a, b) => (a != null && b != null ? Math.max(0, a - b) : null);
+    const kSol = dif(HA.nb(ENT.energieSolaire), HA.nb(ENT.sessionSol)), kRes = dif(HA.nb(ENT.energieReseau), HA.nb(ENT.sessionRes));
+    const gain = v.soc - s0;
+    v.session = { soc0: borne(s0, 0, 100), gain, sol: kSol, res: kRes, partage: gain > 0 && kSol != null && kRes != null && kSol + kRes >= 0.1 };
+  }
+  // fin de charge (S&A-HOME finTxt) : maintenant + durée restante, à 5 min près ; à défaut, au rythme de la borne
+  v.fin = null;
+  if (v.chargeReel) {
+    const duree = HA.nb(ENT.duree);
+    let heures = null;
+    if (duree != null && duree > 0) heures = duree / 60;
+    else if (duree == null && v.borneW != null && v.borneW > 100 && v.soc != null && v.limite != null && v.limite > v.soc) heures = (v.limite - v.soc) / 100 * CONFIG.batterieKWh / (v.borneW / 1000);
+    if (heures != null && heures < 36) {
+      const fin = arrondi5(h + heures);
+      v.fin = fin < 24 ? `vers ${heureTxt(fin)}` : fin < 48 ? `demain vers ${heureTxt(fin)}` : null;
+    }
+  }
+  // verrou, climatisation, heures creuses, mode de Voltia
+  const vr = attente('verrou', HA.etat(ENT.verrou)); v.verrou = vr.val; v.verrouAttente = vr.attente;
+  const clReel = HA.etat(ENT.clim), cl = attente('clim', clReel == null ? null : clReel === 'on'); v.clim = cl.val; v.climAttente = cl.attente;
+  const hcReel = HA.etat(ENT.hc), hc = attente('hc', hcReel == null ? null : hcReel === 'on'); v.hc = hc.val; v.hcAttente = hc.attente;
+  const md = attente('mode', HA.etat(ENT.mode)); v.mode = md.val; v.modeAttente = md.attente;
+  const opts = HA.attr(ENT.mode, 'options');
+  v.options = Array.isArray(opts) && opts.length ? opts.map(String) : ['Normal', 'Soleil', 'Soleil + super creuses'];
+  // âge des données de la voiture (minutes) ; actualisation en attente jusqu'au prochain horodatage
+  v.age = HA.age(ENT.maj);
+  v.majAttente = attente('actualiser', null).attente;
+  // la scène : les comètes du câble (seuils de S&A-HOME : 50 W), vitesse et épaisseur selon les kW de chaque source
+  const flux = (actif, w) => { const kW = Math.max(0, w || 0) / 1000; return { actif: !!actif, kW, u: Math.sqrt(borne(kW / 3, 0, 1)) }; };
+  const F = { soleil: flux(v.mesure && sol != null && sol >= 50, sol), reseau: flux(v.mesure && res != null && res >= 50, res) };
+  F.borne = flux(v.mesure && !F.soleil.actif && !F.reseau.actif, v.borneW);              // sources inconnues : la comète de la borne
+  // suivi
+  const suivi = {
+    b12: HA.nb(ENT.b12v), odo: HA.nb(ENT.odometre), dernier: HA.nb(ENT.dernierEntretien)
+  };
+  suivi.reste = suivi.odo != null && suivi.dernier != null && ENT.intervalleEntretienKm ? suivi.dernier + ENT.intervalleEntretienKm - suivi.odo : null;
+  return { t, date, h, E, matin, cle, progres, ciel, v, suivi, flux: F };
+}
+
+/* ================================================================ HÉROS === */
+const ETATS = {
+  debranchee: { k: 'Débranchée', c: 'var(--ciel-encre-2)', sr: 'Débranchée' },
+  branchee: { k: 'Branchée', c: 'var(--borne)', sr: 'Branchée' },
+  charge: { k: 'En charge', c: 'var(--borne)', sr: 'En charge', anneau: true },
+  limite: { k: 'Limite atteinte', c: 'var(--borne)', sr: 'Limite de charge atteinte' }
+};
+let PHRASE = '', UNE_VAL = null, PILL = null, FLASH_MAJ = 0;
+
+function rendreHero(d) {
+  const v = d.v, E = ETATS[v.etat] || { k: '—', c: 'var(--ciel-encre-2)', sr: 'État de la prise inconnu' };
+  const une = $('une'), hero = $('hero');
+  une.style.setProperty('--c', E.c);
+  const k = $('une-k');
+  k.querySelector('span').textContent = E.k;
+  k.querySelector('i').classList.toggle('anneau', !!E.anneau);
+  // le chiffre : décompte (comme l'Accueil) s'il bouge d'au moins 2 points
+  const el = $('une-v'), gab = n => `${pct(n)}<span class="u">${NNBSP}%</span>`;
+  cancelAnimationFrame(el._raf);
+  const soc = v.soc != null ? Math.round(borne(v.soc, 0, 100)) : null;
+  if (soc == null) el.textContent = '—';
+  else if (UNE_VAL != null && !immobile() && Math.abs(soc - UNE_VAL) >= 2) {
+    const de = UNE_VAL, t0 = performance.now();
+    const pas = t => { const q = Math.min(1, (t - t0) / 600), x = de + (soc - de) * (1 - Math.pow(1 - q, 3)); el.innerHTML = gab(q < 1 ? Math.round(x) : soc); if (q < 1) el._raf = requestAnimationFrame(pas); };
+    el._raf = requestAnimationFrame(pas);
+  } else el.innerHTML = gab(soc);
+  UNE_VAL = soc;
+  hero.classList.toggle('perime', v.age != null && v.age >= 1440);
+  // l'autonomie, seule sur sa ligne
+  PHRASE = v.km != null ? `${nombre(Math.round(v.km), 0)}${NBSP}km` : '';
+  const ph = $('une-phrase');
+  if (ph.textContent !== PHRASE) ph.textContent = PHRASE;
+  if (!PHRASE) ph.hidden = true;
+  $('une-sr').textContent = `Batterie de la Kia${NBSP}: ${soc != null ? `${soc} %` : 'non mesurée'}${v.km != null ? `, ${nombre(Math.round(v.km), 0)} km d’autonomie` : ''}. ${E.sr}.`;
+  rendrePastille(d);
+  rendreCommandes(d);
+}
+
+/* La pastille : seulement pendant la charge mesurée — « 7,2 kW · ☀ 40 % » (court : « 7,2 kW ») */
+function rendrePastille(d) {
+  const v = d.v, pill = $('pill'), li = pill.parentElement;
+  if (!v.mesure) {
+    PILL = null;
+    pill.classList.add('cache'); li.setAttribute('aria-hidden', 'true'); $('pill-sr').textContent = '';
+    return;
+  }
+  const p = pTxt(v.borneW);
+  let part = '', partLong = '';
+  if (v.part != null) {
+    part = v.part < 5 ? `<span class="s"><span class="sep">·</span><span class="res">${icone('reseau')}</span></span>`
+      : `<span class="s"><span class="sep">·</span><span class="sol">${icone('soleil')}</span>${pct(v.part)}${NNBSP}%</span>`;
+    partLong = v.part < 5 ? ', venus du réseau' : `, dont ${pct(v.part)} % de soleil`;
+  }
+  const html = `<span class="g">${icone('borne')}</span><span class="long"><span class="v">${p}</span>${part}</span><span class="court"><span class="v">${p}</span></span>`;
+  pill.style.setProperty('--c', 'var(--borne)'); pill.style.setProperty('--ct', 'var(--borne-t)');
+  if (pill.innerHTML !== html) pill.innerHTML = html;
+  pill.className = 'pill';
+  li.removeAttribute('aria-hidden');
+  const label = `La borne recharge la Kia à ${pLong(v.borneW)}${partLong}`;
+  if ($('pill-sr').textContent !== label) $('pill-sr').textContent = label;
+  PILL = { label };
+}
+
+/* Les trois disques : verrou (déverrouillée = alerte), climatisation (allumée = disque plein, ventilateur qui tourne), actualiser */
+function rendreCommandes(d) {
+  const v = d.v;
+  const disque = (id, relieOk, html, o) => {
+    const b = $(id);
+    b.hidden = !relieOk;
+    if (!relieOk) return;
+    if (b.innerHTML !== html) b.innerHTML = html;
+    b.classList.toggle('alerte', !!o.alerte);
+    b.classList.toggle('allume', !!o.allume);
+    if (o.presse != null) b.setAttribute('aria-pressed', String(o.presse)); else b.removeAttribute('aria-pressed');
+    if (o.occupe) b.setAttribute('aria-busy', 'true'); else b.removeAttribute('aria-busy');
+    if (o.inactif) b.setAttribute('aria-disabled', 'true'); else b.removeAttribute('aria-disabled');
+    if (SURVOL.matches) b.title = b.getAttribute('aria-label'); else b.removeAttribute('title');
+  };
+  const verrouille = v.verrou === 'locked', ouverte = v.verrou != null && !verrouille;
+  disque('d-verrou', relie(ENT.verrou), icone(ouverte ? 'verrouOuvert' : 'verrou'),
+    { alerte: ouverte, presse: v.verrou == null ? null : verrouille, occupe: v.verrouAttente, inactif: v.verrou == null });
+  disque('d-clim', relie(ENT.clim), icone('ventilateur'), { allume: v.clim === true, presse: v.clim == null ? null : v.clim, occupe: v.climAttente, inactif: v.clim == null });
+  const vieux = v.age != null && v.age >= 30 && !v.majAttente;
+  disque('d-maj', relie(ENT.actualiser), icone(FLASH_MAJ > Date.now() ? 'coche' : 'actualiser') + (vieux ? '<i class="age" aria-hidden="true"></i>' : ''), { occupe: v.majAttente });
+  $('commandes').hidden = !relie(ENT.verrou) && !relie(ENT.clim) && !relie(ENT.actualiser);
+}
+const SURVOL = window.matchMedia('(hover: hover) and (pointer: fine)');
+
+/* --- Capsule d'état : âge des données de la voiture (coque), connexion, valeurs d'exemple, ou commande refusée --- */
+let SANS_REPONSE = false, REFUS = 0;
+const ageCourt = a => a < 1 ? 'À l’instant' : a < 60 ? `Il y a ${Math.floor(a)}${NBSP}min` : a < 2880 ? `Il y a ${Math.floor(a / 60)}${NBSP}h` : `Il y a ${Math.floor(a / 1440)}${NBSP}j`;
+const ageLong = a => {
+  if (a < 1) return 'à l’instant';
+  const [n, u] = a < 60 ? [Math.floor(a), 'minute'] : a < 2880 ? [Math.floor(a / 60), 'heure'] : [Math.floor(a / 1440), 'jour'];
+  return `il y a ${n} ${accord(n, u)}`;
+};
+function rendreCapsule() {
+  const age = SCENE?.v.age ?? null;
+  let c, long, court, sr = null;
+  if (REFUS > Date.now()) [c, long, court] = ['var(--alerte)', 'Commande refusée par Home Assistant', 'Commande refusée'];
+  else if (!HA.enCoque) [c, long, court] = ['var(--soleil)', `Hors de Home Assistant${NBSP}: valeurs d’exemple`, 'Valeurs d’exemple'];
+  else if (!HA.connecte) [c, long, court] = SANS_REPONSE ? ['var(--alerte)', 'Home Assistant ne répond pas', 'Sans réponse'] : ['var(--ciel-encre-2)', 'Connexion à Home Assistant…', 'Connexion…'];
+  else if (age == null) [c, long, court] = ['var(--batterie)', 'En direct', 'En direct'];
+  else { c = age >= 30 ? 'var(--soleil)' : 'var(--batterie)'; long = court = ageCourt(age); sr = `Données de la Kia${NBSP}: ${ageLong(age)}`; }
+  const cap = $('capsule');
+  cap.style.setProperty('--c', c);
+  const html = `<span class="pt" aria-hidden="true"></span><span class="cl" aria-hidden="true">${long}</span><span class="cc" aria-hidden="true">${court}</span><span class="sr-only">${REFUS > Date.now() ? '' : sr || long}</span>`;
+  if (cap.innerHTML !== html) cap.innerHTML = html;
+}
+
+/* ================================================================ SCÈNE === */
+/* Points de la voiture, en pixels de l'image (1672 × 941, voir SPEC) */
+const AUTO = { x0: 61, x1: 1633, y0: 170, sol: 810, cx: 847, horizon: 500, port: [333, 560] };
+/* profil haut de la voiture (y du premier pixel opaque, par x) : le soleil et les filets restent au-dessus */
+const PROFIL_AUTO = [[61, 600], [80, 520], [120, 448], [160, 411], [200, 390], [240, 377], [320, 370], [400, 368], [440, 359], [480, 332],
+  [520, 302], [560, 275], [600, 251], [640, 230], [680, 213], [720, 201], [800, 185], [880, 175], [1000, 170], [1080, 174],
+  [1160, 183], [1240, 197], [1320, 222], [1400, 257], [1440, 279], [1520, 295], [1560, 303], [1600, 332], [1633, 440]];
+function hautAuto(xd) {
+  if (xd < AUTO.x0 || xd > AUTO.x1) return Infinity;
+  for (let k = 1; k < PROFIL_AUTO.length; k++) { const [x1, y1] = PROFIL_AUTO[k], [x0, y0] = PROFIL_AUTO[k - 1]; if (xd <= x1) return y0 + (y1 - y0) * (xd - x0) / (x1 - x0); }
+  return PROFIL_AUTO.at(-1)[1];
+}
+const silhouetteAuto = (x, C) => { const y = hautAuto((x - C.ix) / C.s); return y === Infinity ? Infinity : C.iy + y * C.s; };
+const voiture = $('voiture'), cable = $('cable');
+
+function rendreScene(d) {
+  SCENE = d;
+  // --- le ciel (partage/ciel.js) : le même que l'Accueil
+  peindreCiel(d, CADRE);
+  const sombre = themeSombre();
+  // --- la lumière sur la voiture : voile de nuit (multiplication, mêlé de 40 % de blanc : elle reste rouge), halo derrière elle
+  const vo = melangeLab(interCles(VOILE[sombre ? 'sombre' : 'clair'], d.E, 1), depuisHex('#ffffff'), .40);
+  const auto = $('auto');
+  if (luminanceLab(vo) > .985) auto.setAttribute('filter', 'none');
+  else {
+    const [r, g, b] = versSrgb(vo).map(x => x.toFixed(4));
+    $('voile-auto').setAttribute('values', `${r} 0 0 0 0  0 ${g} 0 0 0  0 0 ${b} 0 0  0 0 0 1 0`);
+    auto.setAttribute('filter', 'url(#f-voile-auto)');
+  }
+  const contreJour = HALO[d.cle], halo = $('halo-auto');
+  halo.setAttribute('display', contreJour ? 'inline' : 'none');
+  if (contreJour) { ['halo-auto-0', 'halo-auto-1', 'halo-auto-2'].forEach(id => $(id).setAttribute('stop-color', contreJour[0])); halo.setAttribute('opacity', contreJour[1]); }
+  // --- le câble : seulement branchée ; la prise cerclée de prune pendant la charge mesurée
+  const v = d.v;
+  $('cable-tout').setAttribute('display', v.branche ? 'inline' : 'none');
+  $('prise').classList.toggle('anneau', v.mesure);
+  // --- la description de la scène
+  const etat = v.etat === 'charge' ? (v.mesure ? `branchée, en charge à ${pLong(v.borneW)}${v.part != null ? (v.part < 5 ? ' venus du réseau' : ` dont ${pct(v.part)} % de soleil`) : ''}` : 'branchée, en charge')
+    : v.etat === 'branchee' ? 'branchée' : v.etat === 'limite' ? 'branchée, limite de charge atteinte' : v.etat === 'debranchee' ? 'débranchée' : 'prise non mesurée';
+  const portes = v.verrou === 'locked' ? ', portes verrouillées' : v.verrou != null ? ', portes déverrouillées' : '';
+  voiture.setAttribute('aria-label', `La Kia e-Niro, ${etat}${portes}${v.clim === true ? ', climatisation en marche' : ''}.`);
+}
+
+/* ======================================================= LE CÂBLE ET SES COMÈTES (moteur : partage/flux.js) ===
+   Le câble est tracé de son bout (hors champ, fondu) jusqu'à la prise : les comètes « entrantes » de l'Accueil vont vers la voiture.
+   Soleil : arrivée à 28,2 % du cycle ; réseau : 0,08 plus tard, arrivée à 36,2 %. La prise « reçoit » à chaque arrivée. */
+const CABLE = { pieces: null, L: 0, PL: 0, coeur: 3.75 };
+const FLUXK = {};
+let FILE = null, MINUTERIE = 0, PORT_ANIMS = [];
+const fenetreK = (nom, u) => (nom === 'reseau' ? [0.122 * u + 0.08, 0.362] : [0.122 * u, 0.282]);
+function preparerCable() {
+  const ame = $('cable-ame');
+  CABLE.L = ame.getTotalLength();
+  CABLE.pieces = [{ d: ame.getAttribute('d'), len: CABLE.L }];
+  for (const nom of ['soleil', 'reseau', 'borne']) {
+    const g = document.createElementNS(SVGNS, 'g');
+    g.setAttribute('class', 'fl-flux'); g.dataset.flux = nom; g.dataset.actif = 'non'; g.style.opacity = '0';
+    $('cable-flux').appendChild(g);
+    FLUXK[nom] = { nom, g, paths: [], anims: [], etat: { actif: false, u: 0, kW: 0 }, cle: '' };
+  }
+}
+function construireCable() {
+  for (const f of Object.values(FLUXK)) { annuler(f.anims); f.g.textContent = ''; f.paths = construireComete(f.g, CABLE.pieces, CABLE.PL, `fl-g-${f.nom}`); f.cle = ''; }
+}
+function epaisseursK(f) {
+  const s = CADRE.s, u = f.etat.u ?? 0, w = CABLE.coeur * (0.85 + 0.30 * u) * 0.7 / s;
+  for (const p of f.paths) {
+    p.setAttribute('stroke-width', (p._lueur ? w * 1.6 : w).toFixed(2));
+    if (p._lueur) p.style.opacity = (.16 + .12 * u).toFixed(3);
+  }
+}
+/* tailles en pixels d'écran → unités de l'image, à chaque cadrage */
+function echelleCable() {
+  if (!CADRE) return;
+  const s = CADRE.s, k = 1 / s;
+  CABLE.coeur = borne(3.75 * Math.sqrt(1572 * s / 390), 3, 4.5);
+  $('cable-ame').setAttribute('stroke-width', (0.8 * CABLE.coeur * k).toFixed(2));
+  $('cable-reflet').setAttribute('stroke-width', (0.8 * k).toFixed(2));
+  $('cable-reflet').setAttribute('transform', `translate(0 ${(-0.6 * k).toFixed(2)})`);
+  $('fl-flou-dev').setAttribute('stdDeviation', (0.64 * CABLE.coeur * k).toFixed(2));
+  $('f-port-dev').setAttribute('stdDeviation', (2.4 * k).toFixed(2));
+  $('port-halo').setAttribute('r', (9 * k).toFixed(2));
+  // la prise : 9 × 6 px, dans l'axe de la fin du câble, son bout sur le port
+  const ang = Math.atan2(560 - 592, 333 - 312) * 180 / Math.PI;
+  $('prise').setAttribute('transform', `translate(333 560) rotate(${ang.toFixed(1)}) scale(${k.toFixed(4)})`);
+  $('prise').setAttribute('stroke-width', '1');
+  $('fixe-trait').setAttribute('stroke-width', (0.9 * CABLE.coeur * k).toFixed(2));
+  const PL = Math.round(100 * Math.max(1, CABLE.L * s / 120) * 10) / 10;
+  if (PL !== CABLE.PL) { CABLE.PL = PL; construireCable(); }
+  Object.values(FLUXK).forEach(epaisseursK);
+  orienterFixe();
+  if (s !== MEMO.sFlux) { MEMO.sFlux = s; appliquerFlux(true, null, true); }
+}
+/* mouvement réduit : un trait fixe sur la fin du câble, ambre puis violet selon les kW de chaque source, et une flèche vers la prise */
+function orienterFixe() {
+  if (!CADRE) return;
+  const F = Object.fromEntries(Object.entries(FLUXK).map(([n, f]) => [n, f.etat]));
+  const kS = F.soleil.actif ? F.soleil.kW : 0, kR = F.reseau.actif ? F.reseau.kW : 0, tot = kS + kR;
+  const g = $('g-fixe'), p = tot > 0 ? kS / tot : 0;
+  const cS = 'oklch(0.80 0.16 80)', cR = 'var(--reseau)', cB = 'var(--borne)';
+  g.innerHTML = tot > 0
+    ? `<stop offset="0" style="stop-color:${cS}"/><stop offset="${p.toFixed(3)}" style="stop-color:${cS}"/><stop offset="${p.toFixed(3)}" style="stop-color:${cR}"/><stop offset="1" style="stop-color:${cR}"/>`
+    : `<stop offset="0" style="stop-color:${cB}"/><stop offset="1" style="stop-color:${cB}"/>`;
+  $('fixe-trait').setAttribute('stroke', 'url(#g-fixe)');
+  // la flèche : au 3/5 de la montée devant le pare-chocs, dans le sens de la charge
+  const B = (t, a, b, c, e) => (1 - t) ** 3 * a + 3 * (1 - t) ** 2 * t * b + 3 * (1 - t) * t * t * c + t ** 3 * e;
+  const P = [[236, 812], [282, 795], [298, 650], [312, 592]], t = .62;
+  const x = B(t, ...P.map(q => q[0])), y = B(t, ...P.map(q => q[1]));
+  const x2 = B(t + .02, ...P.map(q => q[0])), y2 = B(t + .02, ...P.map(q => q[1]));
+  const ang = Math.atan2(y2 - y, x2 - x) * 180 / Math.PI;
+  const fl = $('fixe-fleche');
+  fl.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${ang.toFixed(1)}) scale(${(1 / CADRE.s).toFixed(4)})`);
+  fl.style.fill = tot > 0 ? (kS >= kR ? cS : cR) : cB;
+}
+/* Applique l'état demandé (FILE) : tout de suite (premier rendu, cadrage, flux caché) ou au prochain début de cycle (comme l'Accueil) */
+function demanderFlux(etat, toutDeSuite) {
+  FILE = etat;
+  clearTimeout(MINUTERIE);
+  if (toutDeSuite || T0 == null || immobile()) { appliquerFlux(false); return; }
+  const immediat = Object.keys(etat).filter(n => !FLUXK[n].etat.actif);
+  if (immediat.length) appliquerFlux(false, immediat);
+  const now = document.timeline.currentTime ?? performance.now();
+  const reste = T_CYCLE - (((now - T0) % T_CYCLE) + T_CYCLE) % T_CYCLE;
+  MINUTERIE = setTimeout(() => appliquerFlux(false), reste);
+}
+function appliquerFlux(recreer, seulement = null, garder = false) {
+  if (T0 == null) T0 = document.timeline.currentTime ?? performance.now();
+  const calme = immobile();
+  for (const f of Object.values(FLUXK)) {
+    if (seulement && !seulement.includes(f.nom)) continue;
+    const voulu = garder ? f.etat : (FILE?.[f.nom] || f.etat);
+    const cle = `${voulu.actif}|${(voulu.u ?? 0).toFixed(3)}|${calme}|${CABLE.PL}`;
+    f.etat = { ...voulu };
+    f.g.dataset.actif = voulu.actif ? 'oui' : 'non';                    // attribut de test
+    if (!CADRE) continue;
+    f.g.style.opacity = voulu.actif && !calme ? '1' : '0';
+    if (cle === f.cle && !recreer) continue;
+    f.cle = cle;
+    epaisseursK(f);
+    annuler(f.anims);
+    if (!voulu.actif || calme) continue;
+    const win = fenetreK(f.nom, voulu.u);
+    f.win = win;
+    for (const p of f.paths) f.anims.push(enregistrer(p.animate(images(p._N, CABLE.PL, 'ent', win, p._decal), { duration: T_CYCLE, iterations: Infinity })));
+  }
+  const actifs = Object.values(FLUXK).filter(f => f.etat.actif);
+  $('cable-fixe').style.display = actifs.length && calme ? '' : 'none';
+  orienterFixe();
+  animerPort(actifs);
+  synchroPause();
+}
+/* La prise « reçoit » quand une comète arrive (28,2 % ; 36,2 % pour le réseau), comme le moyeu de l'Accueil */
+function animerPort(actifs) {
+  const halo = $('port-halo');
+  const mesure = !!SCENE?.v.mesure;
+  halo.setAttribute('display', mesure ? 'inline' : 'none');
+  const arrivees = [...new Set(actifs.map(f => (f.nom === 'reseau' ? .362 : .282)))].sort();
+  const cle = `${immobile()}|${mesure}|${arrivees.join(',')}|${T0}`;
+  if (cle === MEMO.clePort) return;
+  MEMO.clePort = cle;
+  annuler(PORT_ANIMS);
+  if (immobile() || !mesure || !arrivees.length) return;
+  const o = [{ offset: 0, opacity: .35, transform: 'scale(1)' }];
+  arrivees.forEach((a, k) => {
+    const avant = k ? Math.max(a - .04, arrivees[k - 1] + .005) : a - .06;
+    o.push({ offset: avant, opacity: k ? .6 : .35, transform: 'scale(1)' }, { offset: a, opacity: .9, transform: 'scale(1.08)' });
+  });
+  o.push({ offset: Math.min(.98, arrivees.at(-1) + .12), opacity: .35, transform: 'scale(1)' }, { offset: 1, opacity: .35, transform: 'scale(1)' });
+  PORT_ANIMS.push(enregistrer(halo.animate(o, { duration: T_CYCLE, iterations: Infinity, easing: 'ease-in-out' })));
+}
+
+/* ================================================================ CADRAGE ===
+   La voiture entière (boîte opaque x 61 → 1633, y 170 → 810 de l'image) tient toujours dans le héros et rien d'opaque ne la
+   couvre ; ni elle, ni ses commandes ne bougent quand la charge commence ou s'arrête (la place de la pastille est réservée).
+   - portrait : pleine largeur (marges 12 px, ≤ 720 px), posée au-dessus de ses commandes ; niveaux de compaction L0 → L4 ;
+   - court (téléphone à l'horizontale) : à droite ; texte, pastille en colonne à gauche ;
+   - large (tablette à l'horizontale, ordinateur) : à droite de la colonne de texte, la carte Charge posée dans le héros. */
+const NIVEAUX = [
+  { gBK: 14, taille: W => borne(.16 * W, 52, 72), kmG: 6, ov: 40, disque: 48, gC: 16, gG: 20, gP: 14 },
+  { gBK: 10, taille: W => borne(.14 * W, 46, 56), kmG: 4, ov: 24, disque: 44, gC: 12, gG: 18, gP: 12 }
+];
+const PILL_RESERVE = 150;                                         // largeur réservée de la pastille longue (« 7,2 kW · ☀ 40 % »)
+
+function cadrer() {
+  const hero = $('hero');
+  const W = hero.clientWidth, H = hero.clientHeight;
+  if (!W || !H || !SCENE) return;
+  const html = document.documentElement;
+  const mode = W / H < 1.15 ? 'portrait' : H < 430 ? 'court' : 'large';
+  hero.dataset.mode = mode; html.dataset.mode = mode;
+  const gx = parseFloat(getComputedStyle(html).getPropertyValue('--gx')) || 20;
+  const edge = Math.max(32, (W - 1320) / 2 + 32);
+  hero.style.setProperty('--edge', edge + 'px'); html.style.setProperty('--edge', edge + 'px');
+  const barre = $('barre'), une = $('une'), ph = $('une-phrase'), charge = $('charge'), pill = $('pill');
+  pastillesDehors(false);
+  hero.classList.remove('pills-courtes');
+  barre.style.width = '';
+  ph.hidden = !PHRASE;
+  const bas = () => barre.offsetTop + barre.offsetHeight;
+  const pillVue = !!PILL;
+  const largeurPill = () => (pillVue ? pill.offsetWidth : PILL_RESERVE);
+  const largeurChiffre = () => { const rg = document.createRange(); rg.selectNodeContents($('une-v')); return rg.getBoundingClientRect().width; };
+  let s, ix, iy, ov = 0, place = 'ciel', pillTop = 0, disque = 48, rt, colW = W, bilanZone = null, gauche = gx, droite = W - gx, kTop, uH, kmTop = 0, niveau = 0;
+
+  if (mode === 'portrait') {
+    const m = W < 375 ? 10 : 12, cw = Math.min(W - 2 * m, 720);
+    let choix = null;
+    for (let L = 0; L <= 3 && !choix; L++) {
+      const v = NIVEAUX[Math.min(L, 1)];
+      hero.dataset.niveau = L;
+      const N = v.taille(W);
+      une.style.setProperty('--une-t', N.toFixed(1) + 'px');
+      const bB = bas(), uT = bB + v.gBK, h1 = une.offsetHeight, kT = uT + h1 + v.kmG, tb = PHRASE ? kT + ph.offsetHeight : uT + h1;
+      const o = L >= 3 ? 0 : v.ov, rb = H - o - v.gC, r0 = rb - v.disque, g = r0 - v.gG, sc = cw / 1572, top = g - 640 * sc;
+      if (L <= 1) {
+        const pt = top - v.gP - 30;
+        if (pt >= tb + 12) choix = { L, uT, h1, kT, ov: o, disque: v.disque, rt: r0, gy: g, s: sc, pillTop: pt, place: 'ciel' };
+      } else {
+        // la pastille monte dans la rangée du chiffre, à droite ; la voiture reste sous le texte
+        const yc = uT + h1 - N / 2 - 15;
+        if (top >= tb + 12 && W - gx - Math.min(largeurPill(), 96) >= gx + largeurChiffre() + 16) choix = { L, uT, h1, kT, ov: o, disque: v.disque, rt: r0, gy: g, s: sc, pillTop: yc, place: 'ligne' };
+      }
+    }
+    if (!choix) {
+      // L4 (texte très agrandi) : la voiture rétrécit, centrée, jusqu'à 70 % de la largeur ; au-delà la pastille sort du héros
+      const v = NIVEAUX[1];
+      hero.dataset.niveau = 4;
+      const N = v.taille(W);
+      une.style.setProperty('--une-t', N.toFixed(1) + 'px');
+      const bB = bas(), uT = bB + v.gBK, h1 = une.offsetHeight, kT = uT + h1 + v.kmG, tb = PHRASE ? kT + ph.offsetHeight : uT + h1;
+      const rb = H - v.gC, r0 = rb - v.disque, g = r0 - v.gG;
+      const sc = Math.max(.7 * W / 1572, Math.min(cw / 1572, (g - tb - 12) / 640));
+      const enLigne = W - gx - Math.min(largeurPill(), 96) >= gx + largeurChiffre() + 16;
+      choix = { L: 4, uT, h1, kT, ov: 0, disque: v.disque, rt: r0, gy: g, s: sc, pillTop: uT + h1 - N / 2 - 15, place: enLigne ? 'ligne' : 'dehors' };
+    }
+    niveau = choix.L; s = choix.s; ov = choix.ov; disque = choix.disque; rt = choix.rt; place = choix.place; pillTop = choix.pillTop;
+    ix = (W - 1572 * s) / 2 - AUTO.x0 * s; iy = choix.gy - AUTO.sol * s;
+    kTop = choix.uT; uH = choix.h1; kmTop = choix.kT;
+    une.style.top = kTop + 'px';
+    if (PHRASE) ph.style.top = kmTop + 'px';
+    if (ov > 0) bilanZone = [H - ov, H];
+  } else if (mode === 'court') {
+    // téléphone à l'horizontale : la voiture à droite, posée au-dessus de ses commandes ; texte et pastille en colonne à gauche
+    hero.dataset.niveau = 0;
+    const safeR = parseFloat(getComputedStyle($('ciel')).paddingRight) || 0;
+    une.style.setProperty('--une-t', (H < 260 ? 34 : 44) + 'px');
+    disque = 44; rt = H - 10 - 44;
+    const gy = rt - 14;
+    s = Math.min(.58 * W / 1572, (gy - 12) / 640, gy / 752);      // gy / 752 : le haut de l'image (faiblement opaque) reste presque entier dans le héros
+    ix = W - 16 - safeR - AUTO.x1 * s; iy = gy - AUTO.sol * s;
+    colW = ix + AUTO.x0 * s - 16;
+    hero.style.setProperty('--colw', colW + 'px');
+    // la barre s'étend vers la droite tant que la voiture reste sous elle
+    const yB = barre.offsetTop + barre.offsetHeight + 8;
+    let xr = W - gx;
+    for (let x = gx; x <= W - gx; x += 4) if (silhouetteAuto(x, { s, ix, iy }) < yB) { xr = x - 8; break; }
+    barre.style.width = Math.max(colW - gx, xr - gx) + 'px';
+    kTop = bas() + 8; une.style.top = kTop + 'px';
+    uH = une.offsetHeight; kmTop = kTop + uH + 4;
+    if (PHRASE) ph.style.top = kmTop + 'px';
+    const tb = PHRASE ? kmTop + ph.offsetHeight : kTop + uH;
+    place = 'colonne'; pillTop = tb + 12;
+    if (largeurPill() > colW - gx) hero.classList.add('pills-courtes');
+    if (pillTop + 30 > H - 6 || largeurPill() > colW - gx) place = 'dehors';
+  } else {
+    hero.dataset.niveau = 0;
+    colW = borne(.32 * W, 340, 460);
+    hero.style.setProperty('--colw', colW + 'px'); html.style.setProperty('--colw', colW + 'px');
+    const xa = edge + colW + 40, xb = W - edge;
+    disque = 48; rt = H - 24 - 48;
+    const gy = rt - 24;
+    s = Math.min((xb - xa) / 1572, (gy - 128) / 640);
+    ix = (xa + xb) / 2 - AUTO.cx * s; iy = gy - AUTO.sol * s;
+    const bB = bas();
+    une.style.setProperty('--une-t', borne(H * .15, 56, 88) + 'px');
+    // la carte Charge descend dans le bas du héros (bas à H − 24) ; s'il n'y a pas la place (texte très agrandi), elle reste dessous
+    const bH = charge.offsetHeight;
+    let cTop = H - 24 - bH;
+    kTop = Math.max(bB + 24, 0);
+    uH = une.offsetHeight;
+    const hk = PHRASE ? 8 + ph.offsetHeight : 0;
+    if (kTop + uH + hk + 20 > cTop) kTop = Math.max(bB + 24, cTop - 20 - uH - hk);
+    const leve = kTop + uH + hk + 20 <= cTop;
+    if (!leve) cTop = H;
+    html.style.setProperty('--lift', leve ? (bH + 24) + 'px' : '0px');
+    une.style.top = kTop + 'px';
+    kmTop = kTop + uH + 8;
+    if (PHRASE) ph.style.top = kmTop + 'px';
+    if (leve) bilanZone = [cTop, H - 24];
+    gauche = edge + colW + 16; droite = W - edge;
+    place = 'ciel'; pillTop = iy + AUTO.y0 * s - 14 - 30;
+  }
+  hero.style.setProperty('--colw', colW + 'px');
+  html.style.setProperty('--ov', ov + 'px');
+  if (mode !== 'portrait') hero.dataset.niveau = 0; else hero.dataset.niveau = niveau;
+
+  // --- la voiture et son câble : viewBox à partir du cadrage (unités : pixels de l'image)
+  const vb = `${(-ix / s).toFixed(2)} ${(-iy / s).toFixed(2)} ${(W / s).toFixed(2)} ${(H / s).toFixed(2)}`;
+  voiture.setAttribute('viewBox', vb); cable.setAttribute('viewBox', vb);
+  const yh = iy + AUTO.horizon * s;
+  $('ciel').style.setProperty('--yh', yh.toFixed(1) + 'px');
+  const P = ([ax, ay]) => [ix + ax * s, iy + ay * s];
+  const [px, py] = P(AUTO.port), carTop = iy + AUTO.y0 * s, carCx = ix + AUTO.cx * s;
+
+  // --- les commandes : centrées sous la voiture
+  const cmd = $('commandes');
+  cmd.style.setProperty('--d', disque + 'px');
+  cmd.style.setProperty('--cg', (W < 375 ? 16 : 20) + 'px');
+  cmd.style.left = carCx.toFixed(1) + 'px'; cmd.style.top = rt.toFixed(1) + 'px';
+
+  // --- la pastille et son filet
+  const dehors = place === 'dehors';
+  pastillesDehors(dehors);
+  let cx = 0;
+  if (!dehors) {
+    if (place === 'ligne' && largeurPill() > W - gx - (gx + largeurChiffre() + 16)) hero.classList.add('pills-courtes');
+    const w = largeurPill();
+    if (place === 'ciel') cx = borne(px, gauche + w / 2, droite - w / 2);
+    else if (place === 'ligne') cx = W - gx - w / 2;
+    if (place === 'colonne') { pill.style.left = gx.toFixed(1) + 'px'; cx = gx + w / 2; }
+    else pill.style.left = cx.toFixed(1) + 'px';
+    pill.style.top = pillTop.toFixed(1) + 'px';
+  } else { pill.style.left = ''; pill.style.top = ''; }
+  const f1 = v => v.toFixed(1);
+  let fils = '';
+  const obstaclesFil = [];
+  if (pillVue) {
+    if (!dehors && place !== 'colonne') {
+      const w = largeurPill(), l = cx - w / 2, r = cx + w / 2, yb = pillTop + 30;
+      if (place === 'ciel' && px >= l + 15 && px <= r - 15) fils += `<path class="fil" d="M${f1(px)},${f1(yb)}V${f1(py - 3)}"/>`;
+      else {
+        const yk = place === 'ligne' ? Math.max(yb + 8, carTop - 10) : yb + 8;
+        fils += `<path class="fil" d="M${f1(cx)},${f1(yb)}V${f1(yk)}H${f1(px)}V${f1(py - 3)}"/>`;
+        obstaclesFil.push({ l: Math.min(cx, px), r: Math.max(cx, px), t: yk - 1, b: yk + 1 });
+      }
+    }
+    fils += `<circle class="ancre" data-noeud="borne" cx="${f1(px)}" cy="${f1(py)}" r="2.5" style="--c:var(--borne)"/>`;
+  }
+  const svgFils = $('fils');
+  svgFils.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svgFils.innerHTML = fils;
+
+  // --- barre : la forme longue de la capsule, le menu puis le nom de la marque s'effacent tour à tour plutôt que de se chevaucher
+  const hr = hero.getBoundingClientRect();
+  const boite = el => { const r = el.getBoundingClientRect(); return { l: r.left - hr.left, r: r.right - hr.left, t: r.top - hr.top, b: r.bottom - hr.top }; };
+  hero.classList.remove('sans-nom', 'sans-nav');
+  const cap = $('capsule'), nav = barre.querySelector('.nav-large'), marque = $('marque');
+  cap.classList.remove('court');
+  const vu = el => el && el.offsetWidth > 0;
+  const gene = () => { const c = boite(cap), g = vu(nav) ? boite(nav).r + 16 : boite(marque).r + 6; return g > c.l || cap.scrollWidth > cap.clientWidth + 1; };
+  if (gene()) cap.classList.add('court');
+  if (gene() && vu(nav)) hero.classList.add('sans-nav');
+  if (gene()) hero.classList.add('sans-nom');
+  // le logo : retour à l'accueil (chevron) tant que le menu n'est pas affiché
+  marque.setAttribute('aria-label', vu(nav) ? 'Breezy, accueil' : 'Retour à l’accueil');
+
+  // --- le cadre, pour le ciel partagé (partage/ciel.js)
+  const C = CADRE = { mode, W, H, s, hx: ix, hy: iy, ix, iy, gx, edge, colW, bB: bas(), yh };
+  C.silhouette = x => silhouetteAuto(x, C);
+  C.lune = [ix + 1300 * s, C.bB + 34];
+  C.verre = charge;
+  C.bilanZone = bilanZone;
+  const zonePill = () => { const w = largeurPill(), l = place === 'colonne' ? gx : cx - w / 2; return { l, r: l + w, t: pillTop, b: pillTop + 30 }; };
+  const texte = [marque, vu(nav) ? nav : null, une, PHRASE ? ph : null].filter(Boolean).map(boite);
+  if (!dehors && (place === 'ligne' || place === 'colonne')) texte.push(zonePill());
+  C.texte = [Math.max(0, Math.min(...texte.map(b => b.t))), Math.max(...texte.map(b => b.b))];
+  C.obstacles = [marque, vu(nav) ? nav : null, cap, une, PHRASE ? ph : null].filter(Boolean).map(boite).concat(obstaclesFil);
+  if (!dehors) C.obstacles.push(zonePill());                           // place réservée : l'astre ne bouge pas quand la charge commence
+  if (bilanZone && mode === 'large') C.obstacles.push(boite(charge));
+  encrerCiel(C);
+  placerCiel(C, SCENE);
+  echelleCable();
+}
+
+/* Pastille hors du héros (héros trop bas pour elle) : la liste passe en tête du contenu */
+function pastillesDehors(oui) {
+  const ul = $('pastilles');
+  if (oui === ul.classList.contains('dehors')) return;
+  ul.classList.toggle('dehors', oui);
+  if (oui) $('contenu').prepend(ul); else $('direct').insertBefore(ul, $('scene'));
+}
+
+/* ================================================================ SOUS LE HÉROS === */
+/* --- Charge : la batterie, la recharge depuis le branchement (soleil, réseau), la limite, le bouton --- */
+let LIMITE_MINUT = 0;
+function rendreCharge(d) {
+  const v = d.v;
+  $('charge-fin').textContent = v.fin || '';
+  // la barre
+  const soc = v.soc != null ? borne(v.soc, 0, 100) : null, lim = v.limite != null ? borne(v.limite, 0, 100) : null;
+  const seg = (id, a, b) => { const el = $(id); const vu = a != null && b != null && b > a; el.hidden = !vu; if (vu) { el.style.setProperty('--a', a.toFixed(2)); el.style.setProperty('--b', b.toFixed(2)); } };
+  const S = v.session;
+  let srSession = '';
+  if (soc != null && S && S.partage) {
+    const s0 = Math.min(S.soc0, soc), m = s0 + (soc - s0) * S.sol / (S.sol + S.res);
+    seg('j-base', 0, s0); seg('j-sol', s0, m); seg('j-res', m, soc);
+    srSession = ` Depuis le branchement${NBSP}: +${pct(S.gain)} ${accord(S.gain, 'point')}, ${pct(S.sol / (S.sol + S.res) * 100)} % de soleil.`;
+  } else { seg('j-base', 0, soc); seg('j-sol', null, null); seg('j-res', null, null); }
+  seg('j-reste', v.branche ? soc : null, v.branche ? lim : null);
+  $('j-lim').hidden = lim == null; if (lim != null) $('j-lim').style.setProperty('--lim', lim.toFixed(2));
+  $('j-pt').hidden = soc == null; if (soc != null) $('j-pt').style.setProperty('--soc', soc.toFixed(2));
+  $('jauge').setAttribute('aria-label', `Batterie ${soc != null ? `${pct(soc)} %` : 'non mesurée'}${lim != null ? `, limite ${pct(lim)} %` : ''}.${srSession}`);
+  // la limite : − 80 % +
+  $('limite').hidden = !relie(ENT.limite);
+  const out = $('lim-v');
+  out.innerHTML = v.limite != null ? `${pct(v.limite)}<span class="u">${NNBSP}%</span>` : '—';
+  out.classList.toggle('attente', v.limiteAttente);
+  const bas = v.limite == null || v.limite <= v.lim.min, haut = v.limite == null || v.limite >= v.lim.max;
+  const bm = $('lim-moins'), bp = $('lim-plus');
+  if (!bm.firstChild) { bm.innerHTML = icone('moins'); bp.innerHTML = icone('plus'); }
+  bas ? bm.setAttribute('aria-disabled', 'true') : bm.removeAttribute('aria-disabled');
+  haut ? bp.setAttribute('aria-disabled', 'true') : bp.removeAttribute('aria-disabled');
+  // le bouton : lancer, arrêter (les libellés de S&A-HOME)
+  const btn = $('btn-charge');
+  btn.hidden = !relie(ENT.charge);
+  const on = v.chargeOn === true;
+  const inactif = !on && (v.chargeOn == null || !v.branche || (v.soc != null && v.limite != null && v.soc >= v.limite));
+  const html = `${v.chargeAttente ? '<span class="roue" aria-hidden="true"></span>' : icone(on ? 'stop' : 'eclair')}<span>${on ? 'Arrêter la charge' : 'Lancer la charge'}</span>`;
+  if (btn.innerHTML !== html) btn.innerHTML = html;
+  btn.classList.toggle('arreter', on);
+  inactif ? btn.setAttribute('aria-disabled', 'true') : btn.removeAttribute('aria-disabled');
+  v.chargeAttente ? btn.setAttribute('aria-busy', 'true') : btn.removeAttribute('aria-busy');
+}
+
+/* --- Mode de recharge (Voltia) : trois segments à icônes ; « Réseau en heures creuses » --- */
+const ICONE_MODE = o => (/super|creuse/i.test(o) ? 'soleilLune' : /soleil/i.test(o) ? 'soleil' : 'borne');
+function rendreMode(d) {
+  const v = d.v, carte = $('mode');
+  carte.hidden = !relie(ENT.mode) && !relie(ENT.hc);
+  const seg = $('segments');
+  seg.hidden = !relie(ENT.mode);
+  $('mode-v').textContent = relie(ENT.mode) ? (v.mode ?? '—') : '';
+  if (relie(ENT.mode)) {
+    seg.style.setProperty('--n', v.options.length);
+    const actif = v.options.includes(v.mode) ? v.mode : null;
+    const html = v.options.map((o, k) => {
+      const choisi = o === actif, focus = choisi || (!actif && k === 0);
+      const mc = ICONE_MODE(o) === 'borne' ? 'var(--borne-t)' : 'var(--soleil-t)';
+      return `<button type="button" role="radio" aria-checked="${choisi}" aria-label="${o.replace(/"/g, '&quot;')}" tabindex="${focus ? 0 : -1}" data-option="${o.replace(/"/g, '&quot;')}"${choisi && v.modeAttente ? ' class="attente"' : ''} style="--mc:${mc}">${icone(ICONE_MODE(o))}</button>`;
+    }).join('');
+    majHTML(seg, html);
+    v.modeAttente ? seg.setAttribute('aria-busy', 'true') : seg.removeAttribute('aria-busy');
+  }
+  const hc = $('btn-hc');
+  hc.hidden = !relie(ENT.hc);
+  hc.setAttribute('aria-checked', String(v.hc === true));
+  hc.classList.toggle('attente', v.hcAttente);
+  v.hc == null ? hc.setAttribute('aria-disabled', 'true') : hc.removeAttribute('aria-disabled');
+  v.hcAttente ? hc.setAttribute('aria-busy', 'true') : hc.removeAttribute('aria-busy');
+}
+/* remplace un contenu seulement s'il change, et rend le focus clavier à l'élément de même rang (comme l'Accueil) */
+const MODELE = document.createElement('template');
+function majHTML(el, html) {
+  MODELE.innerHTML = html;
+  if (el.innerHTML === MODELE.innerHTML) return;
+  const act = document.activeElement, rang = act && el.contains(act) ? [...el.querySelectorAll('a, button')].indexOf(act) : -1;
+  el.innerHTML = html;
+  if (rang >= 0) el.querySelectorAll('a, button')[rang]?.focus({ preventScroll: true });
+}
+
+/* --- Recharges : les 3 dernières du journal (sensor.sa_niro_recharges, attribut sessions) --- */
+const MOIS = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+function jourTxt(debut, d) {
+  const m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(String(debut || ''));
+  if (!m) return null;
+  const [ty, tm, td] = heureLocale(d.date).jour.split('-').map(Number);
+  const j = Date.UTC(+m[1], +m[2] - 1, +m[3]), ecart = Math.round((Date.UTC(ty, tm - 1, td) - j) / 86400000);
+  return ecart === 0 ? 'Aujourd’hui' : ecart === 1 ? 'Hier' : MOIS.format(new Date(j + 12 * 3600000));
+}
+function rendreRecharges(d) {
+  const brut = HA.attr(ENT.journal, 'sessions');
+  const n = x => Math.max(0, Number(x) || 0);
+  const L = (Array.isArray(brut) ? brut : []).slice(0, 3).map(s => {
+    const sol = n(s.sol), res = n(s.hsc) + n(s.hc) + n(s.hp), total = Number.isFinite(Number(s.total)) && Number(s.total) > 0 ? Number(s.total) : sol + res;
+    return { jour: jourTxt(s.debut, d), sol, res, total };
+  }).filter(s => s.jour && s.total > 0);
+  $('recharges').hidden = !relie(ENT.journal) || !L.length;
+  if (!L.length) return;
+  const max = Math.max(...L.map(s => s.total));
+  majHTML($('journal'), L.map(s => {
+    const ps = s.sol + s.res > 0 ? s.sol / (s.sol + s.res) * 100 : 0;
+    const v = `${nombre(s.total, 1)}${NBSP}kWh`;
+    const sr = `${s.jour}${NBSP}: ${nombre(s.total, 1)} kWh${s.sol > 0 ? `, dont ${nombre(s.sol, 1)} kWh de soleil` : ''}`;
+    return `<li><span class="jd" aria-hidden="true">${s.jour}</span><span class="jb" aria-hidden="true"><span class="jf" style="--w:${(s.total / max * 100).toFixed(1)}">` +
+      `${s.sol > 0 ? `<i class="js" style="--ps:${ps.toFixed(1)}"></i>` : ''}${s.res > 0 ? '<i class="jr"></i>' : ''}</span></span>` +
+      `<span class="jv" aria-hidden="true">${v}</span><span class="sr-only">${sr}</span></li>`;
+  }).join(''));
+}
+
+/* --- Suivi : batterie 12 V, kilométrage, révision (dernière + 15 000 km − compteur) --- */
+function rendreSuivi(d) {
+  const S = d.suivi, L = [];
+  const val = (id, x, txt) => (HA.etat(id) == null || x == null ? '—' : txt);
+  if (relie(ENT.b12v)) L.push(['b12v', 'Batterie 12 V', val(ENT.b12v, S.b12, `${pct(S.b12)}${NNBSP}%`), '']);
+  if (relie(ENT.odometre)) L.push(['compteur', 'Kilométrage', val(ENT.odometre, S.odo, `${nombre(Math.round(S.odo ?? 0), 0)}${NBSP}km`), '']);
+  if (relie(ENT.odometre) && relie(ENT.dernierEntretien)) {
+    const r = S.reste;
+    if (r != null && r < 0) L.push(['cle', 'Révision dépassée de', `${nombre(Math.round(-r), 0)}${NBSP}km`, 'alerte']);
+    else L.push(['cle', 'Révision dans', r == null ? '—' : `${nombre(Math.round(r), 0)}${NBSP}km`, r != null && r < 1000 ? 'chaud' : '']);
+  }
+  $('suivi').hidden = !L.length;
+  majHTML($('lignes'), L.map(([ic, t, v, c]) => `<li><div class="ligne">${icone(ic)}<span class="l1">${t}</span><span class="lv${c ? ' ' + c : ''}">${v}</span></div></li>`).join(''));
+}
+
+/* ================================================================ COMMANDES ===
+   Exactement comme S&A-HOME (PONT_NIRO.ecrire) : { type: 'service_call', id, domain, service, entity_id, data }.
+   La commande montre tout de suite l'état visé, avec un anneau d'attente, jusqu'à ce que Home Assistant le rapporte. */
+const DELAI = { voiture: 90000, actualiser: 150000, local: 10000 };
+const MINUT_ATT = {};
+function attendre(cle, cible, delai, opts = {}) {
+  ATTENTE[cle] = { cible, depuis: Date.now(), delai, ...opts };
+  clearTimeout(MINUT_ATT[cle]);
+  MINUT_ATT[cle] = setTimeout(planifierRendu, delai + 60);         // délai écoulé : l'état réel reprend la main
+}
+function envoyer(cle, domaine, service, entite, data) {
+  const marque = ATTENTE[cle];
+  if (!HA.enCoque) {
+    // valeurs d'exemple : rien n'est envoyé ; l'exemple change après 1,2 s (une latence simulée)
+    setTimeout(() => { exempleApplique(domaine, service, entite, data); rendre(); }, 1200);
+    return;
+  }
+  HA.appel(domaine, service, entite, data).then(r => {
+    if (r.ok) return;
+    if (ATTENTE[cle] === marque) delete ATTENTE[cle];
+    refuser(cle);
+    rendre();
+  });
+}
+function commander(cle, domaine, service, entite, data, cible, delai, opts) {
+  attendre(cle, cible, delai, opts);
+  rendre();
+  envoyer(cle, domaine, service, entite, data);
+}
+const enAttente = cle => !!ATTENTE[cle];
+/* refusée par Home Assistant : retour à l'état réel, la commande tremble, le message de S&A-HOME */
+function refuser(cle) {
+  const el = { limite: $('pas'), charge: $('btn-charge'), verrou: $('d-verrou'), clim: $('d-clim'), actualiser: $('d-maj'), mode: $('segments'), hc: $('btn-hc') }[cle];
+  if (el && !immobile()) { el.classList.remove('secoue'); void el.offsetWidth; el.classList.add('secoue'); setTimeout(() => el.classList.remove('secoue'), 320); }
+  $('annonce').textContent = '';
+  requestAnimationFrame(() => { $('annonce').textContent = 'Commande refusée par Home Assistant'; });
+  REFUS = Date.now() + 4000;
+  rendreCapsule(); cadrer();
+  setTimeout(() => { rendreCapsule(); cadrer(); }, 4050);
+}
+/* valeurs d'exemple : la commande change l'état d'exemple (comme Home Assistant le ferait) */
+function exempleApplique(domaine, service, entite, data) {
+  const quand = new Date(HA.maintenant()).toISOString();
+  const pose = (id, state) => { const e = HA.etats[id]; if (e) HA.etats[id] = { ...e, state: String(state), last_changed: quand }; };
+  if (domaine === 'switch') {
+    pose(entite, service === 'turn_on' ? 'on' : 'off');
+    if (entite === ENT.charge && service === 'turn_off') [ENT.borne, ENT.veSolaire, ENT.veReseau, ENT.duree].forEach(id => pose(id, 0));
+  } else if (domaine === 'lock') pose(entite, service === 'lock' ? 'locked' : 'unlocked');
+  else if (domaine === 'number') pose(entite, data.value);
+  else if (domaine === 'input_select') pose(entite, data.option);
+  else if (domaine === 'button') { pose(entite, quand); pose(ENT.maj, quand); }
+}
+
+function brancherCommandes() {
+  // limite : la valeur et le repère bougent tout de suite ; un seul number.set_value, 800 ms après le dernier geste
+  const pas = sens => {
+    const v = SCENE?.v;
+    if (!v || v.limite == null) return;
+    const cible = borne(Math.round((v.limite + sens * v.lim.pas) / v.lim.pas) * v.lim.pas, v.lim.min, v.lim.max);
+    if (cible === v.limite) return;
+    attendre('limite', cible, DELAI.voiture + 800);
+    rendre();
+    clearTimeout(LIMITE_MINUT);
+    LIMITE_MINUT = setTimeout(() => { if (ATTENTE.limite) envoyer('limite', 'number', 'set_value', ENT.limite, { value: ATTENTE.limite.cible }); }, 800);
+  };
+  $('lim-moins').addEventListener('click', () => pas(-1));
+  $('lim-plus').addEventListener('click', () => pas(1));
+  // lancer, arrêter la charge
+  $('btn-charge').addEventListener('click', () => {
+    const v = SCENE?.v, btn = $('btn-charge');
+    if (!v || enAttente('charge') || btn.getAttribute('aria-disabled') === 'true') return;
+    const on = v.chargeOn === true;
+    commander('charge', 'switch', on ? 'turn_off' : 'turn_on', ENT.charge, {}, !on, DELAI.voiture);
+  });
+  // verrou : déverrouiller après confirmation ; verrouiller tout de suite
+  const dlg = $('dlg-verrou');
+  $('d-verrou').addEventListener('click', () => {
+    const v = SCENE?.v;
+    if (!v || enAttente('verrou') || v.verrou == null) return;
+    if (v.verrou === 'locked') { dlg.returnValue = ''; dlg.showModal(); }
+    else commander('verrou', 'lock', 'lock', ENT.verrou, {}, 'locked', DELAI.voiture);
+  });
+  dlg.addEventListener('close', () => {
+    if (dlg.returnValue === 'ok' && !enAttente('verrou')) commander('verrou', 'lock', 'unlock', ENT.verrou, {}, 'unlocked', DELAI.voiture);
+    $('d-verrou').focus({ preventScroll: true });
+  });
+  // climatisation
+  $('d-clim').addEventListener('click', () => {
+    const v = SCENE?.v;
+    if (!v || enAttente('clim') || v.clim == null) return;
+    commander('clim', 'switch', v.clim ? 'turn_off' : 'turn_on', ENT.clim, {}, !v.clim, DELAI.voiture);
+  });
+  // actualiser : en attente jusqu'au prochain horodatage des données (150 s, comme kia_trajets.yaml) ; une coche 600 ms
+  $('d-maj').addEventListener('click', () => {
+    if (enAttente('actualiser')) return;
+    const avant = HA.e(ENT.maj)?.state ?? null;
+    commander('actualiser', 'button', 'press', ENT.actualiser, {}, null, DELAI.actualiser, {
+      confirme: () => (HA.e(ENT.maj)?.state ?? null) !== avant,
+      apres: () => { FLASH_MAJ = Date.now() + 600; setTimeout(planifierRendu, 620); }
+    });
+  });
+  // heures creuses
+  $('btn-hc').addEventListener('click', () => {
+    const v = SCENE?.v;
+    if (!v || enAttente('hc') || v.hc == null) return;
+    commander('hc', 'switch', v.hc ? 'turn_off' : 'turn_on', ENT.hc, {}, !v.hc, DELAI.voiture);
+  });
+  // mode de Voltia : un clic, ou les flèches (groupe de boutons radio)
+  const seg = $('segments');
+  const choisir = o => {
+    const v = SCENE?.v;
+    if (!v || enAttente('mode') || o == null || o === v.mode) return;
+    commander('mode', 'input_select', 'select_option', ENT.mode, { option: o }, o, DELAI.local);
+  };
+  seg.addEventListener('click', ev => { const b = ev.target.closest('button[data-option]'); if (b) choisir(b.dataset.option); });
+  seg.addEventListener('keydown', ev => {
+    const dir = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[ev.key];
+    if (!dir) return;
+    ev.preventDefault();
+    const bs = [...seg.querySelectorAll('button[data-option]')], k = bs.indexOf(document.activeElement);
+    const n = bs[((k < 0 ? 0 : k) + dir + bs.length) % bs.length];
+    if (!n) return;
+    choisir(n.dataset.option);
+    seg.querySelector(`button[data-option="${CSS.escape(n.dataset.option)}"]`)?.focus();
+  });
+}
+
+/* ================================================================ RENDU === */
+function annoncer(d) {
+  const e = d.v.etat;
+  if (!e) return;                                                     // état inconnu : rien n'est annoncé, le dernier connu est gardé
+  const avant = MEMO.annonce;
+  MEMO.annonce = e;
+  if (avant == null || avant === e) return;
+  $('annonce').textContent = e === 'debranchee' ? 'La Kia est débranchée.' : e === 'charge' ? 'La charge commence.' : e === 'limite' ? 'Limite de charge atteinte.'
+    : avant === 'charge' ? 'La charge s’arrête.' : 'La Kia est branchée.';
+}
+function rendre(opts = {}) {
+  const d = deriver();
+  SCENE = d;
+  rendreScene(d);
+  rendreHero(d);
+  rendreCapsule();
+  rendreCharge(d);
+  rendreMode(d);
+  rendreRecharges(d);
+  rendreSuivi(d);
+  annoncer(d);
+  cadrer();
+  demanderFlux(d.flux, opts.immediat);
+}
+let RENDU = 0;
+function planifierRendu() { cancelAnimationFrame(RENDU); RENDU = requestAnimationFrame(() => rendre()); }
+
+function appliquerTheme() {
+  const r = document.documentElement;
+  if (HA.sombre == null) delete r.dataset.theme; else r.dataset.theme = HA.sombre ? 'dark' : 'light';
+}
+function chargerExemple(nom) {
+  const x = etatsExemple(nom);
+  HA.etats = x.etats; HA.t = x.t;
+}
+
+/* ================================================================ DÉMARRAGE === */
+function demarrer() {
+  lireAnimations();
+  majInterrupteur();
+  preparerCable();
+  brancherCommandes();
+  $('btn-anim').addEventListener('click', () => basculerAnimations(() => { rendre({ immediat: true }); appliquerFlux(true); }));
+  if (HA.enCoque) {
+    HA.ecouter(premier => { appliquerTheme(); if (premier) rendre({ immediat: true }); else planifierRendu(); });
+    setTimeout(() => { if (!HA.connecte) { SANS_REPONSE = true; rendreCapsule(); cadrer(); } }, 6000);
+    setInterval(() => { if (HA.connecte) planifierRendu(); }, 60000);     // l'âge des données avance même sans nouvel état
+  } else chargerExemple(new URLSearchParams(location.search).get('apercu') || 'charge');
+  rendre({ immediat: true });
+  requestAnimationFrame(() => cadrer());
+  document.fonts?.ready?.then(() => cadrer());
+  let rz = 0;
+  const obs = new ResizeObserver(() => { cancelAnimationFrame(rz); rz = requestAnimationFrame(cadrer); });
+  [$('hero'), $('barre'), $('une'), $('charge')].forEach(el => obs.observe(el));
+  new IntersectionObserver(es => { ECRAN = es[0].isIntersecting; synchroPause(); }, { threshold: 0 }).observe($('hero'));
+  document.addEventListener('visibilitychange', () => { VISIBLE = !document.hidden; synchroPause(); });
+  reduitMQ.addEventListener?.('change', () => { majInterrupteur(); rendre({ immediat: true }); appliquerFlux(true); });
+  sombreMQ.addEventListener?.('change', () => rendre());
+}
+
+/* Outil de développement, hors de Home Assistant : Breezy.apercu('limite') */
+window.Breezy = {
+  apercu(nom) {
+    if (HA.enCoque) return;
+    Object.keys(ATTENTE).forEach(k => delete ATTENTE[k]);
+    MEMO = { annonce: null }; UNE_VAL = null;
+    chargerExemple(nom); rendre({ immediat: true });
+  }
+};
+demarrer();
+</script>
+</body>
+</html>
