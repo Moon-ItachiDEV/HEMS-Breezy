@@ -47,6 +47,7 @@
   /* énergie : même teinte pour comète, pastille, graphique, icône */
   --soleil: oklch(0.82 0.16 82);
   --soleil-t: oklch(0.52 0.12 70);
+  --soleil-graphe: oklch(0.665 0.15 70);       /* barres du graphique : ≥ 3:1 sur la carte blanche (le héros garde --soleil) */
   --maison: oklch(0.66 0.14 250);
   --maison-t: oklch(0.48 0.15 256);
   --batterie: oklch(0.64 0.15 152);
@@ -77,7 +78,7 @@
     --filet: oklch(0.96 0.004 260 / .10);
     --piste: oklch(0.96 0.004 260 / .12);
     --soleil: oklch(0.86 0.15 85);
-    --soleil-t: oklch(0.86 0.15 85);
+    --soleil-t: oklch(0.86 0.15 85); --soleil-graphe: oklch(0.86 0.15 85);
     --maison: oklch(0.80 0.11 240);
     --maison-t: oklch(0.80 0.11 240);
     --batterie: oklch(0.74 0.15 152);
@@ -100,7 +101,7 @@
   --filet: oklch(0.96 0.004 260 / .10);
   --piste: oklch(0.96 0.004 260 / .12);
   --soleil: oklch(0.86 0.15 85);
-  --soleil-t: oklch(0.86 0.15 85);
+  --soleil-t: oklch(0.86 0.15 85); --soleil-graphe: oklch(0.86 0.15 85);
   --maison: oklch(0.80 0.11 240);
   --maison-t: oklch(0.80 0.11 240);
   --batterie: oklch(0.74 0.15 152);
@@ -390,16 +391,23 @@ main { display: block; padding: 0 0 8px; }
 .bm-b { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; margin: 0; border: 0; background: none; text-align: left; border-radius: 8px; min-width: 0; }
 .bm-b::after { content: ""; position: absolute; inset: -6px 0; border-radius: 12px; }
 .bm-b:hover .bm-v { color: color-mix(in oklch, var(--encre) 80%, var(--c)); }
-.bm-l { max-width: 100%; font: 500 12.5px/16px var(--police); color: var(--encre-2); overflow-wrap: break-word; }
-.bm-v { max-width: 100%; font-weight: 400; font-size: clamp(19px, 6.2vw, 24px); line-height: 28px; letter-spacing: -.04em; color: var(--encre); }
+.bm-l { max-width: 100%; font: 500 12.5px/16px var(--police); color: var(--encre-2); }
+.bm-v { max-width: 100%; white-space: nowrap; font-weight: 400; font-size: clamp(19px, 6.2vw, 24px); line-height: 28px; letter-spacing: -.04em; color: var(--encre); }
 .bm-v .u { font-size: 13px; letter-spacing: 0; color: var(--encre-2); margin-left: 3px; }
 .bm-p { position: relative; display: block; height: 3px; margin: 9px 5px 0 0; border-radius: 999px; background: var(--piste); }
 .bm-p i { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--v, 0) * 1%); border-radius: inherit; background: linear-gradient(90deg, color-mix(in oklch, var(--c) 55%, transparent), var(--c)); transition: width 1.2s cubic-bezier(.2, .7, .2, 1); }
 .bm-p i::after { content: ""; position: absolute; right: -5px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 2px var(--c), 0 1px 3px oklch(.25 .02 260 / .3); }
-.bm-s { margin-top: 8px; font: 500 12.5px/16px var(--police); color: var(--encre-3); white-space: nowrap; font-feature-settings: normal; font-variant-numeric: proportional-nums; }
-.bm-s .court, .bm-s.court .long { display: none; }
-.bm-s.court .court { display: inline; }
-.bm-s.libre { white-space: normal; overflow-wrap: anywhere; }                 /* repli (texte agrandi) : la ligne passe à la ligne plutôt que de déborder */
+/* Sous-lignes : chiffres tabulaires (la forme choisie dépend de la largeur, jamais des chiffres affichés).
+   f1 longue, f2 courte (une ligne), f3 : le nombre puis le mot sur une seconde ligne voulue, dans les trois colonnes à la fois */
+.bm-s { margin-top: 8px; font: 500 12.5px/16px var(--police); color: var(--encre-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bm-s > span { display: none; }
+.bm-s.f1 > .f1, .bm-s.f2 > .f2 { display: inline; }
+.bm-s.f3 > .f3 { display: flex; flex-direction: column; }
+.bm-s.libre { white-space: normal; hyphens: auto; }                           /* texte très agrandi : retour à la ligne entre les mots */
+/* texte agrandi : les libellés ne tiennent plus sur trois colonnes → une rangée par mesure, jamais de mot coupé */
+.bilan-cols.rangees { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
+.bilan-cols.rangees .bm + .bm { border-left: 0; border-top: 1px solid var(--filet); padding-top: 12px; }
+.bilan-cols.rangees .bm-v { white-space: normal; }
 .bm-i { position: relative; z-index: 2; display: grid; place-items: center; width: 16px; height: 16px; margin: 2px 0 -5px -1px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--encre-3); }
 .bm-i::before { content: ""; position: absolute; inset: -14px; }
 .bm-i .ic { width: 16px; height: 16px; stroke-width: 1.6; }
@@ -423,11 +431,13 @@ main { display: block; padding: 0 0 8px; }
 .lead[hidden] { display: none; }
 .explique { margin-top: 12px; font: 400 15px/21px var(--police); color: var(--encre); text-wrap: pretty; }
 .explique + .explique { margin-top: 8px; }
-.ensuite { margin-top: 14px; border-top: 1px solid var(--filet); }
-.ensuite li { display: grid; grid-template-columns: 64px 16px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 40px; padding: 6px 0; border-bottom: 1px solid var(--filet); }
+/* colonne des heures à la taille de son contenu (texte agrandi ou espacé : l'heure ne recouvre jamais l'icône) ; sous-grille : icônes alignées d'une ligne à l'autre */
+.ensuite { display: grid; grid-template-columns: minmax(64px, max-content) 16px minmax(0, 1fr); column-gap: 10px; margin-top: 14px; border-top: 1px solid var(--filet); }
+.ensuite[hidden] { display: none; }
+.ensuite li { display: grid; grid-column: 1 / -1; grid-template-columns: minmax(64px, max-content) 16px minmax(0, 1fr); grid-template-columns: subgrid; align-items: center; gap: 10px; min-height: 40px; padding: 6px 0; border-bottom: 1px solid var(--filet); }
 .ensuite li:last-child { border-bottom: 0; }
 .ensuite time, .ensuite .t { font: 600 13px/16px var(--police); font-variant-numeric: tabular-nums; color: var(--encre); white-space: nowrap; }
-.ensuite .t.long { white-space: normal; grid-column: 1 / span 1; font-size: 12.5px; }
+.ensuite .t.long { white-space: normal; grid-column: 1 / span 1; max-width: 5.2em; font-size: 12.5px; }
 .ensuite .ic { width: 16px; height: 16px; color: var(--encre-2); }
 .ensuite .x { font: 400 14px/20px var(--police); color: var(--encre); }
 .avis-ligne { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; margin-top: 12px; }
@@ -462,9 +472,9 @@ main { display: block; padding: 0 0 8px; }
 .courbe { position: relative; margin-top: 6px; touch-action: pan-y; cursor: crosshair; border-radius: 12px; }
 .courbe svg { display: block; width: 100%; height: auto; overflow: visible; }
 .courbe .ligne0 { stroke: var(--filet); stroke-width: 1; }
-.courbe .c-p { fill: var(--soleil); }
+.courbe .c-p { fill: var(--soleil-graphe); }
 .courbe .c-m { fill: var(--maison); }
-.courbe .c-f { fill: none; stroke: var(--soleil); stroke-width: 1.5; }
+.courbe .c-f { fill: none; stroke: var(--soleil-graphe); stroke-width: 1.5; }
 .courbe .c-now { fill: var(--encre); }
 .courbe .c-0 { fill: var(--piste); }
 .courbe .repere { font: 600 10px/1 var(--police); fill: var(--encre); }
@@ -483,8 +493,8 @@ main { display: block; padding: 0 0 8px; }
 .dem-titre b { font-weight: 600; }
 .dem-caps { margin-top: 12px; }
 .dem-caps svg { display: block; width: 100%; height: auto; overflow: visible; }
-.dem-caps .c-f { fill: none; stroke: var(--soleil); stroke-width: 1.4; }
-.dem-caps .c-p { fill: var(--soleil); }
+.dem-caps .c-f { fill: none; stroke: var(--soleil-graphe); stroke-width: 1.5; }
+.dem-caps .c-p { fill: var(--soleil-graphe); }
 .dem-caps .c-0 { fill: var(--piste); }
 .dem-caps .plage { stroke: var(--encre); stroke-width: 1.2; fill: none; }
 .dem-caps .plage-t { font: 600 12px/1 var(--police); fill: var(--encre); }
@@ -547,8 +557,9 @@ main { display: block; padding: 0 0 8px; }
 .fiche p { margin-top: 8px; font: 400 15px/21px var(--police); }
 .fiche .note { margin-top: 8px; }
 .fiche-liste { margin-top: 10px; border-top: 1px solid var(--filet); }
-.fiche-liste li { display: flex; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 1px solid var(--filet); font: 400 15px/21px var(--police); }
-.fiche-liste li b { font-weight: 600; white-space: nowrap; }
+/* la valeur reste à droite ; si elle ne tient pas à côté du libellé (écran étroit, texte agrandi), elle passe dessous et se replie entre les mots */
+.fiche-liste li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 16px; padding: 11px 0; border-bottom: 1px solid var(--filet); font: 400 15px/21px var(--police); }
+.fiche-liste li b { min-width: 0; margin-left: auto; font-weight: 600; text-align: right; }
 .empile { display: flex; height: 10px; margin-top: 12px; border-radius: 999px; overflow: hidden; gap: 2px; background: var(--piste); }
 .empile i { display: block; height: 100%; background: var(--c); }
 .leg-empile { display: grid; gap: 6px; margin-top: 10px; }
@@ -622,6 +633,7 @@ html[data-mode="court"] .bilan { margin: 12px var(--gx) 0; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 .calme .etoiles .tw, .calme .nuages, .calme .pluie, .calme .ancre.pouls { animation: none !important; }
+#hero.fige, #hero.fige * { animation-play-state: paused !important; }      /* héros hors écran ou onglet caché */
 
 /* ================================================================ COULEURS FORCÉES (Windows contraste élevé) === */
 @media (forced-colors: active) {
@@ -633,6 +645,7 @@ html[data-mode="court"] .bilan { margin: 12px var(--gx) 0; }
   .une-k { position: relative; z-index: 1; }           /* le fond imposé de la ligne du chiffre ne masque plus son intitulé */
   .bm-p, .bm-p i { forced-color-adjust: none; }
   .capsule .pt, .une-k i, .pastel { forced-color-adjust: none; }
+  .pastille-n { forced-color-adjust: none; background: Highlight; box-shadow: 0 0 0 2px Canvas, 0 0 0 3px CanvasText; }   /* point d'alerte non lue : visible sur le fond imposé */
 }
 </style>
 </head>
@@ -835,7 +848,9 @@ const ETAT = {
   veille_orage: { active: false, source: 'Vigilance Météo-France' },
   instantane: { production: 1.46, maison: 0.58, batterie: 0.52, reseau: -0.36, batterie_pct: 91, maison_15min: 0.61 },  // 1,46 − 0,52 − 0,36 = 0,58
   jour: { production: 18.7, maison: 12.2, autoconso_directe: 8.6, charge_batterie: 6.9, decharge_batterie: 1.9,
-          export: 3.2, import: 1.7, economies_eur: 1.58, export_eur: 0.13, import_eur: 0.22, pic: { kW: 3.62, heure: '13:20' } },
+          export: 3.2, import: 1.7, economies_eur: 1.58, export_eur: 0.13, import_eur: 0.26, pic: { kW: 3.62, heure: '13:20' } },
+  // € au prix de chaque heure (Tempo bleu) : la nuit (0 h – 6 h, HC) la batterie couvre la maison (1,73 kWh), puis 0,17 kWh après 6 h (HP) ;
+  // le réseau prend le relais avant le soleil, en HP : achats 1,7 × 0,1552 = 0,26 € ; économies 8,6 × 0,1552 + 1,73 × 0,1288 + 0,17 × 0,1552 = 1,58 €
   mois: { economies_eur: 15.84, depuis: '2026-10-01' },
   prevision: { conso_soiree_kW: 0.9 },          // moyenne des 7 dernières soirées (statistiques HA)
   // Courbes au pas de 30 min depuis 0 h (kW). null = créneau pas encore mesuré.
@@ -850,7 +865,7 @@ const ETAT = {
   appareils: [ { nom: 'Ballon d’eau chaude', type: 'ballon', kW: 0, kWh_jour: 2.1 }, { nom: 'Borne de la voiture', type: 've', kW: 0, kWh_jour: 0 } ],
   non_mesure_kW: 0.12,
   lumieres: 'auto',                             // 'auto' = selon l'heure ; sinon l'état des light.* : { pignon, baies, lucarne, applique, tranchee }
-  notifications: [ { titre: 'Batterie pleine hier à 16 h 05', quand: '2026-10-09T16:05:00+02:00', lu: false } ],
+  notifications: [ { titre: 'Batterie pleine hier à 16\u00a0h\u00a005', quand: '2026-10-09T16:05:00+02:00', lu: false } ],
   moments: [],                                  // P1 : « La batterie a tenu la coupure du 3 mars : 2 h 14 sans réseau. »
 
   /* Aperçus de développement uniquement (index.html?apercu=…), à retirer au branchement de Home Assistant.
@@ -862,20 +877,21 @@ const ETAT = {
     maison_soiree: [0.95, 1.35, 1.72, 2.0, 1.65, 1.02, 1.05, 0.95, 0.85, 0.77, 0.66, 0.6, 0.45],   // de 17 h 30 à 23 h 30
     midi: {
       horodatage: '2026-10-10T13:24:00+02:00',
-      instantane: { production: 3.36, maison: 0.66, batterie: 0.9, reseau: -1.8, batterie_pct: 47 },                 // 3,36 − 0,90 − 1,80 = 0,66
-      jour: { production: 7.8, maison: 8.5, autoconso_directe: 4.9, charge_batterie: 2.5, decharge_batterie: 1.9, export: 0.4, import: 1.7, economies_eur: 1.01 },
+      // la batterie prend presque tout le surplus (2,5 kW) ; seul le reste part au réseau
+      instantane: { production: 3.36, maison: 0.66, batterie: 2.5, reseau: -0.2, batterie_pct: 50 },                  // 3,36 − 2,50 − 0,20 = 0,66
+      jour: { production: 7.8, maison: 8.5, autoconso_directe: 4.9, charge_batterie: 2.8, decharge_batterie: 1.9, export: 0.1, import: 1.7, economies_eur: 1.01, import_eur: 0.26 },
       mois: { economies_eur: 15.27, depuis: '2026-10-01' }
     },
     soir: {
       horodatage: '2026-10-10T19:34:00+02:00',
       instantane: { production: 0, maison: 1.62, batterie: -1.62, reseau: 0, batterie_pct: 76 },                    // 0 + 1,62 + 0 = 1,62
-      jour: { production: 20.5, maison: 15.5, autoconso_directe: 10.0, charge_batterie: 7.3, decharge_batterie: 3.8, export: 3.2, import: 1.7, economies_eur: 2.09 },
-      mois: { economies_eur: 16.35, depuis: '2026-10-01' }
+      jour: { production: 20.5, maison: 15.5, autoconso_directe: 10.0, charge_batterie: 7.3, decharge_batterie: 3.8, export: 3.2, import: 1.7, economies_eur: 2.10, import_eur: 0.26 },
+      mois: { economies_eur: 16.36, depuis: '2026-10-01' }
     },
     nuit: {
       horodatage: '2026-10-10T22:36:00+02:00',
       instantane: { production: 0, maison: 0.66, batterie: -0.66, reseau: 0, batterie_pct: 45 },                    // 0 + 0,66 = 0,66
-      jour: { production: 20.5, maison: 18.6, autoconso_directe: 10.0, charge_batterie: 7.3, decharge_batterie: 6.9, export: 3.2, import: 1.7, economies_eur: 2.56 },
+      jour: { production: 20.5, maison: 18.6, autoconso_directe: 10.0, charge_batterie: 7.3, decharge_batterie: 6.9, export: 3.2, import: 1.7, economies_eur: 2.56, import_eur: 0.26 },
       mois: { economies_eur: 16.82, depuis: '2026-10-01' }
     },
     achat: {                                    // nouvelle journée (11 oct.) : compteurs depuis minuit ; encore en heures creuses (5 h 50 < 6 h)
@@ -885,8 +901,9 @@ const ETAT = {
       soleil: { lever: '08:06', coucher: '19:11', lever_demain: '08:08', coucher_demain: '19:09', elevation: null },
       instantane: { production: 0, maison: 0.48, batterie: 0, reseau: 0.48, batterie_pct: 15, maison_15min: 0.47 },   // 0 − 0 + 0,48 = 0,48
       // la batterie finit le 10 à ≈ 36 % ; elle descend à sa réserve (15 %) vers 4 h 10, puis le réseau prend le relais
-      jour: { production: 0, maison: 2.9, autoconso_directe: 0, charge_batterie: 0, decharge_batterie: 2.1, export: 0, import: 0.8, economies_eur: 0.27 },
+      jour: { production: 0, maison: 2.9, autoconso_directe: 0, charge_batterie: 0, decharge_batterie: 2.1, export: 0, import: 0.8, economies_eur: 0.27, import_eur: 0.10 },
       mois: { economies_eur: 17.21, depuis: '2026-10-01' },
+      notifications: [{ titre: 'Batterie à sa réserve (15\u202f%) à 4\u00a0h\u00a010\u00a0: le réseau prend le relais en heures creuses', quand: '2026-10-11T04:10:00+02:00', lu: false }],
       meteo: { maintenant: { ciel: 'clair', temperature_C: 9 },
                demain: { date: '2026-10-12', ciel: 'Éclaircies', production_kWh: 15.8, creneau: ['12:30', '15:00'],
                          prevision_h: [0, 0, 0, 0, 0, 0, 0, 0, 0.1, 0.45, 1.0, 1.6, 2.2, 2.6, 2.5, 2.1, 1.5, 0.95, 0.35, 0.03, 0, 0, 0, 0] } }
@@ -894,16 +911,16 @@ const ETAT = {
     coupure: {
       horodatage: '2026-10-10T20:05:00+02:00', reseau_etat: 'coupure', coupure: { depuis: '2026-10-10T19:52:00+02:00' },
       instantane: { production: 0, maison: 0.8, batterie: -0.8, reseau: 0, batterie_pct: 68, maison_15min: 0.8 },     // 0 + 0,80 = 0,80
-      jour: { production: 20.5, maison: 16.3, autoconso_directe: 10.0, charge_batterie: 7.3, decharge_batterie: 4.6, export: 3.2, import: 1.7, economies_eur: 2.22 },
+      jour: { production: 20.5, maison: 16.3, autoconso_directe: 10.0, charge_batterie: 7.3, decharge_batterie: 4.6, export: 3.2, import: 1.7, economies_eur: 2.22, import_eur: 0.26 },
       mois: { economies_eur: 16.48, depuis: '2026-10-01' },
-      notifications: [{ titre: 'Coupure réseau à 19 h 52 : la batterie alimente la maison', quand: '2026-10-10T19:52:00+02:00', lu: false }]
+      notifications: [{ titre: 'Coupure réseau à 19\u00a0h\u00a052\u00a0: la batterie alimente la maison', quand: '2026-10-10T19:52:00+02:00', lu: false }]
     },
     horsligne: {
       horodatage: '2026-10-10T14:02:00+02:00',
       fraicheur: { derniere_maj: '2026-10-10T14:02:00+02:00', age_s: 11400, connecte: false, source: 'Home Assistant' },
-      instantane: { production: 3.1, maison: 0.7, batterie: 1.2, reseau: -1.2, batterie_pct: 53 },                   // 3,10 − 1,20 − 1,20 = 0,70
-      jour: { production: 10.0, maison: 9.0, autoconso_directe: 5.4, charge_batterie: 3.1, decharge_batterie: 1.9, export: 1.5, import: 1.7, economies_eur: 1.08 },
-      mois: { economies_eur: 15.34, depuis: '2026-10-01' }
+      instantane: { production: 3.1, maison: 0.7, batterie: 2.3, reseau: -0.1, batterie_pct: 65 },                   // 3,10 − 2,30 − 0,10 = 0,70
+      jour: { production: 10.0, maison: 9.0, autoconso_directe: 5.4, charge_batterie: 4.3, decharge_batterie: 1.9, export: 0.3, import: 1.7, economies_eur: 1.09, import_eur: 0.26 },
+      mois: { economies_eur: 15.35, depuis: '2026-10-01' }
     }
   }
 };
@@ -926,9 +943,21 @@ const pTxt = kw => { const p = puissance(kw); return p.u ? `${p.n}${NBSP}${p.u}`
 const pLong = kw => {
   const p = puissance(kw);
   if (!p.u) return 'non mesuré';
-  if (p.u === 'W') return `${p.n.replace(NNBSP, ' ')} watt${p.w >= 2 ? 's' : ''}`;
-  return `${p.n} kilowatt${Math.abs(kw) >= 2 ? 's' : ''}`;
+  return `${p.n.replace(NNBSP, ' ')} ${accord(nbAffiche(kw), p.u === 'W' ? 'watt' : 'kilowatt')}`;
 };
+/* nombre tel qu'il est lu (watts arrondis, ou kW à 2 décimales) : sert à l'accord du mot et du participe */
+const nbAffiche = kw => { const p = puissance(kw); return p.u === 'W' ? (p.n === '0' ? 0 : p.w || 10) : Math.round(Math.abs(kw) * 100) / 100; };
+const pLongAccord = (kw, participe) => `${pLong(kw)} ${accord(nbAffiche(kw), participe)}`;
+/* durée lue : « 1 heure 30 », « 2 heures », « 45 minutes » */
+const dureeLongue = h => {
+  if (!fini(h)) return '—';
+  const m = Math.round(h * 60 / 5) * 5, H = Math.floor(m / 60), M = m % 60;
+  return H ? `${H} ${accord(H, 'heure')}${M ? ` ${M}` : ''}` : `${M} ${accord(M, 'minute')}`;
+};
+/* accord à la française : pluriel à partir de 2 (1,7 kilowattheure acheté, 1,58 euro, 1 heure, 2 heures),
+   sur la valeur telle qu'elle est affichée (arr) */
+const arr = (v, d) => fini(v) ? Math.round(v * 10 ** d) / 10 ** d : 0;
+const accord = (n, sing, plur = sing + 's') => Math.abs(n) >= 2 ? plur : sing;
 const kWh = v => fini(v) ? nombre(v, 1) : '—';
 const euros = v => fini(v) ? nombre(v, 2) : '—';
 const pct = v => fini(v) ? new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(v) : '—';
@@ -1099,7 +1128,8 @@ function tarifA(e, h) {
   return { option: tf.option || 'tempo', couleur, periode: hc ? 'HC' : 'HP', hc, fin, prix: tf.prix?.[couleur]?.[hc ? 'hc' : 'hp'] ?? null };
 }
 
-/* Fin de charge de la batterie : suit la prévision solaire (l'excédent sur la consommation actuelle). */
+/* Fin de charge de la batterie : suit la prévision solaire (l'excédent sur la consommation actuelle),
+   jusqu'à la puissance maximale de la batterie ; au-delà de 90 %, charge lente (≈ 10 % de cette puissance), comme le fait le BMS. */
 function finDeCharge(e, h, soleil) {
   const i = e.instantane, inst = e.installation, b = i.batterie;
   const besoin = (100 - i.batterie_pct) / 100 * inst.batterie_kWh;
@@ -1107,12 +1137,15 @@ function finDeCharge(e, h, soleil) {
   const prev = (c.prevision || []).map((v, k) => v == null ? null : [k * pas_h, v]).filter(x => x && x[0] > h);
   if (!soleil || !prev.length) return { pleine: h + besoin / b, socFin: null, finCharge: null };
   const pts = [[h, i.production], ...prev], appoint = Math.max(0, i.reseau), dt = 1 / 12;
+  // charge lente : celle mesurée si la batterie y est déjà, sinon 10 % de la puissance maximale
+  const kWmax = Math.max(b, inst.batterie_kW_max ?? b), lent = i.batterie_pct >= 90 ? b : 0.1 * kWmax;
   let kwh = 0, finCharge = h;
   for (let k = 0; k < pts.length - 1; k++) {
     const [t0, p0] = pts[k], [t1, p1] = pts[k + 1];
     for (let t = t0; t < t1 - 1e-9; t += dt) {
       const d = Math.min(dt, t1 - t), pr = p0 + (p1 - p0) * (t + d / 2 - t0) / (t1 - t0);
-      const charge = Math.min(b, Math.max(0, pr - i.maison) + appoint);
+      const plafond = i.batterie_pct + 100 * kwh / inst.batterie_kWh >= 90 ? lent : kWmax;
+      const charge = Math.min(plafond, Math.max(0, pr - i.maison) + appoint);
       if (charge > 0 && kwh + charge * d >= besoin) return { pleine: t + (besoin - kwh) / charge, socFin: null, finCharge: null };
       kwh += charge * d;
       if (charge > 0) finCharge = t + d;
@@ -1141,7 +1174,7 @@ function calculerFlux(e, horsligne, coupure, aBatterie) {
     else if (nom === 'maison') phase = 'sor';
     else if (nom === 'batterie') phase = v > 0 ? 'sor' : 'ent inv';
     else phase = v < 0 ? 'sor' : 'ent inv';
-    out[nom] = { actif, phase, kW: a, u, signe: Math.sign(v) };
+    out[nom] = { actif, phase, kW: a, u };
   }
   return out;
 }
@@ -1194,9 +1227,8 @@ function deriver(e) {
   const enCours = c.prevision?.[kNow] ?? (c.production?.[kNow] != null || p > 0 ? p : 0);
   const reste = (c.prevision || []).reduce((a, v, k) => a + (v != null && k > kNow ? v * pas : 0), 0) + (h < coucher ? enCours * finCreneau : 0);
   const flux = calculerFlux(e, horsligne, coupure, aBatterie);
-  return { date, h, lever, coucher, midiSol, E, matin, cle, progres, age, horsligne, derniere, coupure, aBatterie, mode_une, tarif,
-    pleine, socFin, finCharge, P15, utile, tenue_h, finTenue, tenue_reduite_h, autonomie, autoconso, evite, economies, economiesEstimees, prixHP, reste, flux, soc,
-    kWmax: Math.max(inst.puissanceCrete_kWc ?? 0, inst.batterie_kW_max ?? 0, 3) };
+  return { date, h, lever, coucher, E, matin, cle, progres, age, horsligne, derniere, coupure, aBatterie, mode_une, tarif,
+    pleine, socFin, finCharge, P15, utile, tenue_h, finTenue, tenue_reduite_h, autonomie, autoconso, evite, economies, economiesEstimees, reste, flux, soc };
 }
 
 /* ================================================================ TEXTES === */
@@ -1388,7 +1420,8 @@ function rendreHero(e, d) {
     soleil: { k: 'Production solaire', c: 'var(--soleil)', v: i.production, fiche: 'soleil', ancre: A.PANNEAUX, sr: 'Ouvrir le détail du soleil' },
     maison: { k: 'La maison consomme', c: 'var(--maison)', v: i.maison, fiche: 'maison', ancre: A.LUCARNE, sr: 'Ouvrir le détail de la maison' },
     coupure: { k: 'Coupure réseau', c: 'var(--alerte)', fiche: 'batterie', sr: 'Ouvrir le détail de la batterie' },
-    horsligne: { k: `Hors ligne · ${heureTxt(d.derniere)}`, c: 'var(--ciel-encre-2)', fiche: 'statut', sr: 'Ouvrir l’état des capteurs' }
+    // hors ligne : le surtitre nomme la source du chiffre figé (sa pastille disparaît)
+    horsligne: { k: `Hors ligne · ${(MEMO.derniereUneMode || 'soleil') === 'soleil' ? 'soleil' : 'maison'} à ${heureTxt(d.derniere)}`, c: 'var(--ciel-encre-2)', fiche: 'statut', sr: 'Ouvrir l’état des capteurs' }
   };
   const M = modes[d.mode_une];
   une.dataset.fiche = M.fiche;
@@ -1399,15 +1432,25 @@ function rendreHero(e, d) {
   if (d.mode_une === 'coupure') {
     const t = d.tenue_h != null ? Math.round(d.tenue_h * 12) * 5 : null;
     html = t == null ? '—' : `${Math.floor(t / 60)}<span class="u mid">h</span>${String(t % 60).padStart(2, '0')}`;
-    srv = t == null ? 'autonomie inconnue' : `${duree(d.tenue_h).replace(NBSP + 'h' + NBSP, ' heures ').replace(NBSP + 'h', ' heures')} d’autonomie sur batterie`;
-  } else {
-    const v = d.mode_une === 'horsligne' ? (MEMO.derniereUne ?? i.production) : M.v;
+    srv = t == null ? 'autonomie inconnue' : `${dureeLongue(d.tenue_h)} d’autonomie sur batterie`;
+  } else if (d.mode_une === 'horsligne') {
+    // hors ligne : le dernier chiffre connu reste, figé ; son filet le relie à sa source (la pastille de cette source disparaît)
+    const fige = MEMO.derniereUneMode || 'soleil';
+    const v = MEMO.derniereUne ?? (fige === 'soleil' ? i.production : i.maison);
     const pw = puissance(v);
     html = pw.u ? unite(pw.n, pw.u) : pw.n;
     num = pw;
-    srv = `${pLong(v)}`;
+    srv = `${pLong(v)}, dernière valeur connue`;
+    Object.assign(M, { ancre: modes[fige].ancre, cFil: modes[fige].c });
+    MEMO.uneFige = fige;
+  } else {
+    const pw = puissance(M.v);
+    html = pw.u ? unite(pw.n, pw.u) : pw.n;
+    num = pw;
+    srv = `${pLong(M.v)}`;
   }
-  if (d.mode_une !== 'horsligne') MEMO.derniereUne = d.mode_une === 'soleil' ? i.production : d.mode_une === 'maison' ? i.maison : MEMO.derniereUne;
+  if (d.mode_une === 'soleil' || d.mode_une === 'maison') { MEMO.derniereUne = M.v; MEMO.derniereUneMode = d.mode_une; }
+  if (d.mode_une !== 'horsligne') MEMO.uneFige = null;
   // décompte : seulement si la valeur bouge d'au moins 2 %
   const el = $('une-v');
   if (num && UNE_VAL && UNE_VAL.u === num.u && fini(UNE_VAL.x) && !immobile() && Math.abs(num.w - UNE_VAL.w) / Math.max(UNE_VAL.w, 1) >= .02) {
@@ -1426,8 +1469,8 @@ function rendreHero(e, d) {
   PHRASE = phrase(e, d);
   const ph = $('une-phrase');
   if (!ph.dataset.choix || ph.textContent !== PHRASE[ph.dataset.choix]) ph.textContent = PHRASE[ph.dataset.choix || 'longue'];
-  MEMO.ancreUne = d.mode_une === 'soleil' || d.mode_une === 'maison' ? M.ancre : null;
-  MEMO.couleurUne = M.c;
+  MEMO.ancreUne = M.ancre || null;
+  MEMO.couleurUne = M.cFil || M.c;
   rendrePastilles(e, d);
 }
 
@@ -1443,13 +1486,13 @@ function rendrePastilles(e, d) {
   const pSol = { id: 'soleil', place: 'ciel', ancre: A.PANNEAUX_G, c: 'var(--soleil)', ct: 'var(--soleil-t)', g: icone('soleil') };
   if (perime) Object.assign(pSol, { long: avecHeure(pTxt(i.production), ''), court: [pTxt(i.production), ''], cls: 'perime', label: `Soleil${NBSP}: ${pLong(i.production)} à ${h0}, dernière valeur connue. Ouvrir le détail` });
   else if (!F.soleil.actif) Object.assign(pSol, { long: [pTxt(0), `${sep}au repos`], court: ['', 'au repos'], cls: 'repos', label: `Soleil${NBSP}: panneaux au repos. Ouvrir le détail` });
-  else Object.assign(pSol, { long: [pTxt(i.production), ''], court: [pTxt(i.production), ''], cls: '', label: `Soleil${NBSP}: ${pLong(i.production)} produits. Ouvrir le détail` });
+  else Object.assign(pSol, { long: [pTxt(i.production), ''], court: [pTxt(i.production), ''], cls: '', label: `Soleil${NBSP}: ${pLongAccord(i.production, 'produit')}. Ouvrir le détail` });
   // Maison
   const pMai = { id: 'maison', place: 'ciel', ancre: A.LUCARNE, c: 'var(--maison)', ct: 'var(--maison-t)', g: icone('maison') };
   const mNon = !fini(i.maison);
   Object.assign(pMai, {
     long: perime ? avecHeure(pTxt(i.maison), '') : [mNon ? 'non mesuré' : pTxt(i.maison), ''], court: [mNon ? 'non mesuré' : pTxt(i.maison), ''],
-    cls: perime ? 'perime' : '', label: mNon ? 'Maison : consommation non mesurée. Ouvrir le détail' : `Maison${NBSP}: ${pLong(i.maison)} consommés${perime ? ` à ${h0}, dernière valeur connue` : ''}. Ouvrir le détail`
+    cls: perime ? 'perime' : '', label: mNon ? 'Maison : consommation non mesurée. Ouvrir le détail' : `Maison${NBSP}: ${pLongAccord(i.maison, 'consommé')}${perime ? ` à ${h0}, dernière valeur connue` : ''}. Ouvrir le détail`
   });
   // Batterie
   const inst = e.installation || {}, stock = d.soc / 100 * (inst.batterie_kWh ?? 0);
@@ -1460,7 +1503,7 @@ function rendrePastilles(e, d) {
   else if (F.batterie.actif && b > 0) { bS = `${sep}${fleche('haut')}${pTxt(b)}`; bC = `${fleche('haut')}${pTxt(b)}`; bLab = `en charge à ${pLong(b)}`; }
   else if (F.batterie.actif && b < 0) { bS = `${sep}${fleche('bas')}${pTxt(b)}`; bC = `${fleche('bas')}${pTxt(b)}`; bLab = `en décharge à ${pLong(b)}`; }
   else { bS = `${sep}au repos`; bC = ''; bLab = 'au repos'; }
-  Object.assign(pBat, { long: [socTxt, bS], court: [socTxt, bC], cls: perime ? 'perime' : '', label: `Batterie${NBSP}: ${pct(d.soc)} %, ${bLab}, ${nombre(stock, 1)} kilowattheures stockés. Ouvrir le détail` });
+  Object.assign(pBat, { long: [socTxt, bS], court: [socTxt, bC], cls: perime ? 'perime' : '', label: `Batterie${NBSP}: ${pct(d.soc)} %, ${bLab}, ${nombre(stock, 1)} ${accord(arr(stock, 1), 'kilowattheure')} ${accord(arr(stock, 1), 'stocké')}. Ouvrir le détail` });
   // Réseau
   const pRes = { id: 'reseau', place: 'sol', ancre: A.RESEAU, c: 'var(--reseau)', ct: 'var(--reseau-t)', g: icone('reseau') };
   if (d.coupure) Object.assign(pRes, { long: ['coupé', ''], court: ['coupé', ''], cls: 'coupe', g: icone('reseauCoupe'), label: `Réseau${NBSP}: coupé depuis ${e.coupure?.depuis ? heureTxt(heureLocale(e.coupure.depuis, e.fuseau).h) : '—'}. Ouvrir le détail` });
@@ -1469,13 +1512,16 @@ function rendrePastilles(e, d) {
   else if (F.reseau.actif && r > 0) Object.assign(pRes, { long: [`${fleche('achat')}${pTxt(r)}`, `${sep}achat`], court: [`${fleche('achat')}${pTxt(r)}`, ''], cls: '', label: `Réseau${NBSP}: achat de ${pLong(r)}. Ouvrir le détail` });
   else Object.assign(pRes, { long: [pTxt(0), `${sep}au repos`], court: ['', 'au repos'], cls: 'repos', label: `Réseau${NBSP}: au repos. Ouvrir le détail` });
 
-  if (d.mode_une === 'soleil') L.push(pMai);
-  else if (d.mode_une === 'maison') L.push(pSol);
+  // jamais deux fois la même valeur : la source du chiffre (même figé, hors ligne) n'a pas de pastille
+  const sourceUne = d.mode_une === 'horsligne' ? MEMO.uneFige : d.mode_une;
+  if (sourceUne === 'soleil') L.push(pMai);
+  else if (sourceUne === 'maison') L.push(pSol);
   else L.push(pSol, pMai);
   if (d.aBatterie) L.push(pBat);
   L.push(pRes);
   PASTILLES = L;
-  const ul = $('pastilles');
+  const ul = $('pastilles'), actif = document.activeElement;
+  let perdu = null;
   for (const id of ['soleil', 'maison', 'batterie', 'reseau']) {
     let bt = ul.querySelector(`[data-noeud="${id}"]`);
     if (!bt) {
@@ -1487,7 +1533,7 @@ function rendrePastilles(e, d) {
     }
     const P = L.find(x => x.id === id);
     // pastille absente : tout son <li> sort de la liste (lecteur d'écran), le bouton s'efface en fondu
-    if (!P) { bt.classList.add('cache'); bt.setAttribute('tabindex', '-1'); bt.parentElement.setAttribute('aria-hidden', 'true'); continue; }
+    if (!P) { if (bt === actif) perdu = id; bt.classList.add('cache'); bt.setAttribute('tabindex', '-1'); bt.parentElement.setAttribute('aria-hidden', 'true'); continue; }
     bt.removeAttribute('tabindex'); bt.parentElement.removeAttribute('aria-hidden');
     bt.className = `pill ${P.cls || ''}`.trim();
     bt.style.setProperty('--c', P.c); bt.style.setProperty('--ct', P.ct);
@@ -1495,6 +1541,11 @@ function rendrePastilles(e, d) {
     const html = `<span class="g" aria-hidden="true">${P.g}</span><span class="long" aria-hidden="true">${seg(P.long)}</span><span class="court" aria-hidden="true">${seg(P.court)}</span>`;
     if (bt.innerHTML !== html) bt.innerHTML = html;
     bt.setAttribute('aria-label', P.label);
+  }
+  // la pastille qui avait le focus s'efface (lever ou coucher du soleil) : le focus passe à celle qui la remplace, sinon au chiffre
+  if (perdu) {
+    const rempl = ul.querySelector(`[data-noeud="${perdu === 'maison' ? 'soleil' : 'maison'}"]:not(.cache)`);
+    (rempl || $('une')).focus({ preventScroll: true });
   }
 }
 function pulserAncre(id) {
@@ -1511,7 +1562,11 @@ function rendreCapsule(e, d) {
   // c2 : forme courte (une ligne) quand la barre manque de place ; le chiffre du héros donne déjà le détail en coupure et hors ligne
   if (d.horsligne) ev = { ic: 'horsligne', c: 'oklch(.80 .008 260)', l1: `Hors ligne depuis ${heureTxt(d.derniere)}`, l2: `${e.fraicheur?.source || 'Home Assistant'} ne répond plus`, c2: 'Hors ligne' };
   else if (d.coupure) ev = { ic: 'reseauCoupe', c: 'oklch(.76 .15 27)', l1: 'Coupure réseau', l2: `depuis ${e.coupure?.depuis ? heureTxt(heureLocale(e.coupure.depuis, e.fuseau).h) : '—'} · batterie active`, c2: 'Coupure' };
-  else if (e.tarif?.couleur_demain === 'rouge') ev = { ic: 'alerte', c: 'oklch(.76 .15 27)', l1: 'Tempo rouge demain', l2: `6 h – 22 h${NBSP}: ${nombre(e.tarif?.prix?.rouge?.hp ?? 0, 4)}${NBSP}€/kWh`, c2: 'Rouge demain' };
+  else if (e.tarif?.couleur_demain === 'rouge') {
+    // avant 6 h, couleur_demain désigne le jour Tempo qui commence à 6 h : c'est aujourd'hui
+    const avant6 = d.h < 6;
+    ev = { ic: 'alerte', c: 'oklch(.76 .15 27)', l1: avant6 ? 'Tempo rouge aujourd’hui' : 'Tempo rouge demain', l2: `6${NBSP}h – 22${NBSP}h${NBSP}: ${nombre(e.tarif?.prix?.rouge?.hp ?? 0, 4)}${NBSP}€/kWh`, c2: avant6 ? `Rouge dès 6${NBSP}h` : 'Rouge demain' };
+  }
   else if (e.veille_orage?.active) ev = { ic: 'eclair', c: 'oklch(.86 .15 85)', l1: 'Veille orage active', l2: 'charge à 100 % avant 18 h', c2: 'Veille orage' };
   if (ev) {
     cap.className = `capsule evenement${MEMO.capCompacte ? ' compacte' : ''}`;
@@ -1837,8 +1892,8 @@ function preparerSvg() {
 /* ======================================================= FLUX : le relais de S&A-HOME ===
    Une comète = 6 tirets empilés (46/38/30/22/14/7, opacité .10 → 1) + une lueur floutée, têtes alignées.
    Cycle fixe de 5,6 s : les comètes entrantes arrivent au moyeu à 28,2 %, les sortantes partent à 25,7 %.
-   Vitesse : la même pour une même puissance, quel que soit le conduit, et croissante avec elle
-   (v = V0·(0,5 + kW/kWmax), en unités du dessin par seconde) ; la fenêtre de trajet = longueur ÷ vitesse. */
+   Vitesse croissante avec la puissance : les fenêtres de la référence sont le cas le plus lent (u → 0) ;
+   u = √(|kW| / 3) les raccourcit, sans jamais passer sous 0,9 s de trajet. */
 const T_CYCLE = 5600, EASE = 'cubic-bezier(.45,0,.55,1)';
 const COUCHES = [[46, .10], [38, .16], [30, .26], [22, .40], [14, .62], [7, 1]];
 const COULEUR_FLUX = { soleil: null, maison: 'var(--maison)', batterie: 'var(--batterie)', reseau: 'var(--reseau)' };
@@ -1851,12 +1906,11 @@ function annuler(liste) { liste.forEach(a => { a.cancel(); ANIMS.delete(a); }); 
 const points = d => (d.match(/-?[\d.]+,-?[\d.]+/g) || []).map(q => q.split(',').map(Number));
 const cheminDe = pts => 'M' + pts.map(p => p.join(',')).join(' L');
 const longueur = pts => pts.slice(1).reduce((a, p, k) => a + Math.hypot(p[0] - pts[k][0], p[1] - pts[k][1]), 0);
-const V0 = 800;                                                   // unités du dessin par seconde à kWmax/2 (≈ 265 px/s sur une maison de 390 px)
-function vitesse(kW, kWmax) { return V0 * borne(0.5 + kW / Math.max(kWmax, 1), 0.5, 1.5); }
-/* fenêtre [début, fin] (fraction du cycle) : arrivée au moyeu à 28,2 % (entrantes), départ à 25,7 % (sortantes) */
-function fenetre(phase, kW, kWmax, distance) {
-  const duree = borne(distance / vitesse(kW, kWmax) * 1000 / T_CYCLE, 0.045, 0.28);
-  return phase === 'sor' ? [0.257, 0.257 + duree] : [0.282 - duree, 0.282];
+/* fenêtre [début, fin] (fraction du cycle) : arrivée au moyeu à 28,2 % (entrantes, 1,58 s → 0,90 s),
+   départ à 25,7 % (sortantes, 1,66 s → 0,90 s) ; le reste du cycle est le repos de la référence */
+function fenetre(phase, u) {
+  u = borne(u || 0, 0, 1);
+  return phase === 'sor' ? [0.257, 0.554 - 0.137 * u] : [0.122 * u, 0.282];
 }
 /* images clés du tiret N ; « decal » décale le motif pour un tronçon qui commence plus loin sur le trajet */
 function images(N, PL, phase, [a, b], decal = 0) {
@@ -1984,9 +2038,10 @@ function orienter(f) {
 function demanderFlux(fluxEtat, toutDeSuite) {
   FILE = fluxEtat;
   clearTimeout(MINUTERIE);
-  if (toutDeSuite || T0 == null) { appliquerFlux(false); return; }
+  // sans mouvement (flèches fixes), aucune comète n'est en vol : le nouveau sens s'affiche tout de suite
+  if (toutDeSuite || T0 == null || immobile()) { appliquerFlux(false); return; }
   // les flux cachés (et ceux qui s'éteignent par donnée périmée) changent tout de suite ; les autres attendent la fin du cycle
-  const immediat = Object.entries(fluxEtat).filter(([n, e]) => !FLUX[n].etat.actif);
+  const immediat = Object.entries(fluxEtat).filter(([n]) => !FLUX[n].etat.actif);
   if (immediat.length) appliquerFlux(false, immediat.map(([n]) => n));
   const now = document.timeline.currentTime ?? performance.now();
   const attente = T_CYCLE - (((now - T0) % T_CYCLE) + T_CYCLE) % T_CYCLE;
@@ -1998,8 +2053,7 @@ function appliquerFlux(recreer, seulement = null, garder = false) {
   for (const f of Object.values(FLUX)) {
     if (seulement && !seulement.includes(f.nom)) continue;
     const voulu = garder ? f.etat : (FILE?.[f.nom] || f.etat);
-    const kWmax = SCENE?.kWmax ?? 6;
-    const cle = `${voulu.actif}|${voulu.phase}|${(voulu.kW ?? 0).toFixed(2)}|${kWmax}|${calme}|${f.PL}`;
+    const cle = `${voulu.actif}|${voulu.phase}|${(voulu.u ?? 0).toFixed(3)}|${calme}|${f.PL}`;
     f.etat = { ...voulu };
     // attributs de test, sur le chemin d'origine
     const src = svg.querySelector('#' + { soleil: 'gaine-pv-flux', maison: 'gaine-lucarne-flux', batterie: 'gaine-batterie-flux', reseau: 'gaine-sol-flux' }[f.nom]);
@@ -2014,8 +2068,7 @@ function appliquerFlux(recreer, seulement = null, garder = false) {
     orienter(f);
     annuler(f.anims);
     if (!voulu.actif || calme) continue;
-    // distance parcourue par la tête : le trajet entier plus la longueur d'un tiret (47 unités de pathLength)
-    const win = fenetre(voulu.phase, voulu.kW ?? 0, kWmax, f.L * (f.PL + 48) / f.PL);
+    const win = fenetre(voulu.phase, voulu.u);
     f.win = win;
     for (const p of f.paths) {
       const a = p.animate(images(p._N, f.PL, voulu.phase, win, p._decal), { duration: T_CYCLE, iterations: Infinity });
@@ -2025,6 +2078,7 @@ function appliquerFlux(recreer, seulement = null, garder = false) {
   animerMoyeu();
   animerLed();
   dessinerCoupure();
+  synchroPause();                                                // hors écran ou onglet caché : les nouvelles animations naissent en pause
 }
 /* Coupure : le câble du réseau reste immobile, en pointillés rouges, jusqu'à l'ancre de la pastille, barrée d'une croix
    (la croix remplace le point de l'ancre : filet, ancre et croix coïncident) */
@@ -2070,12 +2124,11 @@ function animerLed() {
   onde.setAttribute('opacity', mode === 'fixe' ? '0' : '1');
   if (mode === 'fixe') return;
   const bas = 'translateY(26px)', sommet = `translateY(${(haut - 700 - 26).toFixed(1)}px)`;
-  // charge : l'onde monte juste après l'arrivée de la comète ; décharge : elle descend juste avant son départ
-  const [wa, wb] = FLUX.batterie?.win || [0.122, 0.282];
-  const t0 = Math.max(0, wa - 0.16);
+  // charge : l'onde monte juste après l'arrivée de la comète ; décharge : elle descend pendant que la comète part (0 → 18 %)
+  const wb = FLUX.batterie?.win?.[1] ?? 0.554;
   const k = mode === 'charge'
     ? [{ offset: 0, transform: bas, opacity: 0 }, { offset: wb, transform: bas, opacity: 0 }, { offset: wb + .026, transform: bas, opacity: 1, easing: 'ease-in-out' }, { offset: wb + .166, transform: sommet, opacity: 1 }, { offset: wb + .196, transform: sommet, opacity: 0 }, { offset: 1, transform: sommet, opacity: 0 }]
-    : [{ offset: 0, transform: sommet, opacity: t0 > 0 ? 0 : 1 }, { offset: t0, transform: sommet, opacity: 1, easing: 'ease-in-out' }, { offset: wa, transform: bas, opacity: 1 }, { offset: wa + .03, transform: bas, opacity: 0 }, { offset: 1, transform: bas, opacity: 0 }];
+    : [{ offset: 0, transform: sommet, opacity: 0 }, { offset: .02, transform: sommet, opacity: 1, easing: 'ease-in-out' }, { offset: .18, transform: bas, opacity: 1 }, { offset: .21, transform: bas, opacity: 0 }, { offset: 1, transform: bas, opacity: 0 }];
   LED_ANIMS.push(enregistrer(onde.animate(k, { duration: T_CYCLE, iterations: Infinity })));
 }
 
@@ -2083,6 +2136,7 @@ function animerLed() {
 let VISIBLE = true, ECRAN = true;
 function synchroPause() {
   const actif = VISIBLE && ECRAN;
+  $('hero').classList.toggle('fige', !actif);                    // animations CSS du ciel (étoiles, nuages) : en pause aussi
   for (const a of ANIMS) {
     if (!actif) { if (a.playState === 'running') a.pause(); }
     else if (a.playState === 'paused') a.startTime = T0;
@@ -2367,10 +2421,14 @@ function cadrer() {
       const [ax, ay] = P(ancreUne);
       if (mode === 'portrait') {
         const y1 = C.hb + 10;
-        const ref = phraseVue ? boite(ph) : boite(une);
-        const lo = gx + 24, hi = Math.max(lo, ref.r + 16);
-        if (ax >= lo && ax <= hi) out += `<path class="fil" d="M${f1(ax)},${f1(y1)}V${f1(ay - 3)}"/>`;
-        else { const xs = borne(ax, lo, hi); out += `<path class="fil" d="M${f1(xs)},${f1(y1)}V${f1(y1 + 10)}H${f1(ax)}V${f1(ay - 3)}"/>`; }
+        // sous la phrase quand elle est là ; sinon sous le chiffre lui-même (le surtitre, plus large, n'est pas au-dessus du filet)
+        // droit si l'ancre est sous le texte ; sinon un coude qui part de sous le texte
+        let hiDroit, hiCoude;
+        if (phraseVue) hiDroit = hiCoude = boite(ph).r + 16;
+        else { const rg = document.createRange(); rg.selectNodeContents($('une-v')); hiDroit = rg.getBoundingClientRect().right - hr.left; hiCoude = hiDroit - 8; }
+        const lo = gx + 24;
+        if (ax >= lo && ax <= Math.max(lo, hiDroit)) out += `<path class="fil" d="M${f1(ax)},${f1(y1)}V${f1(ay - 3)}"/>`;
+        else { const xs = borne(ax, lo, Math.max(lo, hiCoude)); out += `<path class="fil" d="M${f1(xs)},${f1(y1)}V${f1(y1 + 10)}H${f1(ax)}V${f1(ay - 3)}"/>`; }
         out += point('une', [ax, ay], MEMO.couleurUne);
       } else {
         const k = boite($('une-k')), ly = (k.t + k.b) / 2, lx = k.r + 16;
@@ -2495,35 +2553,47 @@ function compter(el, cible, gabarit) {
   };
   requestAnimationFrame(pas);
 }
-/* Sous-lignes du bilan : version longue si elle tient sur une ligne, sinon courte, sinon retour à la ligne (texte agrandi) */
-function sousLigne(id, long, court) {
-  const el = $(id), html = `<span class="long">${long}</span><span class="court">${court}</span>`;
+/* Sous-lignes du bilan : f1 longue, f2 courte (une ligne, en bon français), f3 = [nombre, mot] sur deux lignes */
+function sousLigne(id, f1, f2, f3) {
+  const el = $(id), html = `<span class="f1">${f1}</span><span class="f2">${f2}</span><span class="f3"><span>${f3[0]}</span><span>${f3[1]}</span></span>`;
   if (el.dataset.t !== html) { el.dataset.t = html; el.innerHTML = html; }
 }
+/* Le choix ne dépend que de la largeur des colonnes : chiffres tabulaires et marge d'un chiffre (un chiffre de plus ne change pas la forme).
+   Si une colonne n'a plus de forme sur une ligne, les trois passent ensemble au nombre puis au mot, sur deux lignes. */
 function ajusterBilan() {
-  document.querySelectorAll('.bm-s').forEach(el => {
-    el.classList.remove('court', 'libre');
-    if (el.scrollWidth > el.clientWidth + .5) el.classList.add('court');
-    if (el.scrollWidth > el.clientWidth + .5) el.classList.add('libre');
-  });
+  const cols = document.querySelector('.bilan-cols');
+  const S = [...cols.querySelectorAll('.bm-s')];
+  // valeurs finales pendant la mesure (le décompte reprend à l'image suivante, avant d'être peint)
+  cols.querySelectorAll('.bm-v').forEach(el => { if (el._gabarit) el.innerHTML = el._gabarit(el._cible); });
+  cols.classList.remove('rangees');
+  S.forEach(el => { el.className = 'bm-s f1'; });
+  const deborde = el => el.scrollWidth > el.clientWidth + .5;
+  // texte agrandi : un libellé ou une valeur ne tient plus dans sa colonne → une rangée par mesure (jamais de mot coupé)
+  if ([...cols.querySelectorAll('.bm-l, .bm-v')].some(deborde)) cols.classList.add('rangees');
+  const tient = el => el.querySelector(':scope > .' + el.classList[1]).getBoundingClientRect().width + parseFloat(getComputedStyle(el).fontSize) * .62 <= el.clientWidth + .5;
+  let deux = false;
+  S.forEach(el => { if (!tient(el)) { el.className = 'bm-s f2'; if (!tient(el)) deux = true; } });
+  if (deux) S.forEach(el => { el.className = 'bm-s f3'; if (deborde(el)) el.classList.add('libre'); });
 }
 function rendreBilan(e, d) {
   const j = e.jour || {};
   $('bilan-date').textContent = dateCourte(d.date, e.fuseau);
-  const total = (j.production ?? 0) + d.reste;
-  // valeurs : espace simple avant l'unité (elle peut passer dessous si le texte est très agrandi, plutôt que déborder)
-  compter($('bm-prod'), j.production, v => fini(v) ? `${kWh(v)}<span class="u"> kWh</span>` : '—');
+  const total = (j.production ?? 0) + d.reste, achat = j.import ?? 0, mois = e.mois?.economies_eur;
+  // valeur et unité restent ensemble (insécable) ; si elles ne tiennent plus, le bilan passe en rangées
+  compter($('bm-prod'), j.production, v => fini(v) ? `${kWh(v)}<span class="u">${NBSP}kWh</span>` : '—');
   $('bm-prod-p').style.setProperty('--v', total > 0 ? (100 * (j.production ?? 0) / total).toFixed(1) : '0');
-  const couche = d.h >= d.coucher;
-  sousLigne('bm-prod-s', couche ? 'journée terminée' : `sur ≈${NBSP}${kWh(total)} prévus`, couche ? 'jour terminé' : `≈${NBSP}${kWh(total)}${NBSP}prévus`);
-  $('bm-prod-b').setAttribute('aria-label', `Produits aujourd’hui${NBSP}: ${kWh(j.production)} kilowattheures, ${couche ? 'journée terminée' : `sur environ ${kWh(total)} prévus`}. Ouvrir le détail du soleil`);
+  const couche = d.h >= d.coucher, prevu = accord(arr(total, 1), 'prévu');
+  sousLigne('bm-prod-s', couche ? 'journée terminée' : `sur ≈${NBSP}${kWh(total)}${NBSP}kWh ${prevu}`, couche ? 'journée terminée' : `≈${NBSP}${kWh(total)}${NBSP}${prevu}`,
+    couche ? ['journée', 'terminée'] : [`≈${NBSP}${kWh(total)}${NBSP}kWh`, prevu]);
+  $('bm-prod-b').setAttribute('aria-label', `Produits aujourd’hui${NBSP}: ${kWh(j.production)} ${accord(arr(j.production, 1), 'kilowattheure')}, ${couche ? 'journée terminée' : `sur environ ${kWh(total)} ${prevu}`}. Ouvrir le détail du soleil`);
   compter($('bm-auto'), d.autonomie, v => fini(v) ? `${pct(v)}<span class="u">${NNBSP}%</span>` : '—');
   $('bm-auto-p').style.setProperty('--v', fini(d.autonomie) ? d.autonomie.toFixed(1) : '0');
-  sousLigne('bm-auto-s', `${kWh(j.import ?? 0)}${NBSP}kWh achetés`, `${kWh(j.import ?? 0)}${NBSP}kWh achat`);
-  $('bm-auto-b').setAttribute('aria-label', `Autonomie${NBSP}: ${pct(d.autonomie)} % des besoins couverts sans le réseau, ${kWh(j.import ?? 0)} kilowattheures achetés. Ouvrir le détail de la maison`);
-  compter($('bm-eco'), d.economies, v => fini(v) ? `${euros(v)}<span class="u"> €</span>` : '—');
-  sousLigne('bm-eco-s', `${euros(e.mois?.economies_eur)}${NBSP}€ en${NBSP}${moisCourt(e.mois?.depuis)}`, `${euros(e.mois?.economies_eur)}${NBSP}€${NBSP}${moisCourt(e.mois?.depuis)}`);
-  $('bm-eco-b').setAttribute('aria-label', `Économisés aujourd’hui${NBSP}: ${euros(d.economies)} euros${d.economiesEstimees ? ', estimation' : ''}, ${euros(e.mois?.economies_eur)} euros en ${moisNom(e.mois?.depuis)}. Ouvrir le détail des économies`);
+  const achete = accord(arr(achat, 1), 'acheté');
+  sousLigne('bm-auto-s', `${kWh(achat)}${NBSP}kWh ${achete}`, `${kWh(achat)}${NBSP}kWh ${achete}`, [`${kWh(achat)}${NBSP}kWh`, achete]);
+  $('bm-auto-b').setAttribute('aria-label', `Autonomie${NBSP}: ${pct(d.autonomie)} % des besoins couverts sans le réseau, ${kWh(achat)} ${accord(arr(achat, 1), 'kilowattheure')} ${achete}. Ouvrir le détail de la maison`);
+  compter($('bm-eco'), d.economies, v => fini(v) ? `${euros(v)}<span class="u">${NBSP}€</span>` : '—');
+  sousLigne('bm-eco-s', `${euros(mois)}${NBSP}€ en${NBSP}${moisCourt(e.mois?.depuis)}`, `${euros(mois)}${NBSP}€ en${NBSP}${moisCourt(e.mois?.depuis)}`, [`${euros(mois)}${NBSP}€`, `en${NBSP}${moisCourt(e.mois?.depuis)}`]);
+  $('bm-eco-b').setAttribute('aria-label', `Économisés aujourd’hui${NBSP}: ${euros(d.economies)} ${accord(arr(d.economies, 2), 'euro')}${d.economiesEstimees ? ', estimation' : ''}, ${euros(mois)} ${accord(arr(mois, 2), 'euro')} en ${moisNom(e.mois?.depuis)}. Ouvrir le détail des économies`);
   ajusterBilan();
 }
 
@@ -2666,19 +2736,19 @@ function lecture(q) {
   let txt, vt;
   if (!q) {
     const pic = COURBE.pic;
-    if (pic && pic.p > 0.3) { L.innerHTML = `<b>Meilleure heure</b><span>${plage(pic.h)}</span>${v('soleil', 'var(--soleil)', 'var(--soleil-t)', pic.p, 'produits')}`; vt = `Meilleure heure ${plage(pic.h)}, ${kWh(pic.p)} kilowattheures produits`; }
+    if (pic && pic.p > 0.3) { L.innerHTML = `<b>Meilleure heure</b><span>${plage(pic.h)}</span>${v('soleil', 'var(--soleil)', 'var(--soleil-t)', pic.p, 'produits')}`; vt = `Meilleure heure ${plage(pic.h)}, ${kWh(pic.p)} ${accord(arr(pic.p, 1), 'kilowattheure')} ${accord(arr(pic.p, 1), 'produit')}`; }
     else { const lv = COURBE.d.lever; L.innerHTML = `<b>Pas encore de soleil aujourd’hui</b><span>lever à ${heureTxt(lv)}</span>`; vt = 'Pas encore de soleil aujourd’hui'; }
     fig.setAttribute('aria-valuenow', String(Math.floor(COURBE.now)));
     fig.setAttribute('aria-valuetext', vt);
     return;
   }
   const tarif = COURBE.estHC(q.h) ? 'heures creuses' : 'heures pleines';
-  if (q.etat === 'futur') { L.innerHTML = `<b>${plage(q.h)}</b>` + (q.f != null ? `<span>prévision</span>${v('soleil', '', 'var(--soleil-t)', q.f)}` : `<span>à venir</span>`) + `<span>${tarif}</span>`; txt = `${plage(q.h)}, ${q.f != null ? `prévision ${kWh(q.f)} kilowattheures` : 'à venir'}, ${tarif}`; }
+  if (q.etat === 'futur') { L.innerHTML = `<b>${plage(q.h)}</b>` + (q.f != null ? `<span>prévision</span>${v('soleil', '', 'var(--soleil-t)', q.f)}` : `<span>à venir</span>`) + `<span>${tarif}</span>`; txt = `${plage(q.h)}, ${q.f != null ? `prévision ${kWh(q.f)} ${accord(arr(q.f, 1), 'kilowattheure')}` : 'à venir'}, ${tarif}`; }
   else {
     const p = q.etat === 'cours' ? q.eP : q.p ?? 0, m = q.etat === 'cours' ? q.eM : q.m ?? 0;
     const t0 = q.etat === 'cours' ? `${q.h}${NBSP}h – maintenant` : plage(q.h);
     L.innerHTML = `<b>${t0}</b>${v('soleil', '', 'var(--soleil-t)', p)}${v('maison', '', 'var(--maison-t)', m)}<span>${tarif}</span>`;
-    txt = `${t0}, ${kWh(p)} kilowattheures produits, ${kWh(m)} consommés, ${tarif}`;
+    txt = `${t0}, ${kWh(p)} ${accord(arr(p, 1), 'kilowattheure')} ${accord(arr(p, 1), 'produit')}, ${kWh(m)} ${accord(arr(m, 1), 'consommé')}, ${tarif}`;
   }
   fig.setAttribute('aria-valuenow', String(q.h));
   fig.setAttribute('aria-valuetext', txt);
@@ -2734,7 +2804,8 @@ function rendreDemain(e, d) {
   s += `<text class="axe" x="0" y="${(ym + 15).toFixed(1)}">0${NBSP}h</text><text class="axe" x="${W}" y="${(ym + 15).toFixed(1)}" text-anchor="end">24${NBSP}h</text>`;
   box.innerHTML = `<svg viewBox="0 0 ${W} ${ym + 20}" width="${W}" height="${ym + 20}" role="img" aria-label="Prévision de production de demain, heure par heure${NBSP}; créneau conseillé de ${heureTxt(a)} à ${heureTxt(b)}" focusable="false">${s}</svg>`;
   $('dem-conseil').innerHTML = `Lancez le <span class="nw">lave-linge</span> et le <span class="nw">lave-vaisselle</span> entre ${heureTxt(a)} et ${heureTxt(b)}${NBSP}: ils tourneront au soleil.`;
-  const cd = e.tarif?.couleur_demain;
+  // avant 6 h, couleur_demain est celle du jour Tempo qui commence à 6 h (aujourd'hui) : celle du lendemain n'est pas encore publiée
+  const cd = d && d.h < 6 ? null : e.tarif?.couleur_demain;
   $('dem-rouge').hidden = cd !== 'rouge';
   $('dem-rouge').textContent = `Jour rouge${NBSP}: décalez les gros appareils, la batterie sera chargée la nuit en heures creuses.`;
   majHTML($('dem-puces'), e.tarif?.option === 'tempo'
@@ -2785,7 +2856,7 @@ function repartir(vals) {
 const empile = parts => `<div class="empile" aria-hidden="true">${parts.filter(p => p.v > 0.0001).map(p => `<i style="--c:${p.c};flex:${p.v.toFixed(4)}"></i>`).join('')}</div>` +
   `<ul class="leg-empile">${parts.map((p, k) => `<li style="--c:${p.c}"><i></i>${p.n}<b>${p.t}</b></li>`).join('')}</ul>`;
 const valeur = (n, u) => `<p class="fiche-v">${u ? unite(n, u) : n}</p>`;
-const bascule = (id, on, label) => `<button class="interrupteur" id="${id}" type="button" role="switch" aria-checked="${on}" aria-label="${echap(label)}"><span class="tr" aria-hidden="true"></span></button>`;
+const bascule = (id, on, label, extra = '') => `<button class="interrupteur" id="${id}" type="button" role="switch" aria-checked="${on}" aria-label="${echap(label)}"${extra}><span class="tr" aria-hidden="true"></span></button>`;
 const ecranAVenir = (lignes) => lignes.map(t => `<p>${t}</p>`).join('') + `<p class="note">Bientôt dans Breezy.</p>`;
 
 function rendreFiche(nom) {
@@ -2835,7 +2906,7 @@ function rendreFiche(nom) {
         `<p class="fiche-v">${pct(soc)}<span class="u">${NNBSP}%</span> <span class="u">· ${nombre(stock, 1)}${NBSP}kWh stockés sur ${nombre(cap, 0)}</span></p>` +
         `<div class="cellules" role="img" aria-label="Charge ${pct(soc)} %, réserve de secours à ${res} %">${cel}<span class="reserve" style="left:${res}%"></span></div>` +
         `<p class="fiche-etat" style="margin-top:14px">${etatTxt}</p>` +
-        `<ul class="fiche-liste"><li>Aujourd’hui<b>+${kWh(j.charge_batterie)}${NBSP}kWh entrés · −${kWh(j.decharge_batterie)}${NBSP}kWh sortis</b></li></ul>` +
+        `<ul class="fiche-liste"><li>Aujourd’hui<b><span class="nw">+${kWh(j.charge_batterie)}${NBSP}kWh ${accord(arr(j.charge_batterie, 1), 'entré')}</span> · <span class="nw">−${kWh(j.decharge_batterie)}${NBSP}kWh ${accord(arr(j.decharge_batterie, 1), 'sorti')}</span></b></li></ul>` +
         `<h3 id="sec-reserve">Réserve de secours</h3><div class="reglage"><input type="range" id="in-reserve" min="5" max="100" step="5" value="${res}" aria-labelledby="sec-reserve" aria-valuetext="${res} %, soit ${nombre(res / 100 * cap, 1)} kWh gardés pour une coupure">` +
         `<div class="reglage-l"><span id="out-reserve">${res}${NNBSP}% · ${nombre(res / 100 * cap, 1)}${NBSP}kWh gardés pour une coupure</span></div></div>` +
         `<h3 id="sec-mode">Mode</h3><div class="choix" role="radiogroup" aria-labelledby="sec-mode">${modes.map(([v, t, x]) => `<label><input type="radio" name="mode" value="${v}"${e.mode === v ? ' checked' : ''}><b>${t}</b><span>${x}</span></label>`).join('')}</div>` +
@@ -2845,15 +2916,16 @@ function rendreFiche(nom) {
     case 'reseau': {
       const pw = puissance(r);
       const exp = fini(j.export_eur) ? j.export_eur : (j.export ?? 0) * (inst.tarifRevente_eur_kWh ?? 0.04);
-      const imp = fini(j.import_eur) ? j.import_eur : (j.import ?? 0) * (tf.prix?.[d.tarif.couleur]?.hc ?? 0.1288);
+      // coût des achats : le compteur de coût de Home Assistant (au prix de chaque heure) ; sans lui, aucun montant n'est inventé
+      const imp = fini(j.import_eur) ? j.import_eur : null;
       const etatTxt = d.coupure ? `Coupé depuis ${e.coupure?.depuis ? heureTxt(heureLocale(e.coupure.depuis, e.fuseau).h) : '—'}${NBSP}: la batterie alimente la maison.`
         : d.horsligne ? `${r < -0.01 ? 'Vente du surplus' : r > 0.01 ? 'Achat' : 'Au repos'} à ${heureTxt(d.derniere)} (dernière valeur connue).`
         : d.flux.reseau.actif ? (r < 0 ? 'Vente du surplus.' : 'Achat.') : 'Au repos.';
       const cd = tf.couleur_demain;
       return { titre: 'Réseau', g: d.coupure ? 'reseauCoupe' : 'reseau', c: d.coupure ? 'var(--alerte)' : 'var(--reseau)', ct: d.coupure ? 'var(--alerte-t)' : 'var(--reseau-t)', html:
         (d.coupure ? valeur('coupé', '') : `<p class="fiche-v">${r < -0.01 ? fleche('vente') : r > 0.01 ? fleche('achat') : ''}${pw.u ? unite(pw.n, pw.u) : pw.n}</p>`) + `<p class="fiche-etat">${etatTxt}</p>` +
-        `<ul class="fiche-liste"><li>Vendus aujourd’hui<b>${kWh(j.export)}${NBSP}kWh (+${euros(exp)}${NBSP}€)</b></li><li>Achetés aujourd’hui<b>${kWh(j.import)}${NBSP}kWh (${euros(imp)}${NBSP}€)</b></li>` +
-        `<li>Facture réseau du jour<b>${euros(imp)}${NBSP}€</b></li></ul>` +
+        `<ul class="fiche-liste"><li>Vendus aujourd’hui<b>${kWh(j.export)}${NBSP}kWh (+${euros(exp)}${NBSP}€)</b></li><li>Achetés aujourd’hui<b>${kWh(j.import)}${NBSP}kWh${imp != null ? ` (${euros(imp)}${NBSP}€)` : ''}</b></li>` +
+        (imp != null ? `<li>Facture réseau du jour<b>${euros(imp)}${NBSP}€</b></li>` : '') + '</ul>' +
         (tf.option === 'tempo' ? `<h3>Tarif</h3><ul class="fiche-liste"><li>Tempo ${nomCouleur(d.tarif.couleur)} · ${nomPeriode(d.tarif.hc)}<b>${nombre(d.tarif.prix ?? 0, 4)}${NBSP}€/kWh${d.tarif.fin != null ? ` jusqu’à ${heureTxt(d.tarif.fin)}` : ''}</b></li>` +
           `<li>${d.h < 6 ? 'Dès 6 h' : 'Demain'}<b>${cd ? nomCouleur(cd) : 'publié vers 11 h'}</b></li></ul><p class="note">Prix d’exemple. Revente du surplus${NBSP}: ${nombre(inst.tarifRevente_eur_kWh ?? 0.04, 2)}${NBSP}€/kWh.</p>` : '') };
     }
@@ -2892,7 +2964,7 @@ function rendreFiche(nom) {
       return { titre: 'Réglages', g: 'reglages', html:
         `<p>Mode de la batterie, tarif Tempo, alertes et affichage arrivent bientôt ici. Deux réglages d’affichage sont déjà disponibles${NBSP}:</p>` +
         `<h3 id="sec-theme">Thème</h3><div class="segments theme" role="radiogroup" aria-labelledby="sec-theme">${[['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']].map(([v, l]) => `<button type="button" role="radio" data-theme-choix="${v}" aria-checked="${t === v}" tabindex="${t === v ? 0 : -1}">${l}</button>`).join('')}</div>` +
-        `<h3>Animations des flux</h3><div class="ligne-switch"><p>${reduitMQ.matches ? 'Mouvement réduit demandé par l’appareil.' : 'Les comètes dans les gaines, le moyeu et la LED de la batterie.'}</p>${bascule('in-anim', !immobile(), 'Animations des flux')}</div>` +
+        `<h3>Animations des flux</h3><div class="ligne-switch"><p id="in-anim-note">${reduitMQ.matches ? `Mouvement réduit demandé par l’appareil${NBSP}: les flux restent immobiles.` : 'Les comètes dans les gaines, le moyeu et la LED de la batterie.'}</p>${bascule('in-anim', !immobile(), 'Animations des flux', reduitMQ.matches ? ' disabled aria-describedby="in-anim-note"' : '')}</div>` +
         `<p class="note">Bientôt dans Breezy.</p>` };
     }
     case 'assistance':
@@ -2965,7 +3037,7 @@ function rendre(e, opts = {}) {
 
 /* ================================================================ DÉMARRAGE === */
 function etatCourant(nom) {
-  const Ap = ETAT.apercus, a = nom && Ap && nom !== 'maison_soiree' && Ap[nom];
+  const Ap = ETAT.apercus, a = nom && Ap && nom !== 'maison_soiree' && Object.hasOwn(Ap, nom) && Ap[nom];
   if (!a) return ETAT;
   const c = ETAT.courbe, pas = c.pas_h;
   const debutSoiree = Math.round(17.5 / pas);
@@ -3080,6 +3152,7 @@ function majInterrupteur() {
   b.setAttribute('aria-checked', String(!immobile()));
   b.disabled = reduitMQ.matches;
   $('anim-note').hidden = !reduitMQ.matches;
+  if (reduitMQ.matches) b.setAttribute('aria-describedby', 'anim-note'); else b.removeAttribute('aria-describedby');
   document.documentElement.classList.toggle('calme', immobile());
 }
 function basculerAnimations() {
@@ -3110,7 +3183,6 @@ function demarrer() {
   document.addEventListener('visibilitychange', () => { VISIBLE = !document.hidden; synchroPause(); });
   reduitMQ.addEventListener?.('change', () => { majInterrupteur(); rendre(etat, { immediat: true }); appliquerFlux(true); });
   sombreMQ.addEventListener?.('change', () => rendre(etat));
-  // fraîcheur : la capsule se met à jour toutes les 15 s
   // fraîcheur : toutes les 15 s, l'âge des données ; au passage du seuil hors ligne (15 min), toute la page bascule
   // (comètes arrêtées, pastilles périmées, chiffre à 55 %) ; sinon seule la capsule change. Pas d'effet sur l'hystérésis des flux.
   setInterval(() => {
