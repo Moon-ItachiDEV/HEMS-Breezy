@@ -78,8 +78,8 @@
 .hero.studio .barre { display: flex; align-items: center; justify-content: space-between; gap: 8px; top: calc(env(safe-area-inset-top, 0px) + 8px); transition: none; }
 .hero.studio[data-mode="large"] .barre { top: calc(env(safe-area-inset-top, 0px) + 16px); }
 .hero.studio[data-mode="court"] .barre { top: 6px; right: var(--gx); width: auto; }
-.barre-g { display: flex; align-items: center; gap: 2px; min-width: 0; }
-.retour { display: grid; place-items: center; flex: none; width: 40px; height: 44px; margin-left: -11px; border-radius: 12px; color: var(--encre-s); }
+.barre-g { display: flex; align-items: center; gap: 0; min-width: 0; }                  /* Retour (44 px) puis le nom, à la même place */
+.retour { display: grid; place-items: center; flex: none; width: 44px; height: 44px; margin-left: -13px; border-radius: 12px; color: var(--encre-s); }
 .retour .ic { width: 22px; height: 22px; stroke-width: 2.1; }
 .nom { min-width: 0; font: 600 20px/24px var(--police); letter-spacing: .035em; white-space: nowrap; }
 .hero.studio[data-mode="large"] .nom { font-size: 22px; }
@@ -89,10 +89,11 @@
 .maj { position: relative; display: grid; place-items: center; flex: none; width: 44px; height: 44px; margin-right: -10px; padding: 0; border: 0; border-radius: 12px; background: none; color: var(--encre-s); }
 .maj[hidden] { display: none; }
 .maj .ic { width: 22px; height: 22px; stroke-width: 1.9; }
-.maj .age { position: absolute; top: 9px; right: 9px; width: 8px; height: 8px; border-radius: 50%; background: var(--soleil); box-shadow: 0 0 0 2px oklch(0.2 0.02 250); }
 .maj[aria-busy="true"] { color: var(--encre-s2); cursor: progress; }
 .maj[aria-busy="true"] .ic { animation: tourne 1s linear infinite; }
-@media (hover: hover) { .retour:hover, .maj:not([aria-busy="true"]):hover { background: oklch(1 0 0 / .07); } }
+/* le bouton de la voiture absent ou indisponible : grisé, il n'envoie rien */
+.maj[aria-disabled="true"] { color: var(--encre-s3); cursor: default; }
+@media (hover: hover) { .retour:hover, .maj:not([aria-busy="true"]):not([aria-disabled="true"]):hover { background: oklch(1 0 0 / .07); } }
 .hero.studio .nav-large { position: absolute; left: 50%; transform: translateX(-50%); }
 /* écran étroit : le nom et la capsule se serrent plutôt que de se toucher */
 .hero.serre .nom { font-size: 18px; letter-spacing: .02em; }
@@ -136,9 +137,14 @@
 @keyframes port { 0%, 100% { opacity: .5; transform: scale(1); } 50% { opacity: .95; transform: scale(1.3); } }
 
 /* --- Les commandes : quatre icônes et leur mot, comme l'app Kia (pas de disques) --- */
-.commandes { position: absolute; z-index: 4; left: 50%; top: 0; display: grid; grid-template-columns: repeat(var(--nc, 4), minmax(0, 1fr)); width: min(calc(100% - 2 * var(--gx)), 420px); transform: translateX(-50%); }
-.hero.studio[data-mode="large"] .commandes { width: 440px; }
-.hero.studio[data-mode="court"] .commandes { left: var(--gx); width: 292px; transform: none; }
+/* --nc : le nombre de commandes reliées (rendreCommandes) ; la rangée garde sa largeur par commande et reste centrée.
+   Des colonnes égales, mais jamais plus étroites que leur mot (texte espacé, WCAG 1.4.12). */
+.commandes { position: absolute; z-index: 4; left: 50%; top: 0; display: grid; grid-template-columns: repeat(var(--nc, 4), minmax(max-content, 1fr)); width: min(calc(100% - 2 * var(--gx)), calc(var(--nc, 4) * 105px)); transform: translateX(-50%); }
+.hero.studio[data-mode="large"] .commandes { width: calc(var(--nc, 4) * 110px); }
+/* court (téléphone à l'horizontale) : la rangée prend la largeur de ses mots, avec un écart, même si l'on espace le texte */
+.hero.studio[data-mode="court"] .commandes { left: var(--gx); width: auto; grid-template-columns: repeat(var(--nc, 4), minmax(72px, max-content)); column-gap: 8px; transform: none; }
+/* très peu de hauteur (zoom de 300 à 400 %) : les commandes passent sous le chiffre et la voiture, sur toute la largeur */
+.hero.studio.pile .commandes { left: 50%; width: min(calc(100% - 2 * var(--gx)), calc(var(--nc, 4) * 105px)); grid-template-columns: repeat(var(--nc, 4), minmax(max-content, 1fr)); column-gap: 0; transform: translateX(-50%); }
 .cmd {
   position: relative; display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 0; min-height: 66px;
   padding: 6px 0 5px; border: 0; border-radius: 16px; background: none; color: var(--encre-s);
@@ -152,6 +158,8 @@
 .cmd[aria-disabled="true"] { color: var(--encre-s3); cursor: default; }
 .cmd.allume { color: var(--clim); }
 .cmd.allume .ic-k { filter: drop-shadow(0 0 6px color-mix(in oklch, var(--clim) 60%, transparent)); animation: tourne 6s linear infinite; }
+/* allumée : un trait sous le mot (comme la page courante du menu), pas seulement une couleur */
+.cmd.allume::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 20px; height: 3px; margin-left: -10px; border-radius: 2px; background: currentColor; }
 .cmd.alerte { color: var(--alerte-s); }
 /* en attente de Home Assistant : les barres d'envoi de l'app Kia, qui s'allument tour à tour */
 .cmd[aria-busy="true"] { color: var(--encre-s3); cursor: progress; }
@@ -165,16 +173,19 @@
 .secoue { animation: secoue 300ms ease-in-out; }
 @keyframes secoue { 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
 
-/* --- Le bandeau « Commande envoyée » (en haut, comme l'app Kia) ; refusée : le message de S&A-HOME, entier --- */
+/* --- Le bandeau « Commande envoyée » (en haut, comme l'app Kia) ; refusée : le message de S&A-HOME, entier ---
+   Posé sur le chiffre, qu'il couvre en entier (placerBandeau : centré sur ses chiffres, au moins aussi haut) ; sur un
+   téléphone à l'horizontale, sur la colonne du chiffre plutôt que sur la voiture. */
 .toast {
-  position: fixed; z-index: 30; left: 50%; top: calc(env(safe-area-inset-top, 0px) + var(--toast-y, 60px));
-  width: min(calc(100vw - 32px), 440px); padding: 12px 16px; border-radius: 8px;
+  position: fixed; z-index: 30; left: var(--toast-l, 50%); top: var(--toast-y, 60px);
+  display: flex; align-items: center; box-sizing: border-box;
+  width: var(--toast-w, min(calc(100vw - 32px), 440px)); min-height: var(--toast-h, 46px); padding: 12px 16px; border-radius: 8px;
   background: oklch(0.87 0.005 235); color: oklch(0.2 0.012 250); font: 400 16px/22px var(--police); text-align: left; white-space: normal;
   box-shadow: 0 0 0 .5px oklch(0 0 0 / .12), 0 12px 32px -14px oklch(0 0 0 / .65);
-  opacity: 0; visibility: hidden; transform: translate(-50%, -6px);
+  opacity: 0; visibility: hidden; transform: translate(var(--toast-tx, -50%), -6px);
   transition: opacity .2s ease, transform .2s ease, visibility 0s linear .2s;
 }
-.toast.vu { opacity: 1; visibility: visible; transform: translate(-50%, 0); transition: opacity .2s ease, transform .2s ease; }
+.toast.vu { opacity: 1; visibility: visible; transform: translate(var(--toast-tx, -50%), 0); transition: opacity .2s ease, transform .2s ease; }
 .toast.refus { padding-left: 20px; box-shadow: inset 4px 0 0 var(--alerte-forte), 0 0 0 .5px oklch(0 0 0 / .12), 0 12px 32px -14px oklch(0 0 0 / .65); }
 
 /* ================================================================ KIA : CONTENU === */
@@ -265,9 +276,12 @@
 @media (forced-colors: active) {
   .cmd, .maj, .retour, .segments, .dlg-actions button { border: 1px solid CanvasText; }
   .cmd[aria-busy="true"] { border-style: dashed; }
+  /* indisponible : GrayText ; Clim allumée : en surbrillance (le trait sous le mot compris) */
+  .cmd[aria-disabled="true"], .maj[aria-disabled="true"] { color: GrayText; border-color: GrayText; }
+  .cmd[aria-pressed="true"]:not([aria-busy="true"]) { forced-color-adjust: none; background: Highlight !important; color: HighlightText; border-color: Highlight; }   /* survolée ou pressée comprise */
+  .cmd[aria-pressed="true"]:not([aria-busy="true"]) .ic-k { filter: none; }
   .niv-piste, .jauge .piste, .journal .jb { outline: 1px solid CanvasText; }
   .niv-rempli, .niv-lim, .niv-eclair, .port-halo, .port-coeur, .jauge .seg, .journal .jf i { forced-color-adjust: none; }
-  .maj .age { forced-color-adjust: none; background: CanvasText; }
   .j-lim { forced-color-adjust: none; background: CanvasText; }
   .j-pt { forced-color-adjust: none; background: Canvas; box-shadow: 0 0 0 2.5px CanvasText; }
   .pas button::before { border: 1px solid CanvasText; }
@@ -660,8 +674,9 @@ function rendreHero(d) {
   if (lim != null) $('niv-lim').style.setProperty('--lim', lim);
   niv.classList.toggle('charge', v.enCharge === true);
   // la ligne : l'autonomie ; pendant la charge seulement, « / 7,2 kW · vers 14 h 50 »
-  const charge = v.enCharge ? [v.mesure ? pTxt(v.borneW) : null, v.fin].filter(Boolean).join(' · ') : '';
-  const ligne = [v.km != null ? kmTxt(v.km) : '', charge].filter(Boolean).join(' <span class="sep">/</span> ');
+  // sur deux lignes (écran étroit, zoom), la coupure tombe après « / » ou « · », jamais devant
+  const charge = v.enCharge ? [v.mesure ? pTxt(v.borneW) : null, v.fin].filter(Boolean).join(`${NBSP}· `) : '';
+  const ligne = [v.km != null ? kmTxt(v.km) : '', charge].filter(Boolean).join(`${NBSP}<span class="sep">/</span> `);
   if ($('une-ligne').innerHTML !== ligne) $('une-ligne').innerHTML = ligne;
   // ce que le lecteur d'écran entend
   const etat = v.etat === 'charge'
@@ -697,7 +712,8 @@ function rendreCommandes(d) {
     if (o.inactif && !o.occupe) b.setAttribute('aria-disabled', 'true'); else b.removeAttribute('aria-disabled');
     if (SURVOL.matches) b.title = b.getAttribute('aria-label') || mot; else b.removeAttribute('title');
   };
-  cmd('d-clim', relie(ENT.clim), 'ventilateur', 'Clim', { allume: v.clim === true, presse: v.clim, occupe: v.climAttente, inactif: v.clim == null });
+  // le nom commence par le mot affiché (« Clim ») : la commande vocale « Touchez Clim » le trouve
+  cmd('d-clim', relie(ENT.clim), 'ventilateur', 'Clim', { allume: v.clim === true, presse: v.clim, occupe: v.climAttente, inactif: v.clim == null, nom: 'Clim, climatisation' });
   const verrouille = v.verrou === 'locked', ouverte = v.verrou != null && !verrouille;
   cmd('d-verrou', relie(ENT.verrou), ouverte ? 'verrouOuvert' : 'verrou', verrouille ? 'Verrouillée' : ouverte ? 'Ouverte' : 'Verrou', {
     alerte: ouverte, occupe: v.verrouAttente, inactif: v.verrou == null,
@@ -708,18 +724,23 @@ function rendreCommandes(d) {
   const possible = relie(ENT.charge) && v.interrupteur != null;
   cmd('d-debut', relie(ENT.charge), 'eclair', 'Début', { occupe: qui === 'debut', inactif: !!qui || !possible || v.enCharge !== false || v.branchee !== true || v.atteinte });
   cmd('d-fin', relie(ENT.charge), 'eclairBarre', 'Fin', { occupe: qui === 'fin', inactif: !!qui || !possible || v.enCharge !== true });
-  $('commandes').hidden = !relie(ENT.clim) && !relie(ENT.verrou) && !relie(ENT.charge);
+  // autant de colonnes que de commandes reliées : celles qui restent sont centrées sous la voiture
+  const rangee = $('commandes'), nc = [...rangee.children].filter(b => !b.hidden).length;
+  rangee.hidden = !nc;
+  if (rangee.style.getPropertyValue('--nc') !== String(nc || 1)) rangee.style.setProperty('--nc', nc || 1);
 }
 const SURVOL = window.matchMedia('(hover: hover) and (pointer: fine)');
 
-/* Actualiser (en haut à droite) : en attente jusqu'au prochain horodatage des données ; une pastille ambre si elles ont 30 min ou plus */
+/* Actualiser (en haut à droite) : en attente jusqu'au prochain horodatage des données. L'âge des données est dit par la
+   capsule seule. Le bouton de la voiture absent ou indisponible : grisé (« unknown » est l'état normal d'un bouton jamais pressé). */
 function rendreMaj(d) {
   const v = d.v, b = $('d-maj');
   b.hidden = !relie(ENT.actualiser);
-  const vieux = v.age != null && v.age >= 30 && !v.majAttente;
-  const html = icone(FLASH_MAJ > Date.now() ? 'coche' : 'actualiser') + (vieux ? '<i class="age" aria-hidden="true"></i>' : '');
+  const e = HA.e(ENT.actualiser), off = !e || e.state === 'unavailable';
+  const html = icone(FLASH_MAJ > Date.now() ? 'coche' : 'actualiser');
   if (b.innerHTML !== html) b.innerHTML = html;
   if (v.majAttente) b.setAttribute('aria-busy', 'true'); else b.removeAttribute('aria-busy');
+  if (off && !v.majAttente) b.setAttribute('aria-disabled', 'true'); else b.removeAttribute('aria-disabled');
   if (SURVOL.matches) b.title = 'Actualiser'; else b.removeAttribute('title');
 }
 
@@ -751,9 +772,41 @@ function rendreCapsule() {
    - court (téléphone à l'horizontale) : le chiffre et les commandes à gauche, la voiture à droite. */
 const AUTO = { cx: 847, cy: 490 };                                          // centre de la carrosserie (pixels de l'image)
 const IMG = { x1: 1640, y0: 11, y1: 941 };                                  // la boîte de l'image (alpha ≥ 1)
+let CADRE = null;
+
+/* Le bandeau se pose sur le chiffre, comme dans l'app Kia : centré sur l'encre de ses chiffres (de leur haut à la ligne de
+   base, mesurés dans la police affichée), assez haut pour la couvrir avec 8 px de marge, jamais sur la barre du haut. Sur
+   un téléphone à l'horizontale, il prend la colonne du chiffre (à gauche), pas la voiture. Coordonnées du document : le
+   héros est en haut de la page, le bandeau reste à cette hauteur quand la page défile. */
+const MESURE = document.createElement('canvas').getContext('2d');
+function placerBandeau() {
+  const t = $('toast'), r = document.documentElement.style;
+  if (!CADRE) return;
+  const el = $('une-v'), q = el.getBoundingClientRect(), y = q.top + window.scrollY;
+  let haut = y, bas = y + q.height;                                          // à défaut : toute la ligne du chiffre
+  const cs = getComputedStyle(el), n = parseFloat(cs.fontSize);
+  MESURE.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  const m = MESURE.measureText('0123456789');
+  if (m.fontBoundingBoxAscent != null && Number.isFinite(m.actualBoundingBoxAscent)) {
+    const base = y + (n - m.fontBoundingBoxAscent - m.fontBoundingBoxDescent) / 2 + m.fontBoundingBoxAscent;
+    haut = base - m.actualBoundingBoxAscent; bas = base + Math.max(0, m.actualBoundingBoxDescent);
+  }
+  if (CADRE.court) {
+    // la colonne du chiffre, débordant de 12 px à gauche (le premier chiffre ne touche pas le bord) et jusqu'à 4 px de la
+    // place de la voiture (le refus tient alors sur une ligne)
+    const l = Math.max(8, CADRE.gx - 12);
+    r.setProperty('--toast-l', l + 'px'); r.setProperty('--toast-tx', '0px');
+    r.setProperty('--toast-w', Math.max(CADRE.colW + 16 - l, q.right - l + 16) + 'px');
+  } else ['--toast-l', '--toast-tx', '--toast-w'].forEach(p => r.removeProperty(p));
+  r.setProperty('--toast-h', Math.max(46, Math.ceil(bas - haut + 16)) + 'px');
+  const h = t.offsetHeight;
+  r.setProperty('--toast-y', Math.round(Math.max(CADRE.bB, (haut + bas) / 2 - h / 2)) + 'px');
+}
 function cadrer() {
   const hero = $('hero');
-  const W = hero.clientWidth, H = hero.clientHeight;
+  hero.style.height = '';                                                   // la hauteur du gabarit (75svh) ; « pile » l'agrandit
+  const W = hero.clientWidth;
+  let H = hero.clientHeight;
   if (!W || !H || !SCENE) return;
   const html = document.documentElement;
   const mode = W / H < 1.15 ? 'portrait' : H < 430 ? 'court' : 'large';
@@ -776,19 +829,49 @@ function cadrer() {
   if (serre()) hero.classList.add('tres-serre');
   const bB = barre.offsetTop + barre.offsetHeight;
   let s, ix, iy, ov = 0, colW = W;
+  hero.classList.remove('pile');
   const hc = cmd.hidden ? 0 : cmd.offsetHeight;
   if (mode === 'court') {
     tete.style.setProperty('--n', (H < 260 ? 36 : 44) + 'px');
     tete.style.top = (bB + 2) + 'px';
-    const cTop = H - 6 - hc;
-    cmd.style.top = cTop + 'px';
+    const safeR = parseFloat(getComputedStyle(hero).paddingRight) || 0;
+    const y0 = bB + 2, xD = W - 12 - safeR, hImg = IMG.y1 - IMG.y0;
+    // à gauche, le chiffre en haut et les commandes en bas ; la voiture à droite
+    hero.style.setProperty('--colw', W + 'px');
     colW = gx + Math.max(tete.offsetWidth, cmd.hidden ? 0 : cmd.offsetWidth);
     hero.style.setProperty('--colw', colW + 'px');
-    const safeR = parseFloat(getComputedStyle(hero).paddingRight) || 0;
-    const x0 = colW + 20, x1 = W - 12 - safeR, y0 = bB + 2, y1 = H - 4;
-    s = Math.max(.04, Math.min((x1 - x0) / IMG.x1, (y1 - y0) / (IMG.y1 - IMG.y0)));
-    ix = (x0 + x1) / 2 - IMG.x1 / 2 * s;
-    iy = (y0 + y1) / 2 - (IMG.y0 + IMG.y1) / 2 * s;
+    let tB = y0 + tete.offsetHeight, cTop = H - 6 - hc, x0 = colW + 20;
+    if (tB + 8 <= cTop && xD - x0 >= 160) {
+      s = Math.max(.04, Math.min((xD - x0) / IMG.x1, (H - 4 - y0) / hImg));
+      ix = (x0 + xD) / 2 - IMG.x1 / 2 * s;
+      iy = (y0 + H - 4) / 2 - (IMG.y0 + IMG.y1) / 2 * s;
+    } else {
+      /* « pile » — trop peu de place (zoom de 300 à 400 %) : rien ne se superpose. Le chiffre (sur une colonne plus étroite)
+         et la voiture côte à côte, ou la voiture sur sa propre rangée si la place manque ; les commandes dessous, sur toute
+         la largeur ; le héros grandit s'il le faut (la page défile). */
+      hero.classList.add('pile');
+      hero.style.setProperty('--colw', (gx + Math.max(140, Math.round((W - 2 * gx) * .5))) + 'px');
+      colW = gx + tete.offsetWidth;
+      hero.style.setProperty('--colw', colW + 'px');
+      const tH = tete.offsetHeight;
+      tB = y0 + tH; x0 = colW + 16;
+      let basZone;
+      if (xD - x0 >= 96) {
+        s = Math.min((xD - x0) / IMG.x1, Math.max(tH, H - 14 - hc - y0) / hImg);
+        const hZ = Math.max(tH, hImg * s);
+        ix = (x0 + xD) / 2 - IMG.x1 / 2 * s;
+        iy = y0 + (hZ - hImg * s) / 2 - IMG.y0 * s;
+        basZone = y0 + hZ;
+      } else {
+        s = Math.min((W - 2 * gx) / IMG.x1, 150 / hImg);
+        ix = W / 2 - IMG.x1 / 2 * s;
+        iy = tB + 8 - IMG.y0 * s;
+        basZone = tB + 8 + hImg * s;
+      }
+      cTop = Math.max(basZone + 8, H - 6 - hc);
+      if (cTop + hc + 6 > H) { H = Math.ceil(cTop + hc + 6); hero.style.height = H + 'px'; }
+    }
+    cmd.style.top = cTop + 'px';
   } else {
     const large = mode === 'large', bas = H < 480;
     tete.style.setProperty('--n', (large ? borne(.1 * H, 56, 76) : borne(.14 * W, 46, 60)) + 'px');
@@ -796,9 +879,12 @@ function cadrer() {
     tete.style.top = tTop + 'px';
     const tB = tTop + tete.offsetHeight;
     ov = W >= 900 ? 32 : bas ? 20 : 28;
-    const cTop = H - ov - (large ? 22 : bas ? 10 : 16) - hc;
+    let cTop = H - ov - (large ? 22 : bas ? 10 : 16) - hc;
+    const y0 = tB + (bas ? 4 : 12);
+    let y1 = (cmd.hidden ? H - ov - 8 : cTop) - (bas ? 2 : 6);
+    // texte agrandi ou espacé : la voiture garde au moins 100 px de haut, le héros grandit (rien ne se superpose)
+    if (y1 - y0 < 100) { const plus = Math.ceil(100 - (y1 - y0)); H += plus; cTop += plus; y1 += plus; hero.style.height = H + 'px'; }
     cmd.style.top = cTop + 'px';
-    const y0 = tB + (bas ? 4 : 12), y1 = (cmd.hidden ? H - ov - 8 : cTop) - (bas ? 2 : 6);
     const sW = Math.min(large ? .5 * W : .88 * W, 640) / 1572;
     s = Math.max(.04, Math.min(sW, (W / 2 - 2) / AUTO.cx, (y1 - y0) / (IMG.y1 - IMG.y0)));
     ix = W / 2 - AUTO.cx * s;
@@ -807,7 +893,8 @@ function cadrer() {
   }
   html.style.setProperty('--ov', ov + 'px');
   html.style.setProperty('--pt', ov > 0 ? '0px' : (W >= 900 ? '32px' : '16px'));
-  html.style.setProperty('--toast-y', (bB + 8) + 'px');
+  CADRE = { court: mode === 'court' && !hero.classList.contains('pile'), gx, colW, bB };
+  placerBandeau();
   // la voiture : viewBox à partir du cadrage (unités : pixels de l'image)
   $('voiture').setAttribute('viewBox', `${(-ix / s).toFixed(2)} ${(-iy / s).toFixed(2)} ${(W / s).toFixed(2)} ${(H / s).toFixed(2)}`);
   // la prise : un point de 2,6 px et un halo de 9 px, quelle que soit l'échelle
@@ -956,6 +1043,7 @@ function bandeau(texte, refus = false) {
   const t = $('toast');
   t.textContent = texte;
   t.classList.toggle('refus', refus);
+  placerBandeau();                                                   // un message sur deux lignes reste centré sur le chiffre
   t.classList.add('vu');
   clearTimeout(BANDEAU);
   BANDEAU = setTimeout(() => t.classList.remove('vu'), refus ? 4500 : 2400);
@@ -1039,6 +1127,8 @@ function brancherCommandes() {
   const charger = (on, bouton) => {
     const b = $(bouton === 'debut' ? 'd-debut' : 'd-fin');
     if (!SCENE || enAttente('charge') || b.getAttribute('aria-disabled') === 'true') return;
+    // une nouvelle limite attend encore ses 800 ms : elle part d'abord (comme S&A-HOME : la limite, puis l'interrupteur)
+    if (on && LIM.minut) { clearTimeout(LIM.minut); envoyerLimite(); }
     commander('charge', 'switch', on ? 'turn_on' : 'turn_off', ENT.charge, {}, on, DELAI.commande, { bouton });
   };
   $('d-debut').addEventListener('click', () => charger(true, 'debut'));
@@ -1062,8 +1152,8 @@ function brancherCommandes() {
     commander('clim', 'switch', v.clim ? 'turn_off' : 'turn_on', ENT.clim, {}, !v.clim, DELAI.commande);
   });
   // actualiser : en attente jusqu'au prochain horodatage des données (150 s, comme kia_trajets.yaml) ; une coche 600 ms
-  $('d-maj').addEventListener('click', () => {
-    if (enAttente('actualiser')) return;
+  $('d-maj').addEventListener('click', ev => {
+    if (enAttente('actualiser') || ev.currentTarget.getAttribute('aria-disabled') === 'true') return;
     const avant = HA.e(ENT.maj)?.state ?? null;
     commander('actualiser', 'button', 'press', ENT.actualiser, {}, null, DELAI.actualiser, {
       confirme: () => (HA.e(ENT.maj)?.state ?? null) !== avant,
