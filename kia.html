@@ -295,6 +295,7 @@ svg { overflow: visible; }
 .hero[data-ciel="sombre"] .pill :is(.s, .n) { color: oklch(.80 .008 260); }
 .hero[data-ciel="sombre"] .pill .g { color: var(--c); }
 .pill.cache { opacity: 0; visibility: hidden; transition: opacity 300ms ease, visibility 0s linear 300ms; }
+a.pill { text-decoration: none; cursor: pointer; }                   /* une pastille qui ouvre une page (la borne → Kia) */
 .hero[data-mode="court"] .pill { transform: none; }
 
 /* pastilles sorties du héros (héros minuscule : zoom 400 %) : une rangée qui se replie, sur la page */
@@ -744,7 +745,7 @@ html[data-mode="court"] .bilan { margin: 12px var(--gx) 0; }
   <form method="dialog">
     <h2 id="dlg-t">Déverrouiller la Kia ?</h2>
     <div class="dlg-actions">
-      <button type="submit" value="annuler" autofocus>Annuler</button>
+      <button type="submit" value="annuler" id="dlg-annuler">Annuler</button>
       <button type="submit" value="ok" class="alerte">Déverrouiller</button>
     </div>
   </form>
@@ -787,7 +788,7 @@ const CONFIG = {
     sessionSoc: 'input_number.voltia_session_soc',                        // au branchement : niveau,
     sessionSol: 'input_number.voltia_session_sol_kwh',                    //   compteur solaire,
     sessionRes: 'input_number.voltia_session_res_kwh',                    //   compteur réseau,
-    sessionDebut: 'input_datetime.voltia_session_debut',                  //   heure
+    sessionDebut: 'input_datetime.voltia_session_debut',                  //   heure (posée par Voltia ; non affichée)
     journal: 'sensor.sa_niro_recharges',                                  // attribut sessions (la plus récente d'abord)
     // le ciel
     soleil: 'sun.sun',
@@ -1458,8 +1459,8 @@ function deriver() {
   v.branche = v.etat === 'charge' || v.etat === 'branchee' || v.etat === 'limite';
   // depuis le branchement (Voltia) : points gagnés, kWh du soleil et du réseau
   v.session = null;
-  const s0 = HA.nb(ENT.sessionSoc), deb = Date.parse(String(HA.etat(ENT.sessionDebut) || '').replace(' ', 'T'));
-  if (v.branche && s0 != null && v.soc != null && !(Number.isFinite(deb) && deb > t + 60000)) {
+  const s0 = HA.nb(ENT.sessionSoc);
+  if (v.branche && s0 != null && v.soc != null) {
     const dif = (a, b) => (a != null && b != null ? Math.max(0, a - b) : null);
     const kSol = dif(HA.nb(ENT.energieSolaire), HA.nb(ENT.sessionSol)), kRes = dif(HA.nb(ENT.energieReseau), HA.nb(ENT.sessionRes));
     const gain = v.soc - s0;
@@ -1589,12 +1590,10 @@ const SURVOL = window.matchMedia('(hover: hover) and (pointer: fine)');
 
 /* --- Capsule d'état : âge des données de la voiture (coque), connexion, valeurs d'exemple, ou commande refusée --- */
 let SANS_REPONSE = false, REFUS = 0;
-const ageCourt = a => a < 1 ? 'À l’instant' : a < 60 ? `Il y a ${Math.floor(a)}${NBSP}min` : a < 2880 ? `Il y a ${Math.floor(a / 60)}${NBSP}h` : `Il y a ${Math.floor(a / 1440)}${NBSP}j`;
-const ageLong = a => {
-  if (a < 1) return 'à l’instant';
-  const [n, u] = a < 60 ? [Math.floor(a), 'minute'] : a < 2880 ? [Math.floor(a / 60), 'heure'] : [Math.floor(a / 1440), 'jour'];
-  return `il y a ${n} ${accord(n, u)}`;
-};
+/* l'âge en minutes arrondies (S&A-HOME : ha.age), puis en heures et en jours entiers */
+const ageUnite = a => { const m = Math.round(a); return m < 1 ? null : m < 60 ? [m, 'min', 'minute'] : m < 2880 ? [Math.floor(m / 60), 'h', 'heure'] : [Math.floor(m / 1440), 'j', 'jour']; };
+const ageCourt = a => { const u = ageUnite(a); return u ? `Il y a ${u[0]}${NBSP}${u[1]}` : 'À l’instant'; };
+const ageLong = a => { const u = ageUnite(a); return u ? `il y a ${u[0]} ${accord(u[0], u[2])}` : 'à l’instant'; };
 function rendreCapsule() {
   const age = SCENE?.v.age ?? null;
   let c, long, court, sr = null;
@@ -1792,7 +1791,7 @@ const NIVEAUX = [
 ];
 const PILL_RESERVE = 150;                                         // largeur réservée de la pastille longue (« 7,2 kW · ☀ 40 % »)
 
-function cadrer() {
+function cadrer(opts = {}) {
   const hero = $('hero');
   const W = hero.clientWidth, H = hero.clientHeight;
   if (!W || !H || !SCENE) return;
@@ -1814,7 +1813,9 @@ function cadrer() {
   let s, ix, iy, ov = 0, place = 'ciel', pillTop = 0, disque = 48, rt, colW = W, bilanZone = null, gauche = gx, droite = W - gx, kTop, uH, kmTop = 0, niveau = 0;
 
   if (mode === 'portrait') {
-    const m = W < 375 ? 10 : 12, cw = Math.min(W - 2 * m, 720);
+    // largeur : marges de 12 px (10 sous 375 px), au plus 720 px, et toute l'image dans le héros (ses pixels presque
+    // transparents débordent de 61 px à gauche de la carrosserie : la marge gauche vaut au moins 61 px de l'image)
+    const m = W < 375 ? 10 : 12, cw = Math.min(W - 2 * m, 720, 1572 * W / 1694);
     let choix = null;
     for (let L = 0; L <= 3 && !choix; L++) {
       const v = NIVEAUX[Math.min(L, 1)];
@@ -1857,12 +1858,14 @@ function cadrer() {
     une.style.setProperty('--une-t', (H < 260 ? 34 : 44) + 'px');
     disque = 44; rt = H - 10 - 44;
     const gy = rt - 14;
-    s = Math.min(.58 * W / 1572, (gy - 12) / 640, gy / 752);      // gy / 752 : le haut de l'image (faiblement opaque) reste presque entier dans le héros
+    s = Math.min(.58 * W / 1572, (gy - 12) / 640, (gy - 1) / 799);      // gy / 799 : le haut de l'image (presque transparent) reste dans le héros
+    const yB = barre.offsetTop + barre.offsetHeight + 8;
+    // héros minuscule (zoom 400 %) : la marque et la capsule ne tiennent pas dans la colonne → la voiture passe sous la barre entière
+    if (opts.barreLibre) s = Math.min(s, (gy - yB - 4) / 640);
     ix = W - 16 - safeR - AUTO.x1 * s; iy = gy - AUTO.sol * s;
     colW = ix + AUTO.x0 * s - 16;
     hero.style.setProperty('--colw', colW + 'px');
     // la barre s'étend vers la droite tant que la voiture reste sous elle
-    const yB = barre.offsetTop + barre.offsetHeight + 8;
     let xr = W - gx;
     for (let x = gx; x <= W - gx; x += 4) if (silhouetteAuto(x, { s, ix, iy }) < yB) { xr = x - 8; break; }
     barre.style.width = Math.max(colW - gx, xr - gx) + 'px';
@@ -1962,6 +1965,7 @@ function cadrer() {
   if (gene()) cap.classList.add('court');
   if (gene() && vu(nav)) hero.classList.add('sans-nav');
   if (gene()) hero.classList.add('sans-nom');
+  if (gene() && mode === 'court' && !opts.barreLibre) return cadrer({ barreLibre: true });
   // le logo : retour à l'accueil (chevron) tant que le menu n'est pas affiché
   marque.setAttribute('aria-label', vu(nav) ? 'Breezy, accueil' : 'Retour à l’accueil');
 
@@ -2192,7 +2196,7 @@ function brancherCommandes() {
   $('d-verrou').addEventListener('click', () => {
     const v = SCENE?.v;
     if (!v || enAttente('verrou') || v.verrou == null) return;
-    if (v.verrou === 'locked') { dlg.returnValue = ''; dlg.showModal(); }
+    if (v.verrou === 'locked') { dlg.returnValue = ''; dlg.showModal(); $('dlg-annuler').focus(); }       // le focus commence sur Annuler
     else commander('verrou', 'lock', 'lock', ENT.verrou, {}, 'locked', DELAI.voiture);
   });
   dlg.addEventListener('close', () => {

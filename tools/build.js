@@ -19,7 +19,8 @@ const CONNUS = ['INCLURE', 'MAISON_SVG'];
 
 class ErreurBuild extends Error {}
 const echec = msg => { throw new ErreurBuild(msg); };
-const lire = (f, quoi) => { if (!fs.existsSync(f) || !fs.statSync(f).isFile()) echec(`${quoi} introuvable : ${path.relative(process.cwd(), f)}`); return fs.readFileSync(f); };
+const joli = f => { const r = path.relative(process.cwd(), f); return r && !r.startsWith('..') ? r : f; };
+const lire = (f, quoi) => { if (!fs.existsSync(f) || !fs.statSync(f).isFile()) echec(`${quoi} introuvable : ${joli(f)}`); return fs.readFileSync(f); };
 const milliers = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
 /* les marqueurs d'un texte qui ne sont pas connus : <!--NOM …--> (sans espace après <!--) et {{NOM …}} */
@@ -58,8 +59,7 @@ function construire(gabarit, sortie, opts = {}) {
   for (const reste of ['<!--INCLURE', '{{DATA', '<!--MAISON_SVG-->']) if (html.includes(reste)) echec(`marqueur non remplacé dans ${sortie} : ${reste}`);
 
   fs.writeFileSync(sortie, html);
-  const rel = path.relative(process.cwd(), path.resolve(sortie));
-  console.log(`wrote ${rel && !rel.startsWith('..') ? rel : sortie} ${milliers(fs.statSync(sortie).size)} bytes`);
+  console.log(`wrote ${joli(path.resolve(sortie))} ${milliers(fs.statSync(sortie).size)} bytes`);
 }
 
 function principal(args) {

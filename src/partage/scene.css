@@ -150,6 +150,7 @@
 .hero[data-ciel="sombre"] .pill :is(.s, .n) { color: oklch(.80 .008 260); }
 .hero[data-ciel="sombre"] .pill .g { color: var(--c); }
 .pill.cache { opacity: 0; visibility: hidden; transition: opacity 300ms ease, visibility 0s linear 300ms; }
+a.pill { text-decoration: none; cursor: pointer; }                   /* une pastille qui ouvre une page (la borne → Kia) */
 .hero[data-mode="court"] .pill { transform: none; }
 
 /* pastilles sorties du héros (héros minuscule : zoom 400 %) : une rangée qui se replie, sur la page */

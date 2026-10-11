@@ -299,6 +299,7 @@ svg { overflow: visible; }
 .hero[data-ciel="sombre"] .pill :is(.s, .n) { color: oklch(.80 .008 260); }
 .hero[data-ciel="sombre"] .pill .g { color: var(--c); }
 .pill.cache { opacity: 0; visibility: hidden; transition: opacity 300ms ease, visibility 0s linear 300ms; }
+a.pill { text-decoration: none; cursor: pointer; }                   /* une pastille qui ouvre une page (la borne → Kia) */
 .hero[data-mode="court"] .pill { transform: none; }
 
 /* pastilles sorties du héros (héros minuscule : zoom 400 %) : une rangée qui se replie, sur la page */
@@ -517,7 +518,7 @@ html[data-mode="court"] .bilan { margin: 12px var(--gx) 0; }
         <span class="marque-nom">Breezy</span>
       </a>
       <nav class="nav-large" aria-label="Navigation principale">
-        <a href="#" aria-current="page">Accueil</a><a href="#">Batterie</a><a href="#">Énergie</a><a href="#">Économies</a>
+        <a href="index.html" aria-current="page">Accueil</a><a href="#">Batterie</a><a href="kia.html">Kia</a><a href="#">Énergie</a><a href="#">Économies</a>
       </nav>
     </div>
     <!-- État des données : en direct (coque Home Assistant) ou valeurs d'exemple (page ouverte seule) -->
@@ -1184,6 +1185,7 @@ const CONFIG = {
     batterieMax: 'number.solarflow_2400_ac_soc_set',                      // % : la limite haute de charge (« pleine vers » compte jusqu'à 100 %, comme S&A-HOME)
     reseau: 'sensor.te31njn2n154747_l3_p',                                // W signés, + = import / − = export (Smart3CT L3)
     voiture: 'sensor.te31njn2n154747_l2_p',                               // W à la borne de la Kia (Smart3CT L2)
+    kia: 'sensor.e_niro_e_niro_e_niro_ev_battery_level',                  // % de la Kia (la ligne « Kia », vers kia.html)
     soleil: 'sun.sun',
     meteo: ['weather.homelyvibes_sa', 'weather.forecast_maison', 'weather.forecast_home'],   // la première qui existe
     // le bilan et la courbe du jour
@@ -1795,6 +1797,7 @@ function etatsExemple(nom) {
   pose(ENT.batterieMax, 100, { unit_of_measurement: '%' });
   pose(ENT.reseau, A.reseau, { unit_of_measurement: 'W' });
   pose(ENT.voiture, A.borne, { unit_of_measurement: 'W' });
+  pose(ENT.kia, 64, { unit_of_measurement: '%' });
   pose(ENT.productionJour, prod.toFixed(2), { unit_of_measurement: 'kWh' });
   pose(ENT.previsionJour, prev.toFixed(2), { unit_of_measurement: 'kWh', detailedForecast: det });
   const auto = prod * A.auto, eco = auto * EXEMPLE.prix;
@@ -1946,20 +1949,27 @@ function rendrePastilles(d) {
     let pill = ul.querySelector(`.pill[data-noeud="${id}"]`);
     if (!pill) {
       const li = document.createElement('li');
-      li.innerHTML = `<span class="pill cache" data-noeud="${id}" aria-hidden="true"></span><span class="sr-only"></span>`;
+      // la borne : un lien vers la page Kia (son libellé est celui du lien) ; les autres : une valeur, doublée pour le lecteur d'écran
+      li.innerHTML = id === 'borne' ? `<a class="pill cache" data-noeud="${id}" href="kia.html" tabindex="-1"></a>`
+        : `<span class="pill cache" data-noeud="${id}" aria-hidden="true"></span><span class="sr-only"></span>`;
       ul.appendChild(li);
       pill = li.firstChild;
       pill.addEventListener('pointerenter', () => pulserAncre(id));
     }
-    const li = pill.parentElement, P = L.find(x => x.id === id);
+    const li = pill.parentElement, P = L.find(x => x.id === id), lien = pill.tagName === 'A';
     // pastille absente : son <li> sort de la liste (lecteur d'écran), la pastille s'efface en fondu
-    if (!P) { pill.classList.add('cache'); li.setAttribute('aria-hidden', 'true'); li.lastChild.textContent = ''; continue; }
+    if (!P) {
+      pill.classList.add('cache'); li.setAttribute('aria-hidden', 'true');
+      if (lien) { pill.setAttribute('tabindex', '-1'); pill.removeAttribute('aria-label'); } else li.lastChild.textContent = '';
+      continue;
+    }
     li.removeAttribute('aria-hidden');
     pill.className = 'pill';
     pill.style.setProperty('--c', P.c); pill.style.setProperty('--ct', P.ct);
     const html = `<span class="g">${icone(P.g)}</span><span class="long">${P.nom ? `<span class="n">${P.nom}</span>` : ''}${seg(P.long)}</span><span class="court">${seg(P.court)}</span>`;
     if (pill.innerHTML !== html) pill.innerHTML = html;
-    if (li.lastChild.textContent !== P.label) li.lastChild.textContent = P.label;
+    if (lien) { pill.removeAttribute('tabindex'); pill.setAttribute('aria-label', `${P.label}. Ouvrir la page Kia`); }
+    else if (li.lastChild.textContent !== P.label) li.lastChild.textContent = P.label;
   }
 }
 function pulserAncre(id) {
@@ -2861,12 +2871,14 @@ function majHTML(el, html) {
 }
 function rendreLignes(d) {
   // la valeur d'une ligne : « — » si l'entité ne répond pas, rien si elle n'est pas reliée
+  const kia = HA.nb(ENT.kia);
   const L = [
     d.aBatterie ? ['batterie', 'Batterie', !ENT.socBatterie ? '' : d.soc != null ? `${pct(d.soc)}${NNBSP}%` : '—'] : null,
+    ENT.kia ? ['voiture', 'Kia', kia != null ? `${pct(kia)}${NNBSP}%` : '—', 'kia.html'] : null,
     ['graphique', 'Énergie', ''],
     ['feuille', 'Économies', !ENT.eco.mois ? '' : d.bilan.ecoMois != null ? `${euros(d.bilan.ecoMois)}${NBSP}€ ce mois` : '—']
   ].filter(Boolean);
-  majHTML($('lignes'), L.map(([ic, t, v]) => `<li><a href="#">${icone(ic)}<span class="l1">${t}</span><span class="lv">${v}</span>${icone('chevron', 'ic chev')}</a></li>`).join(''));
+  majHTML($('lignes'), L.map(([ic, t, v, href = '#']) => `<li><a href="${href}">${icone(ic)}<span class="l1">${t}</span><span class="lv">${v}</span>${icone('chevron', 'ic chev')}</a></li>`).join(''));
 }
 
 /* ================================================================ RENDU === */
